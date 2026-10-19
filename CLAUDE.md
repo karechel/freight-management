@@ -42,7 +42,7 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 - **Installed versions (read from node_modules on 2026-10-15; identical to the `package-lock.json` resolved versions):** `prisma` 8.0.0-rc.17, `@prisma/orm-postgres` 8.0.0-rc.12, `@prisma/client` 7.10.0 (installed but **unused**), `dotenv` 17.4.2 (transitive only), `@nestjs/cli` 12.0.6, Vitest 4.1.11, oxlint 1.85.0. `package.json` files use caret ranges; the lockfiles pin the exact versions.
 - **Node.js version:** required version **unknown / not specified** (no `engines` field in either `package.json`, no `.nvmrc` or `.node-version`). This needs a project decision (§16.6). Observed on the local clone with Git identity Sean Macharia: Node v24.20.0, npm 11.19.0. This is an observation, not a requirement.
 - **Backend conventions:** ESM (`"type": "module"`), relative imports use `.js` suffix, top-level await in `main.ts`, Prettier (single quotes, trailing commas), oxlint type-aware.
-- **Frontend:** stock `create-next-app` + one page. Before writing Next.js code, read `Frontend/frontend/node_modules/next/dist/docs/` (this Next.js version has breaking changes — see `Frontend/frontend/AGENTS.md`).
+- **Frontend:** App Router app with a shared shell (`components/layout/`), shared UI (`components/ui/`), typed domain model (`lib/types.ts`), data-access layer (`lib/data/index.ts`, demo data only) and a thin API client (`lib/api/client.ts`, only `GET /health` is live). See LOG-20261019-1503-frontend-decisions and `Frontend/frontend/docs/api-contracts.md`. No new dependencies. Before writing Next.js code, read `Frontend/frontend/node_modules/next/dist/docs/` (this Next.js version has breaking changes — see `Frontend/frontend/AGENTS.md`).
 - **Not present:** auth, validation pipe, exception filters, logging config, file storage, integrations, CI, Docker, deployment config.
 
 ## 4. Repository structure and important files
@@ -78,7 +78,8 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Feature | Status | Evidence / notes |
 |---|---|---|
 | Backend `GET /health` | Implemented, unverified | `app.controller.ts`; unit test exists, not run in audit |
-| Frontend → backend health check | Implemented, unverified | `Frontend/frontend/app/page.tsx` |
+| Frontend → backend health check | Implemented, unverified | Originally `Frontend/frontend/app/page.tsx`; moved (2026-10-19) to `lib/api/client.ts` + `components/layout/api-status.tsx` (top bar, System status page). Backend `/health` returned HTTP 200 to curl on the collaborator's machine; the browser path was not exercised |
+| Frontend shell, dashboard and core screens (demo data) | Implemented; build and link crawl verified, not visually reviewed (branch `feature/frontend-foundation`, committed and pushed per LOG-20261019-1553-frontend-review; not merged to `main`) | Routes `/`, `/shipments`, `/shipments/[reference]`, `/quotations`, `/documents`, `/customs`, `/parties`, `/finance`, `/settings`. All data is fictional demo data, labelled in the UI. See LOG-20261019-1503-frontend-decisions |
 | `DATABASE_URL` env validation | Implemented, unverified | `src/config/env.validation.ts` + spec, not run in audit |
 | `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD |
 | `GET /` list all users | Implemented, unverified — **security concern** (see §12) | `app.service.ts` |
@@ -99,7 +100,7 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 6. Core domain: customers → shipments/jobs → documents (private storage) → tracking.
 7. Finance, then integrations (M-Pesa sandbox first; KRA iCMS once access is confirmed).
 
-**Authorized phases:** none beyond documentation (see activity log).
+**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3). Nothing else.
 
 ## 7. Database and integration notes
 
@@ -131,6 +132,10 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 | Each developer has their own local DB and `.env`; no shared dev DB (2026-10-15) | Collaborator instruction, 2026-10-15 |
 | Generated Prisma contract files are never hand-edited | Repo (generated-file headers) |
 | Only `.env.example` files are committed | Repo (`.gitignore` files) |
+| Frontend development authorized; backend, schema, integrations, deploy not authorized (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
+| Application code on feature branches; commit/push only with explicit approval; no force-push (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
+| No Node/Prisma/dependency version changes without a separate decision (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
+| Role labels ("repository owner", "collaborator") in shared docs; no personal emails (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
 
 ## 10. Setup and safe development commands
 
@@ -161,7 +166,7 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 5. `dotenv` imported (`main.ts`, `db.ts`, `prisma.config.ts`) but not a declared dependency.
 6. `Backend/backend/src/prisma/db.ts` creates the Prisma client at import time using `DATABASE_URL!` (non-null assertion, no validation in that path); the connection itself opens lazily on the first query (`@prisma/orm-postgres/dist/runtime.mjs`, `getRuntime()`). The e2e test imports `AppModule` directly and therefore bypasses `validateEnv()`.
 7. `deploy` script (`nest deploy`) deploys to the cloud via NestJS Mau (verified from `@nestjs/cli` source). Whether this incurs cost is unknown from the repo; treat it as potentially paid and do not run it.
-8. CORS origin hard-coded; frontend has no fallback for unset `NEXT_PUBLIC_API_URL`.
+8. CORS origin hard-coded. (Since 2026-10-19 the frontend shows an "API not configured" state when `NEXT_PUBLIC_API_URL` is unset, instead of failing.)
 9. TS2307 in e2e test; Prettier drift: `--check` flags 10 files on a working copy checked out with CRLF (`core.autocrlf=true`, a per-machine Git setting), while committed files are LF (`git ls-files --eol`). Ignoring line endings (`--end-of-line auto`), 8 files are flagged, including the generated `src/prisma/contract.d.ts`. No `.gitattributes` exists, so line endings depend on each developer's Git config. No CI; boilerplate READMEs/metadata; TS 5.9 (frontend) vs 6.0 (backend).
 10. No requirements document or phase definitions in the repo.
 11. `.env.example` uses placeholder DB name `freight_management`; developers' actual DB names may differ (expected — placeholder only).
@@ -316,14 +321,59 @@ Entry template:
 - Working-tree status after: expected clean; verify with `git status`.
 - Earlier entries that say "Commit: not committed" were accurate when written; their changes are all included in this commit.
 
+### LOG-20261019-1503-frontend-decisions — §16.6 decisions recorded; frontend foundation and core screens built
+- Time: work started 2026-10-19 14:46:06 +03:00; this entry written 2026-10-19 15:03:04 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator for frontend development and for recording the §16.6 decisions in `CLAUDE.md`.
+- Preflight (Git evidence): repo root `C:/Users/HP/Documents/freight-management-sister`, `origin` = `https://github.com/karechel/freight-management.git`, branch `main`, working tree clean, no stashes. `git fetch origin` → no changes; `main` = `origin/main` = `883f93b` (0 ahead / 0 behind).
+- **Confirmation for LOG-20261015-2318-finalize:** the commit "docs: finalize freight management handover" is `883f93b` (parent `42ae8a8`). `git ls-remote origin` shows `refs/heads/main` = `883f93b`, and `.git/logs/refs/remotes/origin/main` on this clone records "update by push" `42ae8a8 → 883f93b` at 2026-10-15 23:19:59 +03:00. The push succeeded.
+- What changed:
+  - `CLAUDE.md`: §16.6 decisions note (original questions unchanged); §3 frontend line; §5 frontend rows; §6 authorized phases; §9 new decisions; §12 item 8; §14; this entry.
+  - Created local branch `feature/frontend-foundation` from `883f93b` (not pushed).
+  - Frontend (all under `Frontend/frontend/`): app shell with responsive sidebar/mobile drawer and top bar; live API status pill (`GET /health`); dashboard (6 KPI cards linking to filtered views, filterable shipment table, pipeline breakdown, pending tasks, integrations summary, activity feed); screens for shipments list (search + view/mode filters synced to URL), shipment detail (milestones, exceptions, documents, customs, costs), quotations & bookings, documents (status/type filters), customs & duties, customers & agents, invoices & payments, system status; `loading`, `error` and `not-found` states. Every data page shows a "Demonstration data" banner; KRA iCMS, M-Pesa, document storage, auth and portals are labelled pending/not built. There are no create/save buttons, because no write endpoints exist.
+- Files edited: `CLAUDE.md`, `Frontend/frontend/app/layout.tsx`, `app/page.tsx`, `app/globals.css`, `.env.example` (comment only).
+- Files created (under `Frontend/frontend/`): `app/{error,loading,not-found}.tsx`; `app/{shipments,quotations,documents,customs,parties,finance,settings}/page.tsx`; `app/shipments/[reference]/page.tsx`; `components/layout/{app-shell,sidebar,api-status}.tsx`, `components/layout/nav-items.ts`; `components/ui/{badge,card,kpi-card,page-header,states,table,detail-list,icons}.tsx`; `components/dashboard/panels.tsx`; `components/shipments/{shipment-table,shipment-explorer,milestone-timeline}.tsx`; `components/documents/document-list.tsx`; `components/settings/backend-health-card.tsx`; `lib/types.ts`, `lib/labels.ts`, `lib/format.ts`, `lib/metrics.ts`, `lib/api/client.ts`, `lib/data/index.ts`, `lib/data/demo-data.ts`; `docs/api-contracts.md`. Deleted: none.
+- Not changed: backend source/tests, Prisma files, migrations, package manifests and lockfiles, `AGENTS.md`, Git config.
+- Database/schema changes: none · Dependency changes: none.
+- Commands that changed project state: `git switch -c feature/frontend-foundation`; `npx next typegen` and `npx next build` (write only to the git-ignored `Frontend/frontend/.next/`).
+- Checks run and results (frontend): `npx tsc --noEmit --incremental false` → pass (it first failed with TS2344 on `PageProps` route types until `next typegen` generated them); `npx eslint` → pass; `npx next build` → success, 11 routes. With `next start -p 3100`, curl returned HTTP 200 for all 11 app URLs tested and 404 for an unknown route; an unknown shipment reference renders the not-found UI with HTTP 200, because `loading.tsx` streaming starts before `notFound()`. `curl localhost:3001/health` → 200 (a backend was already running locally). Not done: no visual/browser review, no accessibility audit tooling, no backend checks.
+- Known failures / outstanding: backend TS2307 (`supertest/types`) unchanged and out of scope; `GET /` exposure unchanged; no auth.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: branch `feature/frontend-foundation`; modified and untracked files as listed above; nothing staged.
+
+### LOG-20261019-1553-frontend-review — Frontend review fixes; commit and push of `feature/frontend-foundation`
+- Time: review started after LOG-20261019-1503-frontend-decisions; this entry written 2026-10-19 15:53:07 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`. Exact start time of the review not recorded.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). The collaborator authorized a frontend-only review with fixes (scope `Frontend/frontend/`), then authorized this `CLAUDE.md` entry and a commit and push.
+- Pre-edit checks: branch `feature/frontend-foundation`; uncommitted work from LOG-20261019-1503-frontend-decisions present and preserved. `git fetch origin` at 15:53 → `main` = `origin/main` = `883f93b`; no remote branches other than `main`; no stashes.
+- Review method: read `Frontend/frontend/AGENTS.md` and the Next.js docs (`loading.md` status codes, `not-found.md`, route-matcher source); confirmed every Tailwind class used is present in the built CSS; crawled all internal links on the eight top-level pages with curl against `next start -p 3100`; tested edge-case URLs; checked labels, focus states and contrast by code and HTML inspection.
+- Issues found and fixed (all in `Frontend/frontend/`):
+  1. `app/shipments/[reference]/page.tsx`: route params were decoded twice (Next.js already decodes them), so `/shipments/A%2520B` resolved to "A B". The extra `decodeURIComponent` was removed.
+  2. `app/shipments/page.tsx`: the `?view=` and `?mode=` checks used `in`, which accepted inherited keys (`?view=toString` showed an empty list). They now use `Object.hasOwn`.
+  3. `lib/data/index.ts`, `lib/data/demo-data.ts`: hand-typed party "active shipments" and "outstanding" figures disagreed with the shipment and invoice data (e.g. Mlima 2 vs 1, Indigo Ocean Lines 4 vs 5). They are now derived from the demo shipments and invoices, and the hand-typed values were removed.
+  4. `app/page.tsx`: the "In customs clearance" KPI linked to `/customs` (all active shipments) instead of the 5 it counts. It now links to `/shipments?view=customs`.
+  5. `lib/api/client.ts`: requests had no timeout, so "Checking API…" could persist indefinitely. Requests now abort after 8 s and show "API unavailable".
+  6. `components/layout/app-shell.tsx`: the mobile drawer now moves focus to its close button when opened and returns focus to the menu button when closed; the rest of the page is `inert` while it is open.
+  7. `components/ui/table.tsx`: horizontally scrollable tables are now focusable named regions (keyboard scrolling on narrow screens).
+  8. `components/shipments/shipment-explorer.tsx`, `components/documents/document-list.tsx`: input focus outline is now solid (was 30 % opacity); placeholder text darkened for contrast.
+  9. `app/loading.tsx`, `components/ui/states.tsx`, `components/layout/api-status.tsx`: the loading state is a `role="status"` with screen-reader text; pulse animations only run with `motion-safe`.
+- Files edited: the 13 frontend files named above, plus `CLAUDE.md` (this entry, §5 frontend row, §14). Created/deleted: none. Nothing else outside `Frontend/frontend/` was changed.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Commands that changed project state: `npx next build` (git-ignored `.next/` only). I stopped my own leftover `next start -p 3100` processes: the first had survived from the previous session because stopping the background task did not kill its `node` child. Each was confirmed by its command line before `Stop-Process`. No server was left running.
+- Checks run and results (final run, after all fixes): `npx tsc --noEmit --incremental false` → pass; `npx eslint` → pass; `npx next build` → success, 11 routes. Curl against `next start -p 3100`: all 9 app routes tested → 200; `/nowhere` → 404; link crawl → 30 unique internal links, no broken links and no not-found pages; `?view=toString` → falls back to the default view; `/shipments/A%2520B` → title "A%20B"; `/shipments/NOPE` → not-found UI with HTTP 200 (`noindex`; documented Next.js streaming behaviour with `loading.tsx`).
+- Known failures / outstanding: a malformed percent-encoded dynamic URL (e.g. `/shipments/%E0%A4%A`) returns HTTP 500 from inside Next.js route matching, before app code runs; not fixed (it would need a `proxy` file running on every request). No visual or browser review, light theme only, no backend endpoints or auth, `GET /` exposure and backend TS2307 unchanged.
+- Commit: all work from LOG-20261019-1503-frontend-decisions and this entry is committed together on `feature/frontend-foundation` (parent `883f93b`) as "feat(frontend): app shell, dashboard and core screens with demo data". A file cannot record its own hash; see `git log -1 feature/frontend-foundation`. Earlier entries that say "Commit: not committed" were accurate when written.
+- Pushed: a normal (non-force) `git push -u origin feature/frontend-foundation` runs after this commit. `main` is not changed and nothing is merged. Verify with `git ls-remote origin refs/heads/feature/frontend-foundation`. If the push failed, the next log entry must say so.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
-- **Git state:** before this file was committed, `main` and `origin/main` were both at `42ae8a8` (`git fetch origin` at about 23:18 +03:00 on 2026-10-15; 0 ahead / 0 behind). This file is added to `main` by the commit "docs: finalize freight management handover" (see LOG-20261015-2318-finalize). A file cannot contain its own commit hash or push result, so check them with `git log -1 -- CLAUDE.md` and `git ls-remote origin refs/heads/main`.
-- **Authorized work:** documentation only. No feature or Phase 0 work is authorized, and no application code has been changed since `42ae8a8`.
+- **Git state (2026-10-19 15:53 +03:00):** `main` = `origin/main` = `883f93b` (unchanged). The frontend work and these `CLAUDE.md` updates are committed on `feature/frontend-foundation` and pushed to `origin` as a separate branch (LOG-20261019-1553-frontend-review). They are **not merged into `main`**; merging needs a decision, ideally after the repository owner reviews it (e.g. via a pull request). Verify with `git log` and `git ls-remote origin`.
+- **Authorized work:** frontend development (collaborator, 2026-10-19). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push of frontend work requires explicit collaborator approval.
+- **Frontend state:** shell, dashboard and core screens built with fictional demo data, labelled throughout (§5). The only live backend call is `GET /health`. Missing endpoint contracts: `Frontend/frontend/docs/api-contracts.md`.
 - **Most important open security issue:** unauthenticated `GET /` returns every `User` row (§12 item 1). Not fixed; it must be removed or protected before any real data is stored.
 - **Documentation audit:** §16 (2026-10-15). Necessary corrections applied (LOG-20261015-2305-corrections); Recommended corrections applied (LOG-20261015-2310-corrections). Pre-commit consistency review done (LOG-20261015-2314-consistency): §16 now carries dated notes marking its "not modified / NOT applied" statements as historical; the findings themselves are preserved unchanged.
-- **Unresolved (needs human input, see §16.6):** operator/contributor identity confirmation and preferred naming; required Node.js version; Phase 0 scope and authorized phases; owner's local DB state and how the `User` table was created; line-ending policy; whether to keep the `deploy` script; Prisma RC vs stable and `@prisma/client` 7; KRA iCMS / M-Pesa sandbox access; how `CLAUDE.md` should be committed.
-- **Next recommended action:** both contributors pull this commit (when authorized) and read this file; answer the §16.6 questions; then decide whether to authorize Phase 0 hygiene (§6 item 2), starting with removing or protecting `GET /`.
+- **Decided 2026-10-19 (§16.6 decisions note):** naming convention, collaborator confirmation, frontend scope, Node (observed only), line-ending preference, Prisma freeze, integration labelling, commit strategy.
+- **Still unresolved:** "Phase 0" definition; agreed Node.js version; the repository owner's DB state and how the `User` table was created; keep/remove the `deploy` script; Prisma RC vs stable and `@prisma/client` 7; KRA iCMS / M-Pesa access; the repository owner's own confirmation of these decisions.
+- **Next recommended action:** review the frontend in a browser (`npm run dev` in `Frontend/frontend`, with the backend on 3001 for the health check), including on a phone-width screen; then decide whether to open a pull request from `feature/frontend-foundation` into `main` for the repository owner to review. Separately, decide whether to authorize backend work, starting with removing or protecting `GET /` and then the endpoints in `docs/api-contracts.md`.
 
 ## 15. Maintaining this document
 
@@ -529,6 +579,18 @@ After the Necessary corrections in 16.5 are reviewed and applied, the file is su
 ### 16.6 Missing information and unresolved questions
 
 > Current status (2026-10-15 23:18:51 +03:00, LOG-20261015-2318-finalize): **all ten questions below remain open.** None has been answered in the repository or in any recorded session. Do not treat any of them as decided.
+>
+> **Decisions recorded 2026-10-19 15:03:04 +03:00 (LOG-20261019-1503-frontend-decisions).** The collaborator answered the ten questions. The original questions are kept below unchanged. Decisions vs. still-unknown facts:
+> 1. **Naming:** use role labels ("repository owner", "collaborator") in shared docs. No personal emails. Git author names and usernames are Git metadata, not proof of identity. The collaborator states the repository owner is their sister.
+> 2. **Collaborator:** the collaborator confirms they operate these sessions. Local Git identity "Sean Macharia" is Git metadata only; do not change Git identity settings without asking.
+> 3. **Scope:** authorized: **frontend development** (shell, dashboard, core screens, connecting to existing endpoints). Not authorized: backend implementation, schema changes, live integrations, deployment, unrelated Phase 0 cleanup. "Phase 0" itself remains undefined.
+> 4. **Node.js:** v24.20.0 is the collaborator's observed environment, **not** an agreed requirement. No `engines` field or version change.
+> 5. **Owner's database:** **unknown** (existence, contents, setup). Each contributor uses their own local DB/env. No DB-writing or Prisma migration commands during frontend work.
+> 6. **Line endings:** prefer LF in committed files; avoid noisy line-ending diffs; no global Git config changes; add `.gitattributes` only if genuinely needed with a narrow, explained change. (None added so far.)
+> 7. **`deploy` script:** do not run; keep/remove remains **undecided**; leave unchanged.
+> 8. **Prisma:** no upgrade/downgrade/removal now; preserve lockfiles and the Prisma 8 contract architecture. A stable migration or removal of `@prisma/client` 7 needs a separate decision.
+> 9. **KRA iCMS / M-Pesa:** access status **unknown**. UI shows them as pending; only clearly labelled demo data; no fake integrations, no secrets.
+> 10. **Commits:** the earlier direct-to-`main` authorization was for the documentation handover only. New application code goes on a feature branch and is committed/pushed only with explicit collaborator approval; never force-push.
 
 1. Should contributor names and emails appear in the log, and in what form (full name, first name, role)? Confirm the owner's preferred identifier (AUDIT-003/004/010).
 2. Is Sean Macharia the collaborator operating these sessions? Please confirm explicitly.
