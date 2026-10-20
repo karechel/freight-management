@@ -559,9 +559,67 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Backend: untouched.
 - Checks: the full frontend checks from LOG-20261021-0128-precommit-review (tsc, eslint, build, 22/22 logic groups, 25/25 page headings). No code has changed since. No browser testing has been done.
 
+### LOG-20261021-0131-push-confirmed — Commit and push result for LOG-20261021-0130-commit-phases
+- Time: 2026-10-21 01:31:31 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5), same session.
+- Commit:
+  - `5e2910f` (`5e2910f1c436676707ffbb003e7a6d9720c30ba9`), parent `46ad529`, author time 2026-10-21 01:31:09 +03:00.
+  - 71 files changed (47 created), 7,249 insertions, 574 deletions. Working tree clean afterwards.
+- Push:
+  - `git ls-remote` showed the remote branch still at `46ad529` immediately before. A normal `git push origin feature/frontend-foundation` then reported `46ad529..5e2910f`.
+  - Afterwards `git ls-remote origin`: `refs/heads/feature/frontend-foundation` = `5e2910f`, `refs/heads/main` = `883f93b` (unchanged), `HEAD` = `883f93b`. `.git/logs/refs/remotes/origin/feature/frontend-foundation` records "update by push" `46ad529 → 5e2910f` at 2026-10-21 01:31:21 +03:00.
+  - No force push, no merge, `main` untouched.
+- The npx cache folder `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` is still in place, as instructed.
+- Files edited: `CLAUDE.md` (this entry and §14 only). **This entry is uncommitted**, because a commit cannot record its own push. It should go into the next commit.
+- Database/schema changes: none · Dependency changes: none.
+- Commit: not committed (this entry) · Pushed: no (this entry).
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-0144-pr-draft — Pull request description drafted; fresh-clone check of the pushed branch
+- Time: started 2026-10-21 01:35:21 +03:00; entry written 01:44:21 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Instruction: "draft the pull request description. make sure my sister will be able to pull all of this" (the repository owner).
+- Read-only checks:
+  - `git fetch origin` → nothing new. `git ls-remote` → `main` = `883f93b`, `feature/frontend-foundation` = `5e2910f`.
+  - The branch is 2 commits ahead of `origin/main`, and `origin/main` is an ancestor (`git merge-base --is-ancestor`), so a pull request merges without conflicts.
+  - The GitHub CLI (`gh`) is not installed, so the PR was not opened and the repository owner's GitHub permissions were not queried.
+- **Fresh-clone verification** (in the session scratchpad, outside the repository):
+  - First attempt: `git clone --branch feature/frontend-foundation` checked out incompletely. 136 files, including backend files, showed as deleted, and Git advised `git restore`.
+    - Cause: the scratchpad path (146 characters) plus the repository's longest path (`Backend/backend/migrations/snapshots/<hash>/contract.json`, 115 characters, from the initial commit) exceeds the Windows 260-character limit.
+    - The longest path added in phases 1–3 is 74 characters (`Frontend/frontend/app/shipments/[reference]/delays/[delayId]/edit/page.tsx`).
+    - Not a repository problem, but relevant to anyone cloning into a deep folder on Windows. It is documented in the PR description.
+  - Second attempt, with `core.longpaths=true` set **for that clone only** (no global Git config change):
+    - Clean checkout. Tree identical to local `5e2910f`; 104 tracked frontend files.
+    - `npm ci` in `Frontend/frontend` → exit 0; Next.js 16.3.5; lockfile unchanged. npm 11 reported that `unrs-resolver@1.12.2`'s postinstall script was not run because it is not on npm's allow-list; no effect on lint or build.
+    - `npx next typegen` → ok; `tsc --noEmit` → exit 0; `eslint` → exit 0; `next build` → exit 0, 19 route entries. The clone stayed clean afterwards.
+    - Finding for the setup instructions: standalone `tsc` needs Next's generated route types first (`next typegen`, `dev` or `build`); otherwise TS2344 (as in LOG-20261019-1503-frontend-decisions).
+  - The test clone (508 MB, its `node_modules` included) was deleted afterwards. It was the session's own folder created minutes earlier; its remote URL was checked before deletion.
+- **PR description** saved outside the repository at the session scratchpad `pr-description.md`, for the collaborator to paste into GitHub. Contents:
+  - Summary and demo-only warning; what each phase includes.
+  - Exact pull and run commands (`git fetch`, `git switch feature/frontend-foundation`, `npm ci`, optional `.env.local`, `npm run dev`).
+  - Setup notes (typegen before `tsc`, the npm 11 install-script warning, the Windows path length).
+  - Checks performed, including the fresh clone; a browser-testing checklist (none done yet); what is not included; review notes.
+  - Uses role labels (§9), no personal names or emails.
+- Unchanged, as instructed: the npx cache folder `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` (still present).
+- **Not yet on GitHub:** this entry and LOG-20261021-0131-push-confirmed exist only in the local working copy (`CLAUDE.md` modified). The repository owner will not see them until they are committed and pushed, which needs the collaborator's approval.
+- Database/schema changes: none · Dependency changes: none (the `npm ci` ran only in the deleted test clone) · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry). Created outside the repository: `pr-description.md` in the scratchpad; the test clone (since deleted).
+- Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-0154-commit-log — Commit and push of the pending CLAUDE.md log entries
+- Time: 2026-10-21 01:53:49 +03:00 (Africa/Nairobi), taken before this entry — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator: "commit and push the CLAUDE.md log entries".
+- Pre-commit checks:
+  - `git fetch origin` → nothing new. `git ls-remote` → `main` = `883f93b`, `feature/frontend-foundation` = `5e2910f` = local HEAD.
+  - Only `CLAUDE.md` modified, last written 01:44:42 +03:00 by LOG-20261021-0144-pr-draft. Nothing staged; no stashes.
+- What is committed: `CLAUDE.md` only. That covers LOG-20261021-0131-push-confirmed, LOG-20261021-0144-pr-draft, this entry, and the §14 updates. Commit message: "docs: log push confirmation, PR draft and clone check in CLAUDE.md", parent `5e2910f`, on `feature/frontend-foundation`.
+- Push: a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `5e2910f`. `main` is not changed; nothing is merged.
+- The push result cannot be recorded inside the commit it describes. As agreed (§15 rule 2), a short follow-up entry records it afterwards; that entry stays uncommitted until the next approved commit.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged · npx cache folder: still untouched.
+
 ## 14. Current handover state
 
-- **Git state (2026-10-21 01:28 +03:00):** `main` = `origin/main` = `883f93b`; `feature/frontend-foundation` = `origin/feature/frontend-foundation` = `46ad529` (pushed, LOG-20261019-1553-frontend-review). Frontend phases 1–3 (LOG-20261021-0111-frontend-phase1/2/3) and these `CLAUDE.md` updates are **uncommitted**: 71 files (24 modified, 47 new). Pre-commit review done (LOG-20261021-0128-precommit-review). Waiting for the collaborator's explicit approval to commit and push on `feature/frontend-foundation`. Nothing is merged into `main`.
+- **Git state (2026-10-21 01:31 +03:00):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` = `origin/feature/frontend-foundation` = `5e2910f` (frontend phases 1–3, committed and pushed; LOG-20261021-0130-commit-phases, LOG-20261021-0131-push-confirmed). The log entries up to LOG-20261021-0154-commit-log are committed on top of it (see `git log -1 feature/frontend-foundation`). Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft.
 - **Pending decision outside the repo:** whether to delete the incomplete npx cache folder `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` created by mistake during the review (LOG-20261021-0128-precommit-review).
 - **Authorized work:** frontend development (collaborator, 2026-10-19), and recording every phase in this log (2026-10-21). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push requires explicit collaborator approval.
 - **Frontend state:** the shell plus shipment management and delays, quotations, customer billing and history, agent routes, and document uploads, all on fictional demo data. Edits and uploaded files live only in the browser tab (session store) until reload. The only live backend call is `GET /health`. Endpoint, storage and integration contracts: `Frontend/frontend/docs/api-contracts.md`.
@@ -571,7 +629,7 @@ Entry template:
 - **Still unresolved:** "Phase 0" definition; agreed Node.js version; the repository owner's DB state and how the `User` table was created; keep/remove the `deploy` script; Prisma RC vs stable and `@prisma/client` 7; KRA iCMS / M-Pesa access; the repository owner's own confirmation of these decisions.
 - **Next recommended action:**
   1. Review phases 1–3 in a browser (`npm run dev` in `Frontend/frontend`), including on a phone-width screen. In particular: create and edit a shipment, record a delay, the quotation lifecycle and printing, and uploading, opening and downloading a real file.
-  2. Then decide whether to approve a commit on `feature/frontend-foundation`, and whether to open a pull request into `main` for the repository owner to review.
+  2. Then decide whether to open a pull request from `feature/frontend-foundation` (now `5e2910f`) into `main` for the repository owner to review. Commit the pending `CLAUDE.md` follow-up entry with the next change.
   3. Separately, decide whether to authorize backend work, starting with removing or protecting `GET /`, then the write endpoints and private document storage in `docs/api-contracts.md`.
 
 ## 15. Maintaining this document
