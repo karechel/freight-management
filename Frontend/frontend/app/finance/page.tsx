@@ -5,7 +5,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { DataSourceNotice, EmptyState, PendingNotice } from '@/components/ui/states';
 import { Table, Td, Th } from '@/components/ui/table';
-import { getExpenses, getInvoices, getPayments } from '@/lib/data';
+import { getExpenses, getInvoices, getParties, getPayments } from '@/lib/data';
 import { formatDate, formatDateTime, formatKes } from '@/lib/format';
 import { invoiceStatusMeta, paymentMethodLabel } from '@/lib/labels';
 import { invoiceBalance, receivablesSummary } from '@/lib/metrics';
@@ -22,7 +22,13 @@ const expenseStatus = {
 } as const;
 
 export default async function FinancePage() {
-  const [invoices, payments, expenses] = await Promise.all([getInvoices(), getPayments(), getExpenses()]);
+  const [invoices, payments, expenses, customers] = await Promise.all([
+    getInvoices(),
+    getPayments(),
+    getExpenses(),
+    getParties('customer'),
+  ]);
+  const customerId = new Map(customers.data.map((c) => [c.name, c.id]));
   const receivables = receivablesSummary(invoices.data);
   const unreconciled = payments.data.filter((p) => !p.reconciled);
   const pendingExpenses = expenses.data.filter((e) => e.status === 'pending_approval');
@@ -77,14 +83,23 @@ export default async function FinancePage() {
               </thead>
               <tbody>
                 {invoices.data.map((inv) => (
-                  <tr key={inv.number} className="hover:bg-slate-50">
+                  // id: target for links such as /finance#INV-2610-0112 (scroll margin clears the sticky header).
+                  <tr key={inv.number} id={inv.number} className="scroll-mt-20 hover:bg-slate-50 target:bg-amber-50">
                     <Td>
                       <p className="font-mono text-[13px] font-medium text-slate-900">{inv.number}</p>
                       <Link href={`/shipments/${inv.shipmentReference}`} className={shipmentLink}>
                         {inv.shipmentReference}
                       </Link>
                     </Td>
-                    <Td className="font-medium text-slate-900">{inv.customerName}</Td>
+                    <Td className="font-medium text-slate-900">
+                      {customerId.has(inv.customerName) ? (
+                        <Link href={`/parties/${customerId.get(inv.customerName)}`} className="rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600">
+                          {inv.customerName}
+                        </Link>
+                      ) : (
+                        inv.customerName
+                      )}
+                    </Td>
                     <Td className="text-right tabular-nums">{formatKes(inv.amountKes)}</Td>
                     <Td className="text-right tabular-nums">{formatKes(invoiceBalance(inv))}</Td>
                     <Td><StatusBadge meta={invoiceStatusMeta[inv.status]} /></Td>

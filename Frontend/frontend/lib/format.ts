@@ -48,3 +48,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / DAY_MS);
 }
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/** Human-readable duration such as "6 h", "2 days" or "3 days 4 h" (rounded to the hour). */
+export function formatDuration(ms: number): string {
+  const totalHours = Math.round(Math.abs(ms) / HOUR_MS);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days === 0) return `${hours} h`;
+  const dayPart = `${days} day${days === 1 ? '' : 's'}`;
+  return hours ? `${dayPart} ${hours} h` : dayPart;
+}

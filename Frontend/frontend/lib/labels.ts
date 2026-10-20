@@ -1,7 +1,13 @@
 // Human-readable labels and badge tones for domain enums.
 
 import type {
+  AccountStatus,
+  AgentRoute,
+  Currency,
+  CustomerNotificationStatus,
   CustomsStatus,
+  DelayReason,
+  DelayStatus,
   DocumentStatus,
   DocumentType,
   InvoiceStatus,
@@ -76,7 +82,7 @@ export const quotationStatusMeta: Record<QuotationStatus, StatusMeta> = {
   sent: { label: 'Sent', tone: 'info' },
   accepted: { label: 'Accepted', tone: 'progress' },
   booked: { label: 'Booked', tone: 'success' },
-  declined: { label: 'Declined', tone: 'danger' },
+  declined: { label: 'Rejected', tone: 'danger' },
   expired: { label: 'Expired', tone: 'neutral' },
 };
 
@@ -119,3 +125,43 @@ export const paymentMethodLabel: Record<PaymentMethod, string> = {
   bank_transfer: 'Bank transfer',
   cheque: 'Cheque',
 };
+
+export const delayReasonLabel: Record<DelayReason, string> = {
+  port_congestion: 'Port or terminal congestion',
+  border_queue: 'Border queue',
+  carrier_schedule: 'Carrier schedule change',
+  customs_query: 'Customs query or inspection',
+  missing_documents: 'Missing or incorrect documents',
+  permit_pending: 'Permit or licence pending',
+  payment_pending: 'Duty or charges unpaid',
+  equipment_shortage: 'Equipment or truck shortage',
+  weather: 'Weather',
+  other: 'Other',
+};
+
+export const delayStatusMeta: Record<DelayStatus, StatusMeta> = {
+  open: { label: 'Open', tone: 'danger' },
+  monitoring: { label: 'Monitoring', tone: 'warning' },
+  resolved: { label: 'Resolved', tone: 'success' },
+};
+
+export const customerNotificationMeta: Record<CustomerNotificationStatus, StatusMeta> = {
+  not_notified: { label: 'Customer not yet informed', tone: 'warning' },
+  informed_manually: { label: 'Customer informed (recorded manually)', tone: 'success' },
+  not_required: { label: 'Customer notification not required', tone: 'neutral' },
+};
+
+export const currencyLabel: Record<Currency, string> = {
+  KES: 'KES (Kenya shilling)',
+  USD: 'USD (US dollar)',
+};
+
+export const accountStatusMeta: Record<AccountStatus, StatusMeta> = {
+  active: { label: 'Active', tone: 'success' },
+  on_hold: { label: 'On hold', tone: 'warning' },
+  closed: { label: 'Closed', tone: 'neutral' },
+};
+
+/** e.g. "Shanghai, CN → Nairobi ICD (Sea)". */
+export const routeLabel = (r: Pick<AgentRoute, 'origin' | 'destination' | 'modes'>) =>
+  `${r.origin} → ${r.destination} (${r.modes.map((m) => modeLabel[m]).join(', ')})`;

@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 print:bg-white">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow"
@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block print:hidden">
         <Sidebar />
       </aside>
 
@@ -71,8 +71,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* inert while the mobile drawer is open, so keyboard focus stays in the drawer */}
-      <div className="flex min-w-0 flex-1 flex-col lg:pl-64" inert={mobileOpen}>
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
+      <div className="flex min-w-0 flex-1 flex-col lg:pl-64 print:pl-0" inert={mobileOpen}>
+        <header className="sticky top-0 z-20 flex h-16 print:hidden items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
           <button
             ref={menuButtonRef}
             type="button"
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ApiStatusPill />
           </div>
         </header>
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8">
+        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8 print:max-w-none print:p-0">
           {children}
         </main>
       </div>

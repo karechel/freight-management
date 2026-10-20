@@ -6,6 +6,8 @@
 
 import type {
   ActivityItem,
+  AgentRoute,
+  BillingProfile,
   Expense,
   Invoice,
   Party,
@@ -18,6 +20,18 @@ import type {
 
 /** Fixed "today" for demo calculations, so figures are stable between renders. */
 export const DEMO_REFERENCE_DATE = '2026-10-19T09:00:00+03:00';
+
+/** Staff names already used for assignments in the demo records below. */
+export const demoStaff: string[] = ['A. Wanjiru', 'B. Otieno', 'C. Mutua', 'D. Achieng', 'E. Kiprono'];
+
+// Seed quotations record only a total; they are converted to the full shape below.
+type SeedQuotation = Omit<Quotation, 'customerId' | 'currency' | 'lines' | 'issuedAt' | 'events' | 'updatedAt'> & {
+  amountKes: number;
+  createdAt: string;
+};
+
+// Seed shipments may omit delays and events; they default to empty lists.
+type DemoShipment = Omit<Shipment, 'delays' | 'events'> & Partial<Pick<Shipment, 'delays' | 'events'>>;
 
 // Active-shipment counts and balances are derived in lib/data/index.ts.
 export const demoParties: Omit<Party, 'activeShipments' | 'outstandingKes'>[] = [
@@ -35,7 +49,7 @@ export const demoParties: Omit<Party, 'activeShipments' | 'outstandingKes'>[] = 
   { id: 't-001', name: 'Mara Haulage Ltd', type: 'transporter', location: 'Mombasa', contactName: 'G. Kariuki', email: 'dispatch@marahaulage.example' },
 ];
 
-export const demoShipments: Shipment[] = [
+const seedShipments: DemoShipment[] = [
   {
     reference: 'FMS-SEA-2610-0041',
     customerId: 'c-001',
@@ -53,8 +67,11 @@ export const demoShipments: Shipment[] = [
     weightKg: 18_640,
     etd: '2026-09-14T00:00:00+03:00',
     eta: '2026-10-12T00:00:00+03:00',
+    atd: '2026-09-14T18:00:00+03:00',
+    ata: '2026-10-14T21:00:00+03:00',
     assignedTo: 'A. Wanjiru',
     agentName: 'Eastgate Forwarding (Shanghai)',
+    agentRouteId: 'rt-a1-sha-nbo',
     customs: { entryReference: 'DEMO-CE-0041', status: 'assessed', dutyKes: 1_184_300, updatedAt: '2026-10-17T15:20:00+03:00' },
     milestones: [
       { label: 'Booking confirmed', state: 'done', at: '2026-09-08T10:00:00+03:00', location: 'Shanghai' },
@@ -85,6 +102,8 @@ export const demoShipments: Shipment[] = [
     weightKg: 1_240,
     etd: '2026-10-16T02:00:00+03:00',
     eta: '2026-10-16T09:40:00+03:00',
+    atd: '2026-10-16T02:00:00+03:00',
+    ata: '2026-10-16T09:40:00+03:00',
     assignedTo: 'D. Achieng',
     customs: { status: 'documents_pending', updatedAt: '2026-10-18T11:05:00+03:00' },
     milestones: [
@@ -117,8 +136,10 @@ export const demoShipments: Shipment[] = [
     weightKg: 74_200,
     etd: '2026-10-09T00:00:00+03:00',
     eta: '2026-10-23T00:00:00+03:00',
+    atd: '2026-10-09T22:00:00+03:00',
     assignedTo: 'B. Otieno',
     agentName: 'Gulf Bridge Logistics',
+    agentRouteId: 'rt-a2-jea-mba',
     customs: { status: 'not_started', updatedAt: '2026-10-09T08:00:00+03:00' },
     milestones: [
       { label: 'Booking confirmed', state: 'done', at: '2026-10-02T14:00:00+03:00', location: 'Jebel Ali' },
@@ -148,8 +169,10 @@ export const demoShipments: Shipment[] = [
     weightKg: 12_600,
     etd: '2026-10-18T05:00:00+03:00',
     eta: '2026-10-20T16:00:00+03:00',
+    atd: '2026-10-18T05:00:00+03:00',
     assignedTo: 'C. Mutua',
     agentName: 'Lakeside Clearing Partners',
+    agentRouteId: 'rt-a3-nva-kla',
     customs: { entryReference: 'DEMO-CE-0033', status: 'released', updatedAt: '2026-10-17T17:45:00+03:00' },
     milestones: [
       { label: 'Export documents lodged', state: 'done', at: '2026-10-17T10:00:00+03:00', location: 'Naivasha' },
@@ -158,8 +181,28 @@ export const demoShipments: Shipment[] = [
       { label: 'Malaba border crossing', state: 'current', location: 'Malaba' },
       { label: 'Delivered Kampala', state: 'pending' },
     ],
-    exceptions: [
-      { id: 'ex-02', severity: 'medium', message: 'Queue at Malaba border; driver reports an estimated 6-hour delay.', raisedAt: '2026-10-19T07:15:00+03:00' },
+    exceptions: [],
+    delays: [
+      {
+        id: 'dl-01',
+        reason: 'border_queue',
+        reasonDetail: 'Queue at Malaba border; driver reports an estimated 6-hour delay.',
+        identifiedAt: '2026-10-19T07:15:00+03:00',
+        severity: 'medium',
+        milestone: 'Malaba border crossing',
+        originalExpectedAt: '2026-10-20T16:00:00+03:00',
+        // Original ETA plus the driver's 6-hour estimate.
+        revisedExpectedAt: '2026-10-20T22:00:00+03:00',
+        affectsEta: true,
+        followUpBy: 'C. Mutua',
+        status: 'open',
+        nextAction: 'Confirm border crossing time with the driver.',
+        customerNotification: 'not_notified',
+        actions: [
+          { id: 'da-01', at: '2026-10-19T07:15:00+03:00', actor: 'C. Mutua', note: 'Delay logged from driver report.' },
+        ],
+        updatedAt: '2026-10-19T07:15:00+03:00',
+      },
     ],
     updatedAt: '2026-10-19T07:15:00+03:00',
   },
@@ -180,8 +223,11 @@ export const demoShipments: Shipment[] = [
     weightKg: 9_870,
     etd: '2026-09-10T00:00:00+03:00',
     eta: '2026-10-08T00:00:00+03:00',
+    atd: '2026-09-10T20:00:00+03:00',
+    ata: '2026-10-08T06:00:00+03:00',
     assignedTo: 'A. Wanjiru',
     agentName: 'Eastgate Forwarding (Shanghai)',
+    agentRouteId: 'rt-a1-nsa-mba',
     customs: { entryReference: 'DEMO-CE-0030', status: 'released', dutyKes: 862_150, updatedAt: '2026-10-16T13:00:00+03:00' },
     milestones: [
       { label: 'Booking confirmed', state: 'done', at: '2026-09-03T09:00:00+03:00' },
@@ -212,6 +258,8 @@ export const demoShipments: Shipment[] = [
     weightKg: 61_500,
     etd: '2026-10-15T00:00:00+03:00',
     eta: '2026-10-19T14:00:00+03:00',
+    atd: '2026-10-15T19:00:00+03:00',
+    ata: '2026-10-16T08:00:00+03:00',
     assignedTo: 'E. Kiprono',
     customs: { entryReference: 'DEMO-CE-0028', status: 'released', dutyKes: 1_045_800, updatedAt: '2026-10-14T10:00:00+03:00' },
     milestones: [
@@ -241,6 +289,8 @@ export const demoShipments: Shipment[] = [
     weightKg: 16_000,
     etd: '2026-09-29T00:00:00+03:00',
     eta: '2026-10-17T00:00:00+03:00',
+    atd: '2026-09-29T15:00:00+03:00',
+    ata: '2026-10-17T05:00:00+03:00',
     assignedTo: 'B. Otieno',
     customs: { status: 'documents_pending', updatedAt: '2026-10-18T09:30:00+03:00' },
     milestones: [
@@ -273,6 +323,9 @@ export const demoShipments: Shipment[] = [
     weightKg: 8_300,
     etd: '2026-10-13T23:30:00+03:00',
     eta: '2026-10-14T07:10:00+03:00',
+    atd: '2026-10-13T23:30:00+03:00',
+    ata: '2026-10-14T07:10:00+03:00',
+    deliveredAt: '2026-10-14T11:00:00+03:00',
     assignedTo: 'C. Mutua',
     customs: { entryReference: 'DEMO-CE-0024', status: 'released', updatedAt: '2026-10-13T16:00:00+03:00' },
     milestones: [
@@ -331,8 +384,10 @@ export const demoShipments: Shipment[] = [
     weightKg: 13_900,
     etd: '2026-10-17T06:00:00+03:00',
     eta: '2026-10-22T18:00:00+03:00',
+    atd: '2026-10-17T06:00:00+03:00',
     assignedTo: 'E. Kiprono',
     agentName: 'Lakeside Clearing Partners',
+    agentRouteId: 'rt-a3-mba-kgl',
     customs: { entryReference: 'DEMO-CE-0020', status: 'lodged', updatedAt: '2026-10-16T12:00:00+03:00' },
     milestones: [
       { label: 'Transit entry lodged', state: 'done', at: '2026-10-16T12:00:00+03:00' },
@@ -360,8 +415,11 @@ export const demoShipments: Shipment[] = [
     weightKg: 620,
     etd: '2026-10-15T01:00:00+03:00',
     eta: '2026-10-15T14:20:00+03:00',
+    atd: '2026-10-15T01:00:00+03:00',
+    ata: '2026-10-15T14:20:00+03:00',
     assignedTo: 'D. Achieng',
     agentName: 'Eastgate Forwarding (Shanghai)',
+    agentRouteId: 'rt-a1-szx-nbo',
     customs: { entryReference: 'DEMO-CE-0019', status: 'query', updatedAt: '2026-10-18T16:40:00+03:00' },
     milestones: [
       { label: 'Departed origin', state: 'done', at: '2026-10-15T01:00:00+03:00' },
@@ -376,6 +434,8 @@ export const demoShipments: Shipment[] = [
     updatedAt: '2026-10-18T16:40:00+03:00',
   },
 ];
+
+export const demoShipments: Shipment[] = seedShipments.map((s) => ({ delays: [], events: [], ...s }));
 
 export const demoDocuments: ShipmentDocument[] = [
   { id: 'd-01', shipmentReference: 'FMS-SEA-2610-0041', customerName: 'Baobab Crest Traders Ltd', type: 'bill_of_lading', status: 'verified', receivedAt: '2026-09-16T10:00:00+03:00' },
@@ -398,7 +458,8 @@ export const demoDocuments: ShipmentDocument[] = [
   { id: 'd-18', shipmentReference: 'FMS-SEA-2610-0022', customerName: 'Baobab Crest Traders Ltd', type: 'commercial_invoice', status: 'missing' },
 ];
 
-export const demoQuotations: Quotation[] = [
+// Recorded totals only; the demo has no line-by-line breakdown for these.
+const seedQuotations: SeedQuotation[] = [
   { reference: 'QT-2610-0057', customerName: 'Ziwa Pharma Distributors Ltd', mode: 'air', direction: 'import', origin: 'Hyderabad, IN', destination: 'Nairobi (JKIA)', cargoSummary: '4 pallets, 2–8 °C, ~900 kg', amountKes: 612_000, status: 'sent', createdAt: '2026-10-18T10:00:00+03:00', validUntil: '2026-10-25T23:59:00+03:00' },
   { reference: 'QT-2610-0056', customerName: 'Kijani Build Supplies Ltd', mode: 'sea', direction: 'import', origin: 'Jebel Ali, AE', destination: 'Nairobi ICD', cargoSummary: '6 × 20ft GP, steel products', amountKes: 1_480_500, status: 'draft', createdAt: '2026-10-18T15:30:00+03:00', validUntil: '2026-11-01T23:59:00+03:00' },
   { reference: 'QT-2610-0054', customerName: 'Mlima Fresh Exports Ltd', mode: 'road', direction: 'export', origin: 'Naivasha', destination: 'Kampala, UG', cargoSummary: '1 reefer truck, fresh produce', amountKes: 285_000, status: 'accepted', createdAt: '2026-10-16T09:00:00+03:00', validUntil: '2026-10-30T23:59:00+03:00' },
@@ -408,6 +469,56 @@ export const demoQuotations: Quotation[] = [
   { reference: 'QT-2609-0041', customerName: 'Upeo Electronics Ltd', mode: 'air', direction: 'import', origin: 'Shenzhen, CN', destination: 'Nairobi (JKIA)', cargoSummary: '3 pallets, ~620 kg', amountKes: 418_600, status: 'booked', createdAt: '2026-09-30T10:00:00+03:00', validUntil: '2026-10-14T23:59:00+03:00', shipmentReference: 'FMS-AIR-2610-0019' },
   { reference: 'QT-2609-0038', customerName: 'Baobab Crest Traders Ltd', mode: 'air', direction: 'import', origin: 'Istanbul, TR', destination: 'Nairobi (JKIA)', cargoSummary: '2 pallets, spare parts', amountKes: 226_000, status: 'expired', createdAt: '2026-09-25T10:00:00+03:00', validUntil: '2026-10-09T23:59:00+03:00' },
 ];
+
+/** Default terms text for demo quotations. Placeholder wording, not reviewed legal terms. */
+export const DEMO_QUOTATION_TERMS =
+  'Demonstration terms only. Rates are subject to space and equipment availability and exclude duties, taxes and storage unless itemised.';
+
+/** Each recorded total becomes a single line, so totals match the original records exactly. */
+export const demoQuotations: Quotation[] = seedQuotations.map(({ amountKes, createdAt, ...q }) => ({
+  ...q,
+  customerId: demoParties.find((p) => p.name === q.customerName)?.id ?? '',
+  currency: 'KES',
+  lines: [
+    {
+      id: `${q.reference}-l1`,
+      description: `Freight and handling: ${q.cargoSummary} (recorded total; no breakdown in demo data)`,
+      quantity: 1,
+      unitPriceMinor: amountKes * 100,
+      taxRatePercent: 0,
+    },
+  ],
+  terms: DEMO_QUOTATION_TERMS,
+  issuedAt: createdAt,
+  events: [],
+  updatedAt: createdAt,
+}));
+
+/** Customer billing profiles (fictional). KRA PIN and credit limit are deliberately not recorded. */
+export const demoBilling: Record<string, BillingProfile> = {
+  'c-001': { contactName: 'Accounts desk', email: 'accounts@baobabcrest.example', address: ['Demo address: Industrial Area', 'Nairobi'], paymentTermsDays: 14, currency: 'KES', accountStatus: 'active' },
+  'c-002': { contactName: 'R. Chebet', email: 'finance@mlimafresh.example', address: ['Demo address: Moi South Lake Road', 'Naivasha'], paymentTermsDays: 14, currency: 'KES', accountStatus: 'active' },
+  'c-003': { contactName: 'Accounts payable', email: 'ap@kijanibuild.example', address: ['Demo address: Shimanzi', 'Mombasa'], paymentTermsDays: 14, currency: 'KES', accountStatus: 'active' },
+  'c-004': { contactName: 'L. Odhiambo', email: 'accounts@ziwapharma.example', address: ['Demo address: Kisumu CBD', 'Kisumu'], paymentTermsDays: 14, currency: 'KES', accountStatus: 'active' },
+  'c-005': { contactName: 'Finance team', email: 'finance@upeoelectronics.example', address: ['Demo address: Westlands', 'Nairobi'], paymentTermsDays: 14, currency: 'KES', accountStatus: 'active' },
+  'c-006': { contactName: 'K. Rotich', email: 'accounts@simbaline.example', address: ['Demo address: Eldoret town', 'Eldoret'], paymentTermsDays: 14, currency: 'KES', accountStatus: 'active' },
+};
+
+/** Lanes each agent handles on the demo shipments above. Not an agreement or a rate card. */
+export const demoAgentRoutes: Record<string, AgentRoute[]> = {
+  'a-001': [
+    { id: 'rt-a1-sha-nbo', origin: 'Shanghai, CN', destination: 'Nairobi ICD', modes: ['sea'], services: 'Origin agent on demo jobs' },
+    { id: 'rt-a1-nsa-mba', origin: 'Guangzhou (Nansha), CN', destination: 'Mombasa', modes: ['sea'], services: 'Origin agent on demo jobs' },
+    { id: 'rt-a1-szx-nbo', origin: 'Shenzhen, CN', destination: 'Nairobi (JKIA)', modes: ['air'], services: 'Origin agent on demo jobs' },
+  ],
+  'a-002': [
+    { id: 'rt-a2-jea-mba', origin: 'Jebel Ali, AE', destination: 'Mombasa', modes: ['sea'], services: 'Origin agent on demo jobs' },
+  ],
+  'a-003': [
+    { id: 'rt-a3-nva-kla', origin: 'Naivasha', destination: 'Kampala, UG (via Malaba)', modes: ['road'], services: 'Border and destination agent on demo jobs' },
+    { id: 'rt-a3-mba-kgl', origin: 'Mombasa', destination: 'Kigali, RW (via Busia)', modes: ['road'], services: 'Border and transit agent on demo jobs' },
+  ],
+};
 
 export const demoInvoices: Invoice[] = [
   { number: 'INV-2610-0112', customerName: 'Kijani Build Supplies Ltd', shipmentReference: 'FMS-RAIL-2610-0028', amountKes: 1_212_750, paidKes: 0, issuedAt: '2026-10-14T12:00:00+03:00', dueAt: '2026-10-28T23:59:00+03:00', status: 'issued' },
@@ -438,7 +549,7 @@ export const demoActivity: ActivityItem[] = [
   { id: 'act-01', at: '2026-10-19T07:30:00+03:00', actor: 'E. Kiprono', message: 'Marked tiles consignment as out for delivery.', shipmentReference: 'FMS-RAIL-2610-0028' },
   { id: 'act-02', at: '2026-10-19T07:15:00+03:00', actor: 'C. Mutua', message: 'Logged border delay at Malaba (about 6 hours).', shipmentReference: 'FMS-ROAD-2610-0033' },
   { id: 'act-03', at: '2026-10-18T16:40:00+03:00', actor: 'D. Achieng', message: 'Recorded customs valuation query on spare parts.', shipmentReference: 'FMS-AIR-2610-0019' },
-  { id: 'act-04', at: '2026-10-18T15:30:00+03:00', actor: 'B. Otieno', message: 'Drafted quotation QT-2610-0056 for steel products.' },
+  { id: 'act-04', at: '2026-10-18T15:30:00+03:00', actor: 'B. Otieno', message: 'Drafted quotation QT-2610-0056 for steel products.', quotationReference: 'QT-2610-0056' },
   { id: 'act-05', at: '2026-10-18T09:30:00+03:00', actor: 'B. Otieno', message: 'Requested missing certificate of origin from shipper.', shipmentReference: 'FMS-SEA-2610-0026' },
   { id: 'act-06', at: '2026-10-17T15:20:00+03:00', actor: 'A. Wanjiru', message: 'Recorded duty assessment for appliances shipment.', shipmentReference: 'FMS-SEA-2610-0041' },
   { id: 'act-07', at: '2026-10-17T11:20:00+03:00', actor: 'Finance (F. Mwende)', message: 'Reconciled bank transfer against INV-2610-0104.' },

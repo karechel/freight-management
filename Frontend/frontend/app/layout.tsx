@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { getDocuments, getQuotations, getRecentActivity, getShipments } from "@/lib/data";
+import { SessionStoreProvider } from "@/lib/data/session-store";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,14 +24,28 @@ export const metadata: Metadata = {
     "Operations system for freight forwarding and clearing: shipments, documents, customs, invoicing and payments.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Seed the in-browser session store; edits made in the UI live there only.
+  const [shipments, quotations, activity, documents] = await Promise.all([
+    getShipments(),
+    getQuotations(),
+    getRecentActivity(),
+    getDocuments(),
+  ]);
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <AppShell>{children}</AppShell>
+        <SessionStoreProvider
+          initialShipments={shipments.data}
+          initialQuotations={quotations.data}
+          initialActivity={activity.data}
+          initialDocuments={documents.data}
+        >
+          <AppShell>{children}</AppShell>
+        </SessionStoreProvider>
       </body>
     </html>
   );

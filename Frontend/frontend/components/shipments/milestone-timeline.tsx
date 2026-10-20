@@ -4,6 +4,22 @@ import type { Milestone } from '@/lib/types';
 
 const stateText = { done: 'Completed', current: 'In progress', pending: 'Not started' } as const;
 
+function MilestoneDates({ m }: { m: Milestone }) {
+  const planned = m.plannedAt ? `Planned ${formatDateTime(m.plannedAt)}` : undefined;
+  if (m.state === 'done') {
+    return (
+      <>
+        {m.at ? <>Actual {formatDateTime(m.at)}</> : 'Completed · date not recorded'}
+        {planned && <span className="text-slate-400"> · {planned.toLowerCase()}</span>}
+      </>
+    );
+  }
+  if (m.state === 'current') {
+    return <>{m.at ? `Started ${formatDateTime(m.at)}` : 'In progress'}{planned ? ` · ${planned.toLowerCase()}` : ''}</>;
+  }
+  return <>{planned ?? 'Pending'}</>;
+}
+
 export function MilestoneTimeline({ milestones }: { milestones: Milestone[] }) {
   return (
     <ol className="flex flex-col">
@@ -34,7 +50,7 @@ export function MilestoneTimeline({ milestones }: { milestones: Milestone[] }) {
               <span className="sr-only"> ({stateText[m.state]})</span>
             </p>
             <p className="text-xs text-slate-500">
-              {m.at ? formatDateTime(m.at) : m.state === 'current' ? 'In progress' : 'Pending'}
+              <MilestoneDates m={m} />
               {m.location ? ` · ${m.location}` : ''}
             </p>
           </div>

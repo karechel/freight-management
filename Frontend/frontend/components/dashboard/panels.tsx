@@ -117,6 +117,14 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
                       </Link>
                     </>
                   )}
+                  {item.quotationReference && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <Link href={`/quotations/${item.quotationReference}`} className={linkClass}>
+                        {item.quotationReference}
+                      </Link>
+                    </>
+                  )}
                 </p>
               </div>
             </li>

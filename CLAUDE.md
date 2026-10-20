@@ -42,7 +42,9 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 - **Installed versions (read from node_modules on 2026-10-15; identical to the `package-lock.json` resolved versions):** `prisma` 8.0.0-rc.17, `@prisma/orm-postgres` 8.0.0-rc.12, `@prisma/client` 7.10.0 (installed but **unused**), `dotenv` 17.4.2 (transitive only), `@nestjs/cli` 12.0.6, Vitest 4.1.11, oxlint 1.85.0. `package.json` files use caret ranges; the lockfiles pin the exact versions.
 - **Node.js version:** required version **unknown / not specified** (no `engines` field in either `package.json`, no `.nvmrc` or `.node-version`). This needs a project decision (§16.6). Observed on the local clone with Git identity Sean Macharia: Node v24.20.0, npm 11.19.0. This is an observation, not a requirement.
 - **Backend conventions:** ESM (`"type": "module"`), relative imports use `.js` suffix, top-level await in `main.ts`, Prettier (single quotes, trailing commas), oxlint type-aware.
-- **Frontend:** App Router app with a shared shell (`components/layout/`), shared UI (`components/ui/`), typed domain model (`lib/types.ts`), data-access layer (`lib/data/index.ts`, demo data only) and a thin API client (`lib/api/client.ts`, only `GET /health` is live). See LOG-20261019-1503-frontend-decisions and `Frontend/frontend/docs/api-contracts.md`. No new dependencies. Before writing Next.js code, read `Frontend/frontend/node_modules/next/dist/docs/` (this Next.js version has breaking changes — see `Frontend/frontend/AGENTS.md`).
+- **Frontend:** App Router app with a shared shell (`components/layout/`), shared UI (`components/ui/`, including form primitives), typed domain model (`lib/types.ts`), data-access layer (`lib/data/index.ts`, demo data only) and a thin API client (`lib/api/client.ts`, only `GET /health` is live).
+  - Since 2026-10-21 (uncommitted): `lib/data/session-store.tsx` holds in-browser edits and uploaded files for the tab session, seeded from `lib/data` in `app/layout.tsx`. Validation and change rules are pure modules in `lib/` (`*-form.ts`, `*-changes.ts`).
+  - Pitfall: never import a non-component value (constant, function) from a `'use client'` module into a Server Component. It arrives as a client reference (LOG-20261021-0111-frontend-phase3). See LOG-20261019-1503-frontend-decisions and `Frontend/frontend/docs/api-contracts.md`. No new dependencies. Before writing Next.js code, read `Frontend/frontend/node_modules/next/dist/docs/` (this Next.js version has breaking changes — see `Frontend/frontend/AGENTS.md`).
 - **Not present:** auth, validation pipe, exception filters, logging config, file storage, integrations, CI, Docker, deployment config.
 
 ## 4. Repository structure and important files
@@ -58,7 +60,9 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/migrations/` | Prisma 8 migration ref + snapshot |
 | `Backend/backend/test/app.e2e-spec.ts` | e2e test (connects to the real DB in `.env`) |
 | `Backend/backend/.env.example`, `Frontend/frontend/.env.example` | Documented env variables (committed) |
-| `Frontend/frontend/app/` | `layout.tsx` (boilerplate metadata), `page.tsx` (health check), `globals.css` |
+| `Frontend/frontend/app/` | Routes: `layout.tsx` (metadata, app shell, session-store provider), `page.tsx` (dashboard), `shipments/`, `quotations/`, `documents/`, `parties/`, `customs/`, `finance/`, `settings/`, `globals.css` (updated 2026-10-21; it previously described the original health-check page) |
+| `Frontend/frontend/lib/` | Domain types, labels, formatting, derivations (`metrics.ts`), validation and change rules (`*-form.ts`, `*-changes.ts`), money and dates; `lib/data/` = data-access layer, demo data and the in-browser session store |
+| `Frontend/frontend/docs/api-contracts.md` | Proposed backend API, storage and integration contracts that the demo UI needs |
 | `Backend/backend/README.md`, `Frontend/frontend/README.md` | Unmodified framework boilerplate |
 | `Backend/backend/package.json`, `package-lock.json` (and frontend equivalents) | Scripts, dependency ranges, pinned versions |
 | `Backend/backend/vitest.config.ts` | Unit tests: includes `**/*.spec.ts` |
@@ -80,6 +84,9 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Backend `GET /health` | Implemented, unverified | `app.controller.ts`; unit test exists, not run in audit |
 | Frontend → backend health check | Implemented, unverified | Originally `Frontend/frontend/app/page.tsx`; moved (2026-10-19) to `lib/api/client.ts` + `components/layout/api-status.tsx` (top bar, System status page). Backend `/health` returned HTTP 200 to curl on the collaborator's machine; the browser path was not exercised |
 | Frontend shell, dashboard and core screens (demo data) | Implemented; build and link crawl verified, not visually reviewed (branch `feature/frontend-foundation`, committed and pushed per LOG-20261019-1553-frontend-review; not merged to `main`) | Routes `/`, `/shipments`, `/shipments/[reference]`, `/quotations`, `/documents`, `/customs`, `/parties`, `/finance`, `/settings`. All data is fictional demo data, labelled in the UI. See LOG-20261019-1503-frontend-decisions |
+| Frontend shipment create/edit/status, actual dates, milestones, delays (demo, session only) | Implemented, uncommitted; tsc, eslint, build, logic tests and curl verified; not browser-tested | LOG-20261021-0111-frontend-phase1. Saved only in the browser tab (session store) |
+| Frontend quotations, customer billing and service history, agent routes (demo, session only) | Implemented, uncommitted; same checks; not browser-tested | LOG-20261021-0111-frontend-phase2. No email sending; balances indicative |
+| Frontend document uploads (demo, in-memory only) | Implemented, uncommitted; same checks; file selection, open and download not exercised in a browser | LOG-20261021-0111-frontend-phase3. Files never leave the tab; production storage not built |
 | `DATABASE_URL` env validation | Implemented, unverified | `src/config/env.validation.ts` + spec, not run in audit |
 | `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD |
 | `GET /` list all users | Implemented, unverified — **security concern** (see §12) | `app.service.ts` |
@@ -136,6 +143,8 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 | Application code on feature branches; commit/push only with explicit approval; no force-push (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
 | No Node/Prisma/dependency version changes without a separate decision (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
 | Role labels ("repository owner", "collaborator") in shared docs; no personal emails (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
+| Record everything done in a session in §13 of this file: changes, read-only checks, processes, files created outside the repo, failed attempts, instructions (2026-10-21) | Collaborator instructions, 2026-10-21 ("make sure you always document the entries"; "make sure you write everything you do in the claude.md") |
+| Frontend demo edits and files stay in the browser session only: no `localStorage`, no fake backend, nothing in `public/` (2026-10-21) | Repository owner's requirements as relayed by the collaborator, 2026-10-20 |
 
 ## 10. Setup and safe development commands
 
@@ -156,6 +165,11 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
+- **Latest frontend results (2026-10-21 01:10 +03:00, LOG-20261021-0111-frontend-phase3):**
+  - Re-run in the pre-commit review (2026-10-21 01:20–01:27, LOG-20261021-0128-precommit-review): `npx tsc --noEmit --incremental false` → pass; `npx eslint` → pass; `npx next build` → success, 19 route entries (18 app routes + `/_not-found`; an earlier "20 routes" figure was a miscount).
+  - Scratch logic tests (outside the repo) → 22/22 groups pass.
+  - Curl on `next start` → 25/25 pages render the expected `<h1>`, `/nowhere` → 404. No browser testing has been done.
+  - Status codes alone are not enough: a page can return 200 while rendering not-found or error UI because of streaming from `loading.tsx`, so check page content. Backend checks not re-run.
 
 ## 12. Known issues, technical debt and blockers
 
@@ -364,21 +378,206 @@ Entry template:
 - Pushed: a normal (non-force) `git push -u origin feature/frontend-foundation` runs after this commit. `main` is not changed and nothing is merged. Verify with `git ls-remote origin refs/heads/feature/frontend-foundation`. If the push failed, the next log entry must say so.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261021-0111-frontend-phase1 — Shipment management and delay reporting (frontend phase 1)
+- Time: work done on 2026-10-20 and early 2026-10-21 (Africa/Nairobi); exact change time unavailable (not recorded with `Get-Date` during the work). Entry written 2026-10-21 01:11:07 +03:00 — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator to continue frontend development on `feature/frontend-foundation` against the repository owner's requirements (features 1–6), working only in `Frontend/frontend/`, without commit, push, stash, reset or branch changes.
+- **Confirmation for LOG-20261019-1553-frontend-review:** the push succeeded. `git ls-remote origin` (2026-10-21 01:10 +03:00) shows `refs/heads/feature/frontend-foundation` = `46ad529` = local HEAD; `main` = `883f93b`.
+- What changed:
+  - **Session store.** Added `lib/data/session-store.tsx`, an in-memory React context seeded from `lib/data` in `app/layout.tsx`. Created and edited records last across client-side navigation and are lost on reload. No `localStorage`, no fake backend. Every edit form and page banner says this.
+  - **Shipments.** Create (`/shipments/new`), edit (`/shipments/[reference]/edit`), and a status-change panel on the detail page. New fields: actual departure, arrival and delivery (`atd`, `ata`, `deliveredAt`) and estimated delivery, separate from ETD/ETA. The detail page shows estimated vs actual dates with the difference. Milestones show planned vs actual times and can be updated, staying in date order. Each shipment has a change history (`events`). References continue the existing `FMS-<MODE>-<YYMM>-<NNNN>` numbering. Validation covers required fields, date order, no future actual dates, and status/date agreement.
+  - **Delays.** Record and edit at `/shipments/[reference]/delays/new` and `/delays/[id]/edit`. Fields: reason, details, identified date, severity, affected milestone, original and revised expected dates, follow-up person, status, next action, notes, resolved date, and customer-notification status (recorded manually; nothing is sent). Duration is calculated from the two dates. The revised ETA is derived (`currentEta`) and never overwrites the planned ETA. Each delay has its own timeline with manual "action taken" entries. The list has a "Delayed" view and delay badges, and delays count toward "Needs attention".
+  - **Dashboard and list.** Both read shipments from the session store. Whole rows open the shipment.
+  - **Demo data.** Actual dates were copied from existing milestone timestamps. The Malaba border exception (`ex-02`) was converted to a delay record (`dl-01`); the revised date is the original ETA plus the 6 hours stated in the exception text. Added a staff list made of names already used in the data.
+- Files (all under `Frontend/frontend/`):
+  - Edited: `app/layout.tsx`, `app/page.tsx`, `app/shipments/page.tsx`, `app/shipments/[reference]/page.tsx`, `components/shipments/{milestone-timeline,shipment-explorer,shipment-table}.tsx`, `components/ui/states.tsx`, `docs/api-contracts.md`, `lib/{types,labels,metrics,format}.ts`, `lib/data/{demo-data,index}.ts`.
+  - Created: `app/shipments/new/page.tsx`, `app/shipments/[reference]/edit/page.tsx`, `app/shipments/[reference]/delays/new/page.tsx`, `app/shipments/[reference]/delays/[delayId]/edit/page.tsx`, `components/dashboard/session-panels.tsx`, `components/shipments/{delay-form,delay-panel,milestone-update,shipment-dates,shipment-detail-view,shipment-edit-view,shipment-form,shipment-history,status-change}.tsx`, `components/ui/{button,form,session-notice}.tsx`, `components/ui/use-validated-form.ts`, `lib/{dates,delay-form,shipment-changes,shipment-form,validation}.ts`, `lib/data/session-store.tsx`.
+  - Deleted: none.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Commands that changed project state: `npx next typegen`, `npx next build` (git-ignored `.next/` only); `next start -p 3100` for curl checks, then stopped by PID after confirming its command line.
+- Checks run and results:
+  - Frontend `npx tsc --noEmit --incremental false` → pass; `npx eslint` → pass (after fixing a React Compiler `react-hooks/refs` error in the new form code); `npx next build` → success, 15 routes.
+  - Logic tests in a scratch script outside the repo (Node 24 type stripping, nothing added to the project) → 9/9 groups pass, including that all 11 seed shipments pass the new validation.
+  - Curl: all routes 200, `/nowhere` 404. The "Delayed" view lists only `FMS-ROAD-2610-0033` with "+6 h". `FMS-SEA-2610-0041` shows "2 days late" on arrival.
+  - No browser or visual review.
+- Known failures / outstanding: no auth or roles (changes are attributed to "You (demo session)"); customs fields not editable; the Customs page reads static data; write APIs listed in `docs/api-contracts.md`.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: uncommitted changes in `Frontend/frontend/` only.
+
+### LOG-20261021-0111-frontend-phase2 — Quotations, customer billing and history, agent routes (frontend phase 2)
+- Time: work done on 2026-10-21 before 00:58 +03:00 (Africa/Nairobi); exact change time unavailable. Entry written 2026-10-21 01:11:07 +03:00 — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator: "Do not commit Phase 1 yet. Continue to Phase 2 in the same working branch, preserving all existing changes."
+- Pre-work check: phase 1 re-verified first — tsc, eslint, build and the 9 logic groups all passed; 38 uncommitted changes, all in `Frontend/frontend/`; no stashes.
+- What changed:
+  - **Quotations.**
+    - Line items with quantity, unit price and tax %, stored as integer minor units (`lib/money.ts`; rounding per line, to the nearest cent). Currency KES or USD, terms and internal note.
+    - Create, view, edit (drafts only) and "Duplicate as draft". Status flow draft → sent → accepted or rejected → booked; "expired" is derived from the validity date as at the fixed demo date. The existing `declined` value is labelled "Rejected".
+    - "Sent" only records when and to whom staff sent it outside the system; no email integration exists.
+    - Print / save as PDF uses the browser print dialog. The app shell hides on print, and the document carries a "Demonstration document" banner.
+    - An accepted quotation can be converted into a new shipment (`/shipments/new?quotation=`, pre-filled) or linked to an existing one; either marks it booked.
+    - The 8 seed quotations became one line each holding their recorded total, so no breakdown was invented (a test confirms every total is unchanged).
+  - **Customer pages** (`/parties/[id]`).
+    - Billing profile (fictional demo values). KRA PIN, phone and credit limit are deliberately "Not recorded".
+    - Indicative account balance from invoices, labelled not authoritative.
+    - Chronological service history of shipments, delays, quotations, documents, invoices and payments, with a type filter and sort order, linking to each record.
+    - Invoices, payments and quotations for the customer.
+  - **Agents.** Supported routes derived only from the jobs each agent handles in the demo data, labelled "not an agreement". New optional `Shipment.agentRouteId`, validated against the selected agent; `Quotation.agentName`. Agent pages show routes with job counts, related jobs, quotations naming the agent, and customer invoices on their jobs (agent payables not modelled).
+  - **Navigation.** Shipment list filters `?customer=` and `?agent=` (removable chips). Cross-links between shipments, quotations, customers, agents and invoice rows (`/finance#INV-…`). Dashboard activity links to quotations.
+- Files (all under `Frontend/frontend/`):
+  - Edited: `app/{finance,parties,quotations}/page.tsx`, `app/layout.tsx`, `app/shipments/new/page.tsx`, `components/dashboard/panels.tsx`, `components/layout/app-shell.tsx` (print styles only), `components/shipments/{shipment-detail-view,shipment-explorer,shipment-form,shipment-history}.tsx`, `components/ui/use-validated-form.ts`, `docs/api-contracts.md`, `lib/{types,labels,shipment-form,shipment-changes}.ts`, `lib/data/{demo-data,index,session-store}.ts(x)`, plus the phase 1 files `app/shipments/page.tsx` and `app/page.tsx`.
+  - Created: `app/parties/[id]/page.tsx`, `app/quotations/new/page.tsx`, `app/quotations/[reference]/page.tsx`, `app/quotations/[reference]/edit/page.tsx`, `components/parties/{party-detail-view,party-table,service-history}.tsx`, `components/quotations/{quotation-actions,quotation-detail-view,quotation-document,quotation-form,quotation-form-view,quotation-list}.tsx`, `components/shipments/new-shipment-view.tsx`, `lib/{customer-history,money,quotation-changes,quotation-form,quotations}.ts`.
+  - Deleted: none.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Commands that changed project state: `npx next typegen`, `npx next build` (`.next/` only); `next start -p 3100` for curl checks, then stopped after confirming its command line.
+- Checks run and results:
+  - tsc → pass; eslint → pass; build → success, 18 routes.
+  - Logic tests → 8/8 phase 2 groups and 9/9 phase 1 groups pass. A phase 1 fixture failed at first because the new `agentRoutes` validation context was optional. The context was made required, so a missing context now fails type-checking, and the fixture was updated.
+  - Curl: 27 app URLs → 200, `/nowhere` → 404. Content spot checks matched the demo data (filtered rows, conversion blocked for non-accepted quotations, Baobab overdue KES 486,400, agent routes).
+  - No browser or visual review.
+- Known failures / outstanding: billing profiles and agent routes are read-only; quotation expiry is judged against the fixed demo date (19 Oct 2026), so QT-2610-0049 still shows "sent"; payment `p-04` refers to invoice `INV-2609-0081`, which is not in the demo data; invoices and payments are matched to customers by name.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: uncommitted changes in `Frontend/frontend/` only.
+
+### LOG-20261021-0111-frontend-phase3 — Document uploads (frontend phase 3, demo only)
+- Time: work started 2026-10-21 00:58:56 +03:00; checks finished 01:10:35 +03:00; entry written 01:11:07 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator: "Proceed with Phase 3: document uploads, same rules as before. make sure you always document the entries". Interpreted as authorization to record phase entries in this file (§9). This file is the only change outside `Frontend/frontend/`.
+- What changed:
+  - **Upload page** (`/documents/upload`, pre-fillable with `?shipment=&type=`). Choose a shipment (the customer is taken from it), a document type and up to 10 files, by file picker or drag and drop.
+  - **File checks** (`lib/document-upload.ts`): PDF, JPEG, PNG, DOC/DOCX or XLS/XLSX only; not empty; at most 10 MB each and 100 MB per session. The extension, browser-reported MIME type and leading bytes must agree, so a renamed executable or script is rejected. Unreadable files (moved, deleted, locked) produce a clear error, and nothing is added.
+  - **In-memory storage.** Valid files are copied into the tab's memory as `Blob`s. Open and Download use temporary `blob:` URLs, released after a short delay. Nothing is uploaded, sent to the backend, placed in `public/` or kept after reload, and every upload screen says so.
+  - **Records.** Each file becomes a document record with status "received". The first file fulfils an outstanding "missing" or "rejected" requirement of the same type instead of duplicating it. Received documents can be verified, or rejected with a reason. Uploads and reviews appear in the shipment change history and the dashboard activity.
+  - **Documents page.** Filename, size, type, shipment, customer, upload date, status and reviewer; a "With file (this tab)" filter.
+  - **Consistency.** The shipment page documents card, the dashboard "Documents outstanding" KPI and the customer service history now read documents from the session store.
+- Files:
+  - Edited: `CLAUDE.md` (§3, §5, §9, §11, §14 and these three entries) and, under `Frontend/frontend/`: `app/documents/page.tsx`, `app/layout.tsx`, `app/page.tsx`, `app/parties/[id]/page.tsx`, `app/shipments/[reference]/page.tsx`, `components/dashboard/session-panels.tsx`, `components/documents/document-list.tsx`, `components/parties/party-detail-view.tsx`, `components/shipments/{shipment-detail-view,shipment-history}.tsx`, `docs/api-contracts.md`, `lib/{types,metrics,customer-history,shipment-changes}.ts`, `lib/data/session-store.tsx`.
+  - Created: `app/documents/upload/page.tsx`, `components/documents/upload-form.tsx`, `lib/{document-upload,document-changes}.ts`.
+  - Deleted: none.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Commands that changed project state: `npx next typegen`, `npx next build` (`.next/` only); `git fetch origin` (no new commits); `next start -p 3100` twice for curl checks, each stopped after confirming its command line. No server left running.
+- Checks run and results:
+  - tsc → pass; eslint → pass (after renaming a helper parameter called `use`, which the hooks lint rule mistook for React's `use`); build → success, 20 routes.
+  - Logic tests → 22/22 groups pass across all three phases (phase 3: format, size and signature checks, an unreadable file, fulfilling requirements, review rules).
+  - **Bug found and fixed during checks:** `/documents` rendered the not-found page while still returning HTTP 200. The cause was a constant (`documentFilters`) exported from a `'use client'` module and imported into a Server Component, where it becomes a client reference instead of the array. It was moved to `lib/metrics.ts`. An audit confirmed every other client import into server pages is a component or a type.
+  - Curl after the fix: every page renders its expected `<h1>`, `/nowhere` 404, unknown records show not-found UI, no server errors logged.
+  - No browser or visual review, so an actual file selection, open and download were **not exercised in a browser**.
+- Known failures / outstanding: files cannot be removed or replaced after adding (reject and re-upload instead); no customer-level documents; no in-app preview; no virus scanning. Production needs private storage, authorised short-lived downloads, server-side validation and scanning, an audit log and a retention policy — see `Frontend/frontend/docs/api-contracts.md`.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: uncommitted changes in `Frontend/frontend/` and `CLAUDE.md`; nothing staged; branch `feature/frontend-foundation` = `46ad529` (same as `origin`).
+
+### LOG-20261021-0116-logging-rule — "Write everything in CLAUDE.md"; items not yet logged from phases 1–3
+- Time: 2026-10-21 01:16:55 +03:00 (Africa/Nairobi), taken before editing — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5), same session as LOG-20261021-0111-frontend-phase1/2/3.
+- Instruction received: "make sure you write everything you do in the claude.md". From now on every action is logged here, including read-only checks, processes started or stopped, files created outside the repository, failed attempts and instructions received (§9, §15 rule 2 updated).
+- Pre-edit checks:
+  - `git fetch origin` → no new commits.
+  - `git ls-remote origin` → `main` = `883f93b`, `feature/frontend-foundation` = `46ad529` = local HEAD.
+  - No stashes; only `CLAUDE.md` changed outside `Frontend/frontend/`.
+  - `CLAUDE.md` last modified 01:12:23 +03:00, which matches the edits below. No sign of anyone else editing it.
+- **Done after the LOG-20261021-0111 entries were written** (01:11:07–01:12:23, then checks):
+  - Edited §3 (frontend line), §5 (three frontend rows), §9 (two rows), §11 (latest frontend results) and §14 (Git state, authorized work, frontend state, next action).
+  - Checks: `git diff --check -- CLAUDE.md Frontend/frontend` → clean. A scan of the added `CLAUDE.md` lines → no email addresses other than `.example`, and no connection strings, passwords, secrets or tokens. `git status` → only `CLAUDE.md` outside `Frontend/frontend/`, 70 entries with untracked files expanded; nothing staged; no stashes; branch unchanged.
+- **Files created outside the repository (not committed, not part of the project):**
+  - Claude Code memory on this machine: `~/.claude/projects/C--Users-HP-Documents-freight-management-sister/memory/log-every-phase-in-claude-md.md` and its index `MEMORY.md`. Created 2026-10-21 00:58 (phase 3 start) to remember the logging instruction; updated 01:16–01:17 to the broader "log everything" rule. Local to this machine and session tooling, not visible to the repository owner.
+  - Session scratchpad (a temporary folder under the user's `AppData\Local\Temp\claude\…`; may be deleted automatically):
+    - Test helpers: `alias-hooks.mjs`, `register.mjs` (map `@/` imports so Node can run the frontend's TypeScript).
+    - Logic tests: `logic-test.ts` (phase 1), `logic-test-p2.ts` (phase 2), `logic-test-p3.ts` (phase 3).
+    - One-off data-edit scripts: `actuals.mjs` (phase 1: inserted actual dates into `lib/data/demo-data.ts`), `p2-demo.mjs` (phase 2: renamed the quotation seed array and inserted `agentRouteId` values).
+    - The logic tests are not in the repository. Adding a test runner to the frontend would be a dependency decision (§9).
+- **Editing method and failed attempts during phases 1–3** (recorded for completeness; all were corrected and the checks above were run afterwards):
+  - Many edits were made with one-off `node -e` and `sed` commands in Git Bash, as well as the Edit and Write tools. Python is not installed on this machine.
+  - Shell quoting failures, each detected and fixed:
+    - Phase 1: an edit of `lib/types.ts` aborted before writing (Python missing). An edit to `lib/format.ts` lost its template literals and was corrected. An edit of `shipment-table.tsx` aborted before writing; the file was rewritten instead.
+    - Phase 1, `docs/api-contracts.md`: the first attempt to append the write-endpoint section garbled it. Because of the shell quoting, Bash also tried to run words from the text as commands; each failed with "command not found" or "No such file or directory", and nothing ran. The garbled section was truncated with `head` and rewritten with the Edit tool.
+    - Phase 2: a broken quote in a validation message in `lib/shipment-form.ts` was fixed.
+    - Phase 3: an edit of `lib/data/session-store.tsx` failed before writing, and the file was rewritten. A link in `shipment-detail-view.tsx` lost its template literal and was fixed. A renamed helper parameter (`use` → `consume`) was missed at its call site; tsc and eslint caught it and it was fixed.
+  - Phase 1 lint fix: ref access during render in the new form hook (React Compiler `react-hooks/refs`). The error summary is now focused by element id instead of a ref.
+- **Background processes:** three `next start -p 3100` servers were started for curl checks: phase 1 once, phase 2 once, phase 3 twice (one was stopped and restarted after the `/documents` fix). Each was stopped by `Stop-Process` after its command line was confirmed. The "exit code 127" each task then reported is the result of that stop, not a crash. Port 3100 was free afterwards.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched · Application code: not changed by this entry.
+- Files edited by this entry: `CLAUDE.md` (this entry, §9 row, §15 rule 2). Outside the repository: the memory files above.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: unchanged apart from `CLAUDE.md`; verified after editing.
+
+### LOG-20261021-0128-precommit-review — Final pre-commit review of frontend phases 1–3
+- Time: review started 2026-10-21 01:20:41 +03:00; this entry written 01:27:53 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator: a final pre-commit review within the frontend scope, plus this log update. No staging, commit, push, merge, deploy or database commands.
+- **Repository checks (read-only):**
+  - Root `C:/Users/HP/Documents/freight-management-sister`; branch `feature/frontend-foundation`; `origin` = `https://github.com/karechel/freight-management.git` (fetch and push).
+  - `git fetch origin` → nothing new. `git ls-remote` → `main` = `883f93b`, `feature/frontend-foundation` = `46ad529`. Local `main` = `883f93b` tracking `origin/main`; local feature branch = `46ad529`, in sync.
+  - No stashes, no merge, rebase or `index.lock` in progress; nothing staged.
+  - `core.autocrlf=true`; changed files are LF in both index and working tree (`git ls-files --eol`), so they will be committed as LF.
+- **Diff inspection.** Before this entry: 23 modified tracked files (`CLAUDE.md` plus 22 under `Frontend/frontend/`) and 47 untracked files, all under `Frontend/frontend/`. All belong to phases 1–3 as logged. No backend, Prisma, package manifest, lockfile, env or config changes.
+- **Scans** of all added and untracked content (7,203 lines):
+  - No email addresses other than `.example`; no connection strings, passwords, API keys, tokens or private keys; no URLs.
+  - No `localStorage`, `sessionStorage`, IndexedDB, cookies, `eval`, `dangerouslySetInnerHTML` or new network calls (`localStorage` appears only in "not used" statements).
+  - No `console.log`, `debugger` or TODO; no `public/` paths.
+  - Contributor names appear only in this log, in the established "local Git identity" form.
+  - The clock is used only in event handlers, validation callbacks and effects, so there is no server/client render mismatch risk.
+- **Demo claims and API consistency.**
+  - UI wording matches `docs/api-contracts.md`: session-only saving, no email or notification sending, quotations editable as drafts only, document limits (10 files, 10 MB each, 100 MB per session) and formats, `blob:`-only file access, read-only billing and routes, Customs page still on static data.
+  - **Fixed:** `app/settings/page.tsx` (System status) said "All pages use demo data" and "No files are uploaded or stored" without mentioning the new edit and upload screens. It now says edits are kept in the browser tab only, and that files chosen on the upload page stay in tab memory and are never uploaded or stored.
+  - **Fixed:** the §4 `app/` row of this file (out of date since 2026-10-19); added rows for `lib/` and `docs/api-contracts.md`.
+  - Noted, not changed: `getShipment()` in `lib/data/index.ts` is no longer called. It is kept because `docs/api-contracts.md` maps it to `GET /shipments/:reference`.
+- **Checks** (after the fixes):
+  - `npx tsc --noEmit --incremental false` → exit 0; `npx eslint` → exit 0.
+  - `npx next build` → exit 0, 19 route entries (18 app routes + `/_not-found`).
+  - Scratch logic tests → 9 + 8 + 5 = 22/22 groups pass.
+  - The project's own Next.js 16.3.5 (`node …/node_modules/next/dist/bin/next start -p 3100 <frontend dir>`): 25/25 pages return 200 with the expected `<h1>`, `/nowhere` → 404, the new System status wording renders, no server errors. Server stopped (PIDs 13200, 27156, 1612, 29524); port 3100 free.
+- **Incident during the review (no project impact).**
+  - The first server start for the curl checks ran `npx next start -p 3100` from the repository root instead of `Frontend/frontend`; the background command lost its `cd`. With no local `next` there, npx began fetching **next@16.4.2** into the global npx cache, outside the repository. The curl loop got connection failures (`000`).
+  - Stopped by command line: npx/node 28768, wrappers 1500, 22140, 21840, 9792; check-loop processes 2516, 10964, 26824 and curl 17900.
+  - Verified afterwards: no new files in the repository; `Frontend/frontend/package.json`, `package-lock.json` and `Backend/` identical to HEAD; installed `next` still 16.3.5.
+  - **Left behind outside the repository:** an incomplete npx cache folder, `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` (about 249 MB, created 01:24:08 +03:00, 19 top-level packages, no install-complete marker, contains a `concurrency.lock`). Whether package install scripts ran (e.g. `sharp`) could not be confirmed. Not deleted; awaiting the collaborator's decision. It does not affect the project, which always uses its own `node_modules`.
+  - Changed practice: servers are now started with the project's `next` binary by absolute path and an explicit directory, never with `npx` from an unknown working directory.
+- **Corrections to earlier entries** (originals left unchanged):
+  - LOG-20261021-0111-frontend-phase1 says the build produced "15 routes"; the output listed 14 entries (13 app routes + `/_not-found`).
+  - LOG-20261021-0111-frontend-phase3 and §11 say "20 routes"; the output listed 19 entries (18 app routes + `/_not-found`). §11 is a living section and is corrected here.
+  - LOG-20261021-0111-frontend-phase2's "18 routes" was correct (17 + `/_not-found`).
+- **Needs browser or manual verification** (not done; no browser testing was performed in phases 1–3 or in this review):
+  - Creating, editing and changing status of shipments; recording and editing delays.
+  - The full quotation flow, including line items, totals, duplicate, convert and printing / save as PDF.
+  - Customer and agent pages; filter chips.
+  - Selecting real files, rejection of a renamed file, open (new tab) and download, verify/reject.
+  - Focus moving to the error summary; keyboard navigation of whole-row links and the mobile drawer.
+  - Phone-width layout, and print layout.
+  - That reloading clears session data, as the UI states.
+- **Outstanding issues (known, documented):** no auth or roles; session-only data; the Customs page reads static data; billing and routes read-only; quotation expiry measured against the fixed demo date; no file removal, preview or scanning; backend `GET /` exposure and TS2307 unchanged (backend out of scope).
+- Files edited by this review: `Frontend/frontend/app/settings/page.tsx`, `CLAUDE.md` (§4, §11, §14, this entry). Created or deleted in the repository: none. Outside the repository: the npx cache folder above (unintended).
+- Database/schema changes: none · Dependency changes: none (project manifests unchanged).
+- Commit: not committed · Pushed: no. Proposed commit (awaiting explicit approval): all 71 files listed by `git status` (24 modified, 47 new) on `feature/frontend-foundation`, followed by a normal push of that branch only; `main` is not touched.
+- Working-tree status after: 24 modified (including `CLAUDE.md` and `app/settings/page.tsx`) + 47 untracked; nothing staged; branch `feature/frontend-foundation` = `46ad529`.
+
+### LOG-20261021-0130-commit-phases — Commit and push of frontend phases 1–3
+- Time: 2026-10-21 01:30:45 +03:00 (Africa/Nairobi), taken before this entry — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator: "commit and push. dont delete the npx folder yet though".
+- Pre-commit checks:
+  - `git fetch origin` → nothing new. `git ls-remote` → `main` = `883f93b`, `feature/frontend-foundation` = `46ad529` = local HEAD.
+  - 24 modified + 47 untracked, the same as at the end of LOG-20261021-0128-precommit-review. `CLAUDE.md` last modified 01:28:36 by that review. No stashes; nothing staged.
+- What is committed: the 71 files listed in LOG-20261021-0128-precommit-review (phases 1–3, the System status wording fix, these `CLAUDE.md` updates and this entry).
+  - Staged with `git add -- CLAUDE.md Frontend/frontend`. The staged list is checked before committing: exactly 71 files, nothing outside `CLAUDE.md` and `Frontend/frontend/`, and `git diff --cached --check` clean.
+  - Commit message: "feat(frontend): shipments, delays, quotations, customer/agent views and document uploads (demo)", parent `46ad529`. A file cannot record its own hash; see `git log -1 feature/frontend-foundation`.
+- Push: a normal (non-force) `git push origin feature/frontend-foundation` runs after the commit. `main` is not changed and nothing is merged. The push result is recorded in a follow-up entry after this commit, which is left uncommitted.
+- Not done, as instructed: the incomplete npx cache folder `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` (LOG-20261021-0128-precommit-review) is **left in place**; the collaborator will decide later.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Checks: the full frontend checks from LOG-20261021-0128-precommit-review (tsc, eslint, build, 22/22 logic groups, 25/25 page headings). No code has changed since. No browser testing has been done.
+
 ## 14. Current handover state
 
-- **Git state (2026-10-19 15:53 +03:00):** `main` = `origin/main` = `883f93b` (unchanged). The frontend work and these `CLAUDE.md` updates are committed on `feature/frontend-foundation` and pushed to `origin` as a separate branch (LOG-20261019-1553-frontend-review). They are **not merged into `main`**; merging needs a decision, ideally after the repository owner reviews it (e.g. via a pull request). Verify with `git log` and `git ls-remote origin`.
-- **Authorized work:** frontend development (collaborator, 2026-10-19). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push of frontend work requires explicit collaborator approval.
-- **Frontend state:** shell, dashboard and core screens built with fictional demo data, labelled throughout (§5). The only live backend call is `GET /health`. Missing endpoint contracts: `Frontend/frontend/docs/api-contracts.md`.
+- **Git state (2026-10-21 01:28 +03:00):** `main` = `origin/main` = `883f93b`; `feature/frontend-foundation` = `origin/feature/frontend-foundation` = `46ad529` (pushed, LOG-20261019-1553-frontend-review). Frontend phases 1–3 (LOG-20261021-0111-frontend-phase1/2/3) and these `CLAUDE.md` updates are **uncommitted**: 71 files (24 modified, 47 new). Pre-commit review done (LOG-20261021-0128-precommit-review). Waiting for the collaborator's explicit approval to commit and push on `feature/frontend-foundation`. Nothing is merged into `main`.
+- **Pending decision outside the repo:** whether to delete the incomplete npx cache folder `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` created by mistake during the review (LOG-20261021-0128-precommit-review).
+- **Authorized work:** frontend development (collaborator, 2026-10-19), and recording every phase in this log (2026-10-21). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push requires explicit collaborator approval.
+- **Frontend state:** the shell plus shipment management and delays, quotations, customer billing and history, agent routes, and document uploads, all on fictional demo data. Edits and uploaded files live only in the browser tab (session store) until reload. The only live backend call is `GET /health`. Endpoint, storage and integration contracts: `Frontend/frontend/docs/api-contracts.md`.
 - **Most important open security issue:** unauthenticated `GET /` returns every `User` row (§12 item 1). Not fixed; it must be removed or protected before any real data is stored.
 - **Documentation audit:** §16 (2026-10-15). Necessary corrections applied (LOG-20261015-2305-corrections); Recommended corrections applied (LOG-20261015-2310-corrections). Pre-commit consistency review done (LOG-20261015-2314-consistency): §16 now carries dated notes marking its "not modified / NOT applied" statements as historical; the findings themselves are preserved unchanged.
 - **Decided 2026-10-19 (§16.6 decisions note):** naming convention, collaborator confirmation, frontend scope, Node (observed only), line-ending preference, Prisma freeze, integration labelling, commit strategy.
 - **Still unresolved:** "Phase 0" definition; agreed Node.js version; the repository owner's DB state and how the `User` table was created; keep/remove the `deploy` script; Prisma RC vs stable and `@prisma/client` 7; KRA iCMS / M-Pesa access; the repository owner's own confirmation of these decisions.
-- **Next recommended action:** review the frontend in a browser (`npm run dev` in `Frontend/frontend`, with the backend on 3001 for the health check), including on a phone-width screen; then decide whether to open a pull request from `feature/frontend-foundation` into `main` for the repository owner to review. Separately, decide whether to authorize backend work, starting with removing or protecting `GET /` and then the endpoints in `docs/api-contracts.md`.
+- **Next recommended action:**
+  1. Review phases 1–3 in a browser (`npm run dev` in `Frontend/frontend`), including on a phone-width screen. In particular: create and edit a shipment, record a delay, the quotation lifecycle and printing, and uploading, opening and downloading a real file.
+  2. Then decide whether to approve a commit on `feature/frontend-foundation`, and whether to open a pull request into `main` for the repository owner to review.
+  3. Separately, decide whether to authorize backend work, starting with removing or protecting `GET /`, then the write endpoints and private document storage in `docs/api-contracts.md`.
 
 ## 15. Maintaining this document
 
 1. Before editing, run `git status` and `git fetch` (read-only for working files) and compare `main` with `origin/main`; read this whole file. Only `git pull` when the human contributor has authorized it and the working tree is clean or changes are safely committed/stashed. Never overwrite another contributor's entries.
-2. Append a log entry (§13) for every meaningful change — not for trivial read-only commands. New entries go at the end of §13 (above §14), not at the end of the file.
+2. Append a log entry (§13) for everything done in a session. Include changes, checks run (including read-only ones), processes started or stopped, files created outside the repository, failed attempts and instructions received. If something is done after an entry is written, add a short follow-up entry. New entries go at the end of §13 (above §14), not at the end of the file. (Changed 2026-10-21 on the collaborator's instruction, LOG-20261021-0116-logging-rule; previously trivial read-only commands were excluded.)
 3. Get timestamps from PowerShell `Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"`. Git Bash's `date` on this machine ignores `TZ=Africa/Nairobi` and reports GMT — do not use it. (Cause: Git Bash lacks zoneinfo. In Git Bash, `TZ=EAT-3 date '+%F %T %z'` gives the correct +0300 time; PowerShell remains the preferred source.)
 4. Never backdate; if exact time is unknown write "Exact change time unavailable." Don't infer times from file mtimes alone.
 5. Update §5, §11, §12 and §14 when facts change; log changes to this file itself.

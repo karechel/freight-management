@@ -1,14 +1,15 @@
 // Pure helpers that derive dashboard figures and list views from records.
 // No data imports here, so these are safe to use in Client Components.
 
-import type { Invoice, Shipment, ShipmentDocument, ShipmentStatus } from '@/lib/types';
+import type { DocumentStatus, Invoice, Shipment, ShipmentDelay, ShipmentDocument, ShipmentStatus } from '@/lib/types';
 
-export type ShipmentView = 'all' | 'active' | 'attention' | 'arriving' | 'customs';
+export type ShipmentView = 'all' | 'active' | 'attention' | 'delayed' | 'arriving' | 'customs';
 
 export const shipmentViewLabel: Record<ShipmentView, string> = {
   all: 'All shipments',
   active: 'Active (not delivered)',
   attention: 'Needs attention',
+  delayed: 'Delayed (open delays)',
   arriving: 'Arriving in 7 days',
   customs: 'In customs clearance',
 };
@@ -17,8 +18,35 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const isActive = (s: Shipment) => s.status !== 'delivered';
 
+/** Delays that are still open or being monitored, newest first. */
+export const unresolvedDelays = (s: Shipment): ShipmentDelay[] =>
+  s.delays
+    .filter((d) => d.status !== 'resolved')
+    .sort((a, b) => b.identifiedAt.localeCompare(a.identifiedAt));
+
+export const isDelayed = (s: Shipment) => isActive(s) && unresolvedDelays(s).length > 0;
+
+/** Revised minus original expected date, in milliseconds; undefined until a revised date is recorded. */
+export function delayDurationMs(d: ShipmentDelay): number | undefined {
+  if (!d.revisedExpectedAt) return undefined;
+  return new Date(d.revisedExpectedAt).getTime() - new Date(d.originalExpectedAt).getTime();
+}
+
+/**
+ * The ETA to plan with: the revised date of the most recently identified delay
+ * that affects the ETA (including resolved ones, whose revision still stands),
+ * otherwise the planned ETA.
+ */
+export function currentEta(s: Shipment): { at: string; revised: boolean } {
+  const revision = s.delays
+    .filter((d) => d.affectsEta && d.revisedExpectedAt)
+    .sort((a, b) => b.identifiedAt.localeCompare(a.identifiedAt))[0];
+  return revision?.revisedExpectedAt ? { at: revision.revisedExpectedAt, revised: true } : { at: s.eta, revised: false };
+}
+
 export const needsAttention = (s: Shipment) =>
-  isActive(s) && (s.status === 'on_hold' || s.exceptions.length > 0 || s.customs.status === 'query');
+  isActive(s) &&
+  (s.status === 'on_hold' || s.exceptions.length > 0 || s.customs.status === 'query' || isDelayed(s));
 
 export const isInCustoms = (s: Shipment) =>
   isActive(s) && s.customs.status !== 'not_started' && s.customs.status !== 'released';
@@ -26,7 +54,7 @@ export const isInCustoms = (s: Shipment) =>
 export function isArrivingSoon(s: Shipment, referenceDate: string, days = 7): boolean {
   if (s.status !== 'booked' && s.status !== 'in_transit') return false;
   const ref = new Date(referenceDate).getTime();
-  const eta = new Date(s.eta).getTime();
+  const eta = new Date(currentEta(s).at).getTime();
   return eta >= ref - DAY_MS && eta <= ref + days * DAY_MS;
 }
 
@@ -38,6 +66,8 @@ export function matchesView(s: Shipment, view: ShipmentView, referenceDate: stri
       return isActive(s);
     case 'attention':
       return needsAttention(s);
+    case 'delayed':
+      return isDelayed(s);
     case 'arriving':
       return isArrivingSoon(s, referenceDate);
     case 'customs':
@@ -74,4 +104,25 @@ export function receivablesSummary(invoices: Invoice[]) {
     overdueKes: overdue.reduce((sum, i) => sum + invoiceBalance(i), 0),
     overdueCount: overdue.length,
   };
+}
+
+export type DocumentFilter = 'all' | 'outstanding' | DocumentStatus | 'session_files';
+
+export const documentFilterLabel: Record<DocumentFilter, string> = {
+  all: 'All',
+  outstanding: 'Outstanding',
+  missing: 'Missing',
+  rejected: 'Rejected',
+  received: 'Received',
+  verified: 'Verified',
+  session_files: 'With file (this tab)',
+};
+
+export const documentFilters = Object.keys(documentFilterLabel) as DocumentFilter[];
+
+export function matchesDocumentFilter(doc: ShipmentDocument, filter: DocumentFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'outstanding') return doc.status === 'missing' || doc.status === 'rejected';
+  if (filter === 'session_files') return Boolean(doc.file);
+  return doc.status === filter;
 }

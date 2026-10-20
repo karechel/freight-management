@@ -1,5 +1,6 @@
 // Shared empty / error / loading / notice states.
 
+import Link from 'next/link';
 import { AlertIcon, InfoIcon } from './icons';
 import type { DataSource } from '@/lib/types';
 
@@ -47,6 +48,10 @@ export function Skeleton({ className = '' }: { className?: string }) {
   return <div aria-hidden="true" className={`motion-safe:animate-pulse rounded-md bg-slate-200/80 ${className}`} />;
 }
 
+/** Wording for the demo banner on pages where records can be edited in the browser session. */
+export const SESSION_EDIT_NOTE =
+  'Changes you make are kept only in this browser tab until it is reloaded. Nothing is sent to, or saved in, the backend.';
+
 /** Banner stating that the page shows demonstration data, not live records. */
 export function DataSourceNotice({ source, children }: { source: DataSource; children?: React.ReactNode }) {
   if (source === 'live') return null;
@@ -73,6 +78,28 @@ export function PendingNotice({ title, children }: { title: string; children: Re
         <p className="font-medium text-slate-900">{title}</p>
         <p className="mt-0.5">{children}</p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Not-found message for records looked up in the browser session store, where
+ * Next.js `notFound()` (server only) cannot be used.
+ */
+export function RecordNotFound({ title, backHref, backLabel }: { title: string; backHref: string; backLabel: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
+      <EmptyState
+        title={title}
+        description="It may have been mistyped, or it was created in another browser tab or before the page was reloaded. Records created in this demo exist only in the tab where they were made."
+      >
+        <Link
+          href={backHref}
+          className="mt-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        >
+          {backLabel}
+        </Link>
+      </EmptyState>
     </div>
   );
 }
