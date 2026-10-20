@@ -617,10 +617,62 @@ Entry template:
 - The push result cannot be recorded inside the commit it describes. As agreed (§15 rule 2), a short follow-up entry records it afterwards; that entry stays uncommitted until the next approved commit.
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged · npx cache folder: still untouched.
 
+### LOG-20261021-0154-push-confirmed — Result of LOG-20261021-0154-commit-log
+- Time: 2026-10-21 01:54:34 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5), same session.
+- Commit: `bb47544` (`bb47544c00bb1169cb39fbe731887f594b649a9e`), parent `5e2910f`, author time 01:54:11 +03:00. `CLAUDE.md` only: 1 file, 60 insertions, 2 deletions. Working tree clean afterwards.
+- Push:
+  - Remote branch confirmed at `5e2910f` just before. A normal `git push origin feature/frontend-foundation` reported `5e2910f..bb47544`.
+  - Afterwards `git ls-remote origin`: `feature/frontend-foundation` = `bb47544`, `main` = `883f93b` (unchanged). The remote-tracking reflog records "update by push" `5e2910f → bb47544` at 01:54:17 +03:00.
+  - No force push, no merge.
+- The repository owner can now pull `feature/frontend-foundation` at `bb47544`, which contains all phase 1–3 code (`5e2910f`) and the log up to LOG-20261021-0154-commit-log.
+- **This entry is uncommitted** (it records the push of the commit before it) and goes into the next approved commit.
+- Files edited: `CLAUDE.md` (this entry). Database/schema: none · Dependencies: none.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-0158-wrap-up — npx cache folder deleted; end-of-session state
+- Time: 2026-10-21 01:57:49 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Instruction: "now delete the npx folder, i also want to stop working now so make sure everything is ok".
+- **Deleted (outside the repository):** `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\`, the incomplete next@16.4.2 download created by mistake in LOG-20261021-0128-precommit-review.
+  - Checked before deleting: same folder (created 01:24:08 +03:00, 249 MB, the same 19 packages, `next/package.json` still unreadable). No process referenced it, and no npx or next process was running.
+  - Deleted with `rm -rf`; confirmed gone afterwards.
+  - The other npx cache entries (`cc2145a2fe1558fa` = create-next-app, `ccf722f030a36e55` = @nestjs/cli, both from 2026-09-13) predate this session and were left alone.
+- **End-of-session checks:**
+  - `git fetch origin` → nothing new. Branch `feature/frontend-foundation` = `origin/feature/frontend-foundation` = `bb47544`; `main` = `origin/main` = `883f93b` (never changed this session).
+  - `Frontend/` and `Backend/` match HEAD (no uncommitted code). Only `CLAUDE.md` is modified (LOG-20261021-0154-push-confirmed and this entry). Nothing staged; no stashes; no merge or lock.
+  - Ignored local files unchanged in kind: `.env` files, `node_modules/`, `.next/`, `dist/`, `next-env.d.ts`.
+  - No dev or production servers running; ports 3000 and 3100 free.
+- **Left on this machine, outside the repository (not part of the project):**
+  - The session scratchpad: test scripts, logic tests, `pr-description.md`, scan and build logs. It may be cleared automatically; nothing in the project depends on it.
+  - The Claude Code memory note holding the "log everything in CLAUDE.md" rule (LOG-20261021-0116-logging-rule).
+- **Open items for the next session:**
+  1. Commit the uncommitted `CLAUDE.md` entries (LOG-20261021-0154-push-confirmed and this one) when approved, so the repository owner sees them.
+  2. Browser walkthrough of phases 1–3 (checklist in the PR draft; not yet done).
+  3. Open the pull request `feature/frontend-foundation` → `main` (draft description in LOG-20261021-0144-pr-draft).
+  4. Decide on backend work (start with protecting or removing `GET /`).
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry, §14). Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-0159-final-commit — Commit and push of the last log entries; session closed
+- Time: 2026-10-21 01:59:00 +03:00 (Africa/Nairobi), taken before this entry — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator (local Git identity Sean Macharia) / Claude Code (Opus 5.5). Authorized by the collaborator: "commit and push the CLAUDE.md entries".
+- Pre-commit checks:
+  - `git fetch origin` → nothing new. `feature/frontend-foundation` = `origin` = `bb47544`; `main` = `883f93b`.
+  - Only `CLAUDE.md` modified, last written 01:58:09 +03:00 by LOG-20261021-0158-wrap-up. Nothing staged; no stashes.
+- What is committed: `CLAUDE.md` only. That covers LOG-20261021-0154-push-confirmed, LOG-20261021-0158-wrap-up and this entry. Commit message: "docs: log final push confirmation and session wrap-up in CLAUDE.md", parent `bb47544`.
+- Push: immediately after the commit, a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `bb47544`. `main` is not changed; nothing is merged.
+- **How the result is recorded:** so the session ends with a clean working tree, **no further local entry is written after this push** (an exception to §15 rule 2's follow-up-entry practice, which would otherwise leave one uncommitted entry after every push).
+  - The result is verifiable from Git: `git ls-remote origin refs/heads/feature/frontend-foundation` should equal this commit (`git log -1 feature/frontend-foundation`), and `.git/logs/refs/remotes/origin/feature/frontend-foundation` should show "update by push" from `bb47544`.
+  - If the push failed, the next session's first entry must say so.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
 - **Git state (2026-10-21 01:31 +03:00):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` = `origin/feature/frontend-foundation` = `5e2910f` (frontend phases 1–3, committed and pushed; LOG-20261021-0130-commit-phases, LOG-20261021-0131-push-confirmed). The log entries up to LOG-20261021-0154-commit-log are committed on top of it (see `git log -1 feature/frontend-foundation`). Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft.
-- **Pending decision outside the repo:** whether to delete the incomplete npx cache folder `C:\Users\HP\AppData\Local\npm-cache\_npx\8b377f6eec906bc4\` created by mistake during the review (LOG-20261021-0128-precommit-review).
+- **Session ended 2026-10-21 ~01:58 +03:00 (LOG-20261021-0158-wrap-up):** the incomplete npx cache folder from LOG-20261021-0128-precommit-review was deleted on the collaborator's instruction. No servers running. All log entries, including LOG-20261021-0159-final-commit, are committed and pushed on `feature/frontend-foundation` (verify with `git log -1` and `git ls-remote origin`).
 - **Authorized work:** frontend development (collaborator, 2026-10-19), and recording every phase in this log (2026-10-21). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push requires explicit collaborator approval.
 - **Frontend state:** the shell plus shipment management and delays, quotations, customer billing and history, agent routes, and document uploads, all on fictional demo data. Edits and uploaded files live only in the browser tab (session store) until reload. The only live backend call is `GET /health`. Endpoint, storage and integration contracts: `Frontend/frontend/docs/api-contracts.md`.
 - **Most important open security issue:** unauthenticated `GET /` returns every `User` row (§12 item 1). Not fixed; it must be removed or protected before any real data is stored.
