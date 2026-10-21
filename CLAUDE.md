@@ -1040,6 +1040,44 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none (`npm ci` ran only in the test clone) · Application code: unchanged.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261022-0002-preview — Local preview server started for the operator
+- Time: 2026-10-22 00:02:36 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "i want to preview the website".
+- **Confirmation for LOG-20261022-0000-handover-check:**
+  - The push succeeded: `9bea6bb..db3e895`; `git ls-remote origin` shows `feature/frontend-foundation` = `db3e895`. The working tree was clean.
+  - The PR description was updated to `db3e895` as announced.
+- What was done:
+  - Started the production server on port 3000, using the project's own binary by absolute path: `node …/node_modules/next/dist/bin/next start -p 3000 <Frontend/frontend>`.
+  - It serves the existing `.next` build from 2026-10-21 23:35:16 +03:00. That build was made from the final code: the last commit touching `Frontend/frontend` (`a0cb63b`, 23:42) came after it with no further code changes.
+  - `next dev` was deliberately not used, because it rewrites the generated block in `Frontend/frontend/AGENTS.md` and would leave a change in the working tree.
+  - Curl: `/`, `/shipments`, `/notifications` and `/reports` → 200.
+- The server keeps running until stopped (it was started from this Claude Code session). Stop it when the preview is finished; record that in the next entry.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry). Commit: not committed · Pushed: no (deliberately, so the pushed branch and the PR description stay at `db3e895`).
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261022-0006-preview-stopped — Preview server stopped
+- Time: 2026-10-22 00:06:18 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "I am finished, thank you".
+- In between (after LOG-20261022-0002-preview), on "how do i preview it on a broswer": checked that `http://localhost:3000/` returned 200, then opened it in the default browser with PowerShell `Start-Process 'http://localhost:3000'`.
+- Stopped the preview server (PID 10292) after checking its command line was the `next start -p 3000` started in LOG-20261022-0002-preview. The "exit code 127" reported afterwards is that stop. Port 3000 free; no `next` processes left.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry). Commit: not committed · Pushed: no. GitHub and the PR description remain at `db3e895`; this entry and LOG-20261022-0002-preview go into the next approved commit.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261022-0007-commit-log — Commit and push of the preview log entries
+- Time: 2026-10-22 00:07:04 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "commit and push the CLAUDE.md entries".
+- Pre-commit checks: `git fetch origin` → nothing new. `feature/frontend-foundation` = `origin` = `db3e895`; `main` = `883f93b`. Only `CLAUDE.md` modified; nothing staged; no stashes. No servers running.
+- What is committed: `CLAUDE.md` only (LOG-20261022-0002-preview, LOG-20261022-0006-preview-stopped and this entry). Commit message: "docs: log local preview in CLAUDE.md", parent `db3e895`.
+- Push: a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `db3e895`. `main` is not changed; nothing is merged.
+- **Done after the push, recorded here in advance** (no further local entry, so the working tree ends clean, as in LOG-20261021-0159-final-commit):
+  - The scratchpad `pr-description.md` is updated to this commit's hash, with "10 commits", this commit added to the list of log-only commits, and the three new log entries added to its log list.
+  - Verify by comparing the hash in that file with `git ls-remote origin`.
+  - If the push failed, the next session's first entry must say so.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
 - **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
