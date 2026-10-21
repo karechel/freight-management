@@ -1014,12 +1014,38 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261022-0000-handover-check — Fresh-clone check for the repository owner; final commit of the day
+- Time: started 2026-10-21 23:53:13 +03:00; entry written 2026-10-22 00:00:11 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "make sure everything is available for my sister to pull. Also commit and push everything you need to so i can go to sleep" (the sister is the repository owner).
+- **Confirmation for LOG-20261021-2350-final-commit:** the push succeeded. `git push` reported `803a685..9bea6bb`; `git ls-remote origin` shows `feature/frontend-foundation` = `9bea6bb` and `main` = `883f93b`. The PR description was updated to `9bea6bb` as announced, and the working tree was clean.
+- **Fresh-clone check of `9bea6bb`** (what the repository owner will get when pulling):
+  - `git clone --branch feature/frontend-foundation` from `https://github.com/karechel/freight-management.git` into the session scratchpad, with `core.longpaths=true` for that clone only (no global Git config change). The scratchpad path is long; see the Windows path note in the PR description.
+  - The clone's HEAD is `9bea6bb` and its tree is `d641d27`, both identical to the local branch. 167 tracked files; no changes after checkout.
+  - In `Frontend/frontend`:
+    - `npm ci` → exit 0 (Next.js 16.3.5; the same npm 11 warning that `unrs-resolver`'s install script was not run).
+    - `next typegen` → exit 0; `tsc --noEmit` → exit 0; `npm run lint` → exit 0; `npm run build` → exit 0, 29 route entries.
+    - The clone was still clean afterwards (build output is git-ignored).
+  - This repeats, for the final code, the check done for `5e2910f` in LOG-20261021-0144-pr-draft.
+- **Clean-up, partly failed:**
+  - Deleting the test clone with PowerShell `Remove-Item` failed on the long backend migration paths, after deleting part of the folder.
+  - A second attempt with `cmd rd` and the `\\?\` long-path prefix was blocked by a Claude Code safety check (the path was built from a variable). As that check requires, it was not retried another way.
+  - **Left behind:** `C:\Users\HP\AppData\Local\Temp\claude\C--Users-HP-Documents-freight-management-sister\43db939a-f0cf-4e72-84fa-2e8c280345d9\scratchpad\fresh-clone\` (about 8,500 files, mostly `node_modules`). It is outside the repository, the project does not use it, and it can be deleted by hand.
+- What is committed: `CLAUDE.md` only (this entry and the §14 note). Commit message: "docs: log fresh-clone check and handover in CLAUDE.md", parent `9bea6bb`.
+- Push: a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `9bea6bb`. `main` is not changed; nothing is merged.
+- **Done after the push, recorded here in advance** (no further local entry, so the working tree ends clean, as in LOG-20261021-0159-final-commit):
+  - The scratchpad `pr-description.md` is updated to this commit's hash, with "9 commits" and the list of log-only commits.
+  - Its fresh-clone line now says the fresh clone of `9bea6bb` passed.
+  - Verify by comparing the hash in that file with `git ls-remote origin`.
+  - If the push failed, the next session's first entry must say so.
+- Database/schema changes: none · Dependency changes: none (`npm ci` ran only in the test clone) · Application code: unchanged.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
 - **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
 - **Session ended 2026-10-21 ~01:58 +03:00 (LOG-20261021-0158-wrap-up):** the incomplete npx cache folder from LOG-20261021-0128-precommit-review was deleted on the collaborator's instruction. No servers running. All log entries, including LOG-20261021-0159-final-commit, are committed and pushed on `feature/frontend-foundation` (verify with `git log -1` and `git ls-remote origin`).
 - **Sidebar pages (2026-10-21 22:40 +03:00, LOG-20261021-2240-sidebar-pages):** grouped sidebar and new Agents, Expenses & profitability, Reports, Users & permissions and Settings & audit log pages. Committed and pushed in LOG-20261021-2341-commit-push.
-- **Session ended 2026-10-21 ~23:48 +03:00 (LOG-20261021-2347-wrap-up):** everything is committed and pushed on `feature/frontend-foundation`, including that entry (verify with `git log -1` and `git ls-remote origin`). No servers or test browsers are running. The PR description to paste into GitHub is in the session scratchpad (`pr-description.md`); next step: open the pull request into `main`.
+- **Session ended 2026-10-22 ~00:00 +03:00 (LOG-20261022-0000-handover-check):** everything is committed and pushed on `feature/frontend-foundation`, including that entry (verify with `git log -1` and `git ls-remote origin`). A fresh clone of `9bea6bb` passed `npm ci`, typegen, tsc, lint and build, so the repository owner can pull and run the branch. No servers or test browsers are running. The PR description to paste into GitHub is in the session scratchpad (`pr-description.md`); next step: open the pull request into `main`.
 - **Notifications and tasks (2026-10-21 23:38, LOG-20261021-2338-notifications-tasks):** added under Operations, with a dashboard summary. Demo only: notifications are calculated in the browser, nothing is sent, and tasks last for the tab only. Committed and pushed in LOG-20261021-2341-commit-push.
 - **Browser review (2026-10-21 23:04, LOG-20261021-2304-browser-review):** all phase 1–3 flows and the new pages were browser-tested in headless Chrome and pass. One layout fix (`components/ui/table.tsx`), committed with the work above. **Notifications and Tasks are missing** apart from a read-only dashboard task card. The screenshots referred to in the review request were not available to that session.
 - **Authorized work:** frontend development (collaborator, 2026-10-19), and recording every phase in this log (2026-10-21). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push requires explicit collaborator approval.
