@@ -931,6 +931,32 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Backend: untouched.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261021-2344-pr-description — PR description updated for the whole branch
+- Time: 2026-10-21 23:43:03 +03:00 (start) to 23:44:02 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "update the PR description to cover the new pages".
+- **Confirmation for LOG-20261021-2341-commit-push:** the push succeeded. `git push` reported `77471c7..a0cb63b`. `git ls-remote origin` shows `feature/frontend-foundation` = `a0cb63b`, `main` = `883f93b` (unchanged), and the remote-tracking reflog records "update by push". The working tree was clean afterwards.
+- Read-only checks: `git fetch origin` → nothing new. The branch is 5 commits ahead of `origin/main`, and `main` is an ancestor (merges cleanly). 120 files differ from `main`, all under `Frontend/frontend/` or `CLAUDE.md`; none in the backend, `package.json` or the lockfile.
+- What was written:
+  - A new `pr-description.md` in the session scratchpad, outside the repository, for the operator to paste into GitHub. It replaces the earlier draft from LOG-20261021-0144-pr-draft (which covered only `5e2910f`; that file was left untouched in the earlier session's scratchpad).
+  - Contents: the sidebar structure; every page, including the new ones; run instructions (top commit `a0cb63b`); the checks actually performed, including the browser testing and the defects it found; a review checklist; what is missing or demo-only; decisions for the repository owner.
+  - It states that the fresh-clone check was done for `5e2910f` only and not repeated for `a0cb63b`.
+  - Uses role labels only; a scan found no personal names or emails.
+- The PR itself was not opened: the GitHub CLI is not installed (LOG-20261021-0144-pr-draft), and opening one needs the operator's approval.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry only). Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-2345-commit-log — Commit and push of the PR-description log entry
+- Time: 2026-10-21 23:45:33 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "commit and push the CLAUDE.md entry".
+- Pre-commit checks:
+  - `git fetch origin` → nothing new. `feature/frontend-foundation` = `origin` = `a0cb63b`; `main` = `883f93b`.
+  - Only `CLAUDE.md` modified (LOG-20261021-2344-pr-description). Nothing staged; no stashes.
+- What is committed: `CLAUDE.md` only (LOG-20261021-2344-pr-description and this entry). Commit message: "docs: log PR description update in CLAUDE.md", parent `a0cb63b`.
+- Push: a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `a0cb63b`. `main` is not changed; nothing is merged.
+- **How the result is recorded:** as in LOG-20261021-0159-final-commit, no local entry is written after the push, so the working tree ends clean. Verify with `git ls-remote origin refs/heads/feature/frontend-foundation` against `git log -1 feature/frontend-foundation`. If the push failed, the next session's first entry must say so.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+
 ## 14. Current handover state
 
 - **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
