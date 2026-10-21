@@ -989,6 +989,31 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261021-2349-pr-refs — PR description updated to 803a685 (entry left uncommitted on purpose)
+- Time: 2026-10-21 23:49:04 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "update the PR description to 803a685".
+- **Confirmation for LOG-20261021-2347-wrap-up:** the push succeeded. `git push` reported `2c4eb8e..803a685`; `git ls-remote origin` shows `feature/frontend-foundation` = `803a685` and `main` = `883f93b`. The working tree was clean afterwards.
+- Changed in the scratchpad `pr-description.md` (outside the repository):
+  - The Compare line and the expected `git log` output now show `803a685`; "6 commits" became "7 commits" (checked with `git rev-list --count`). Still 120 files.
+  - The checks line now says `2c4eb8e` and `803a685` only add `CLAUDE.md` log entries (`git diff --name-only a0cb63b 803a685` → `CLAUDE.md`).
+  - The fresh-clone caveat now names `803a685`; LOG-20261021-2346 and -2347 were added to the log list.
+- **Why this entry is not committed:** committing it would move the branch past `803a685` and make the PR description out of date again. It should go into the next commit that changes something else; update the PR description's commit references then, if the PR is not yet open.
+- Files edited: `CLAUDE.md` (this entry). Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-2350-final-commit — Commit and push of LOG-20261021-2349; PR description follow-up
+- Time: 2026-10-21 23:50:19 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "commit and push the CLAUDE.md entry". This was given after being told it would move the branch past `803a685`.
+- Pre-commit checks: `git fetch origin` → nothing new. `feature/frontend-foundation` = `origin` = `803a685`; `main` = `883f93b`. Only `CLAUDE.md` modified; nothing staged; no stashes.
+- What is committed: `CLAUDE.md` only (LOG-20261021-2349-pr-refs and this entry). Commit message: "docs: log PR description update to 803a685 in CLAUDE.md", parent `803a685`.
+- Push: a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `803a685`. `main` is not changed; nothing is merged.
+- **Done after the push, recorded here in advance** (no further local entry, so the working tree ends clean, as in LOG-20261021-0159-final-commit):
+  - The scratchpad `pr-description.md` (outside the repository) is updated to this commit's hash: Compare line, expected `git log` output, "8 commits", the list of commits that only change `CLAUDE.md`, the fresh-clone caveat, and the log list (adding LOG-20261021-2349 and -2350).
+  - Verify by comparing the hash in that file with `git log -1 --format=%h feature/frontend-foundation` and `git ls-remote origin`.
+  - If the push failed, the next session's first entry must say so.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
 - **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
