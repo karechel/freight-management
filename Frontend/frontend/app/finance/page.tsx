@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { JobExpensesCard, PendingExpensesTile } from '@/components/finance/job-expenses';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { DataSourceNotice, EmptyState, PendingNotice } from '@/components/ui/states';
 import { Table, Td, Th } from '@/components/ui/table';
-import { getExpenses, getInvoices, getParties, getPayments } from '@/lib/data';
+import { getInvoices, getParties, getPayments } from '@/lib/data';
 import { formatDate, formatDateTime, formatKes } from '@/lib/format';
 import { invoiceStatusMeta, paymentMethodLabel } from '@/lib/labels';
 import { invoiceBalance, receivablesSummary } from '@/lib/metrics';
@@ -15,30 +16,21 @@ export const metadata: Metadata = { title: 'Invoices & payments' };
 const shipmentLink =
   'rounded font-mono text-xs text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600';
 
-const expenseStatus = {
-  pending_approval: { label: 'Pending approval', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'info' },
-  paid: { label: 'Paid', tone: 'success' },
-} as const;
-
 export default async function FinancePage() {
-  const [invoices, payments, expenses, customers] = await Promise.all([
+  const [invoices, payments, customers] = await Promise.all([
     getInvoices(),
     getPayments(),
-    getExpenses(),
     getParties('customer'),
   ]);
   const customerId = new Map(customers.data.map((c) => [c.name, c.id]));
   const receivables = receivablesSummary(invoices.data);
   const unreconciled = payments.data.filter((p) => !p.reconciled);
-  const pendingExpenses = expenses.data.filter((e) => e.status === 'pending_approval');
-  const source = [invoices, payments, expenses].some((r) => r.source === 'demo') ? 'demo' : 'live';
+  const source = [invoices, payments].some((r) => r.source === 'demo') ? 'demo' : 'live';
 
   const summary = [
     { label: 'Outstanding receivables', value: formatKes(receivables.outstandingKes), detail: `${receivables.openCount} open invoices` },
     { label: 'Overdue', value: formatKes(receivables.overdueKes), detail: `${receivables.overdueCount} invoices past due` },
     { label: 'Unreconciled payments', value: String(unreconciled.length), detail: formatKes(unreconciled.reduce((s, p) => s + p.amountKes, 0)) },
-    { label: 'Expenses awaiting approval', value: String(pendingExpenses.length), detail: formatKes(pendingExpenses.reduce((s, e) => s + e.amountKes, 0)) },
   ];
 
   return (
@@ -62,6 +54,7 @@ export default async function FinancePage() {
             <p className="mt-1 text-xs text-slate-500">{item.detail}</p>
           </div>
         ))}
+        <PendingExpensesTile />
       </div>
 
       <div className="flex flex-col gap-6">
@@ -138,34 +131,7 @@ export default async function FinancePage() {
             )}
           </Card>
 
-          <Card>
-            <CardHeader title="Job expenses" description="Costs recorded against shipments" />
-            {expenses.data.length === 0 ? (
-              <EmptyState title="No expenses recorded" />
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {expenses.data.map((e) => (
-                  <li key={e.id} className="flex flex-wrap items-start justify-between gap-2 px-4 py-3 sm:px-5">
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{e.description}</p>
-                      <p className="text-xs text-slate-500">
-                        {e.payee} ·{' '}
-                        <Link href={`/shipments/${e.shipmentReference}`} className={shipmentLink}>
-                          {e.shipmentReference}
-                        </Link>
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-sm font-medium tabular-nums">{formatKes(e.amountKes)}</span>
-                      <Badge tone={expenseStatus[e.status].tone} dot>
-                        {expenseStatus[e.status].label}
-                      </Badge>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+          <JobExpensesCard />
         </div>
       </div>
     </>

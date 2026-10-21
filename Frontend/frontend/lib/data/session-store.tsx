@@ -3,7 +3,9 @@
 // In-memory store for records edited in the browser during this session.
 //
 // The backend has no write endpoints yet, so creating or editing a shipment,
-// delay, quotation or document changes only this React state. Selected files
+// delay, quotation, document, expense or task changes only this React state.
+// Notifications are recalculated from these records (lib/notifications.ts);
+// only which ones were marked read is kept, for this tab. Selected files
 // are held as Blobs in memory and opened through temporary blob: URLs that
 // work only in this tab; they are never uploaded or written to disk.
 // It survives client-side navigation (the provider lives in the root layout)
@@ -16,12 +18,17 @@ import { createContext, use, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { nowIso } from '@/lib/dates';
 import { applyReview, attachUploads, type ReviewDecision, type UploadRequest } from '@/lib/document-changes';
-import { documentStatusMeta, documentTypeLabel } from '@/lib/labels';
+import { documentStatusMeta, documentTypeLabel, expenseCategoryLabel } from '@/lib/labels';
 import { createQuotation as buildQuotation } from '@/lib/quotation-changes';
+import type { ExpenseInput } from '@/lib/expense-form';
+import { formatKes } from '@/lib/format';
+import { buildNotifications, type AppNotification } from '@/lib/notifications';
 import type { QuotationInput } from '@/lib/quotation-form';
 import type { ShipmentInput } from '@/lib/shipment-form';
-import { addShipmentEvent, createShipment as buildShipment, SESSION_ACTOR, type ChangeContext } from '@/lib/shipment-changes';
-import type { ActivityItem, Quotation, QuotationEvent, Shipment, ShipmentDocument, ShipmentEvent } from '@/lib/types';
+import { addShipmentEvent, createShipment as buildShipment, newId, SESSION_ACTOR, type ChangeContext } from '@/lib/shipment-changes';
+import { createTask as buildTask, sortTasks } from '@/lib/task-changes';
+import type { TaskInput } from '@/lib/task-form';
+import type { ActivityItem, Expense, Invoice, Quotation, QuotationEvent, Shipment, ShipmentDocument, ShipmentEvent, Task } from '@/lib/types';
 
 export interface SessionNotice {
   message: string;
@@ -37,6 +44,21 @@ interface SessionStore {
   /** Newest first. */
   activity: ActivityItem[];
   documents: ShipmentDocument[];
+  /** Supplier costs per shipment, newest first (demo seed plus expenses recorded in this tab). */
+  expenses: Expense[];
+  /** Read-only in this demo (no invoice editing yet); held here so notifications can be derived anywhere. */
+  invoices: Invoice[];
+  /** Open tasks by due date, then finished ones. */
+  tasks: Task[];
+  /** Fixed "today" of the demo data, for due, overdue and expiry figures. */
+  referenceDate: string;
+  /** Derived from the records above; most severe first. */
+  notifications: AppNotification[];
+  readNotificationIds: ReadonlySet<string>;
+  setNotificationsRead: (ids: string[], read: boolean) => void;
+  createTask: (input: TaskInput) => Task;
+  /** Applies `change` to the task. Returns false when the task is unknown or nothing changed. */
+  updateTask: (id: string, change: (t: Task, ctx: ChangeContext) => Task) => boolean;
   /** Total size of the files held in memory this session. */
   sessionFileBytes: number;
   createShipment: (input: ShipmentInput) => Shipment;
@@ -48,6 +70,8 @@ interface SessionStore {
   /** Keeps the files in memory and records them against the shipment. Returns the affected document ids, in file order. */
   uploadDocuments: (request: UploadRequest, blobs: Blob[]) => string[];
   reviewDocument: (id: string, decision: ReviewDecision, reason: string) => void;
+  /** Records a supplier cost against a shipment and notes it in the shipment history. */
+  recordExpense: (input: ExpenseInput) => Expense;
   /** Opens a session file in a new tab (PDF and images display; other formats download). False if no file is held. */
   openDocumentFile: (id: string) => boolean;
   /** Saves a session file through the browser's download. False if no file is held. */
@@ -70,6 +94,17 @@ function toActivity(
   return events.map((e) => ({ id: e.id, at: e.at, actor: e.actor, message: e.message, ...link })).reverse();
 }
 
+function taskActivity(t: Task, message: string, n = t.notes.at(-1)): ActivityItem {
+  return {
+    id: n?.id ?? newId('act'),
+    at: n?.at ?? t.updatedAt ?? '',
+    actor: n?.actor ?? SESSION_ACTOR,
+    message,
+    shipmentReference: t.shipmentReference,
+    quotationReference: t.shipmentReference ? undefined : t.quotationReference,
+  };
+}
+
 /** Revoke after a delay: long enough for the new tab or download to read the blob. */
 function withObjectUrl(blob: Blob, consume: (url: string) => void, keepMs: number) {
   const url = URL.createObjectURL(blob);
@@ -82,18 +117,29 @@ export function SessionStoreProvider({
   initialQuotations,
   initialActivity,
   initialDocuments,
+  initialExpenses,
+  initialInvoices,
+  initialTasks,
+  referenceDate,
   children,
 }: {
   initialShipments: Shipment[];
   initialQuotations: Quotation[];
   initialActivity: ActivityItem[];
   initialDocuments: ShipmentDocument[];
+  initialExpenses: Expense[];
+  initialInvoices: Invoice[];
+  initialTasks: Task[];
+  referenceDate: string;
   children: React.ReactNode;
 }) {
   const [shipments, setShipments] = useState(initialShipments);
   const [quotations, setQuotations] = useState(initialQuotations);
   const [activity, setActivity] = useState(initialActivity);
   const [documents, setDocuments] = useState(initialDocuments);
+  const [expenses, setExpenses] = useState(initialExpenses);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [readNotificationIds, setReadNotificationIds] = useState<ReadonlySet<string>>(() => new Set());
   // Document id → file contents, in memory only.
   const [files, setFiles] = useState<Record<string, Blob>>({});
   const [notice, setNotice] = useState<SessionNotice | null>(null);
@@ -122,6 +168,37 @@ export function SessionStoreProvider({
       quotations: [...quotations].sort(byNewestIssue),
       activity,
       documents,
+      expenses: [...expenses].sort((a, b) => b.incurredAt.localeCompare(a.incurredAt)),
+      invoices: initialInvoices,
+      tasks: sortTasks(tasks),
+      referenceDate,
+      notifications: buildNotifications({ shipments, documents, quotations, invoices: initialInvoices, referenceDate }),
+      readNotificationIds,
+      setNotificationsRead(ids, read) {
+        setReadNotificationIds((current) => {
+          const next = new Set(current);
+          for (const id of ids) {
+            if (read) next.add(id);
+            else next.delete(id);
+          }
+          return next;
+        });
+      },
+      createTask(input) {
+        const created = buildTask(input, context());
+        setTasks((list) => [created, ...list]);
+        record([taskActivity(created, `Task created: “${created.title}” (assigned to ${created.assignee}).`)]);
+        return created;
+      },
+      updateTask(id, change) {
+        const current = tasks.find((t) => t.id === id);
+        if (!current) return false;
+        const next = change(current, context());
+        if (next === current) return false;
+        setTasks((list) => list.map((t) => (t.id === id ? next : t)));
+        record(next.notes.slice(current.notes.length).map((n) => taskActivity(next, `Task “${next.title}”: ${n.note}`, n)).reverse());
+        return true;
+      },
       sessionFileBytes: Object.values(files).reduce((sum, b) => sum + b.size, 0),
       createShipment(input) {
         const created = buildShipment(input, shipments, context());
@@ -175,6 +252,17 @@ export function SessionStoreProvider({
         const because = reason.trim() ? `: ${reason.trim()}` : '.';
         logOnShipment(doc.shipmentReference, `${documentTypeLabel[doc.type]} marked ${documentStatusMeta[decision].label.toLowerCase()}${because}`, ctx);
       },
+      recordExpense(input) {
+        const ctx = context();
+        const created: Expense = { ...input, id: newId('exp'), recordedBy: ctx.actor, recordedAt: ctx.now };
+        setExpenses((list) => [created, ...list]);
+        logOnShipment(
+          input.shipmentReference,
+          `Expense recorded: ${expenseCategoryLabel[input.category]}, ${input.description} (${input.payee}), ${formatKes(input.amountKes)}.`,
+          ctx,
+        );
+        return created;
+      },
       openDocumentFile(id) {
         const blob = files[id];
         if (!blob) return false;
@@ -201,7 +289,7 @@ export function SessionStoreProvider({
       showNotice: (message, path) => setNotice({ message, path }),
       dismissNotice: () => setNotice(null),
     };
-  }, [shipments, quotations, activity, documents, files, notice]);
+  }, [shipments, quotations, activity, documents, expenses, tasks, readNotificationIds, initialInvoices, referenceDate, files, notice]);
 
   return <SessionStoreContext value={store}>{children}</SessionStoreContext>;
 }
@@ -218,4 +306,8 @@ export function useSessionShipment(reference: string): Shipment | undefined {
 
 export function useSessionQuotation(reference: string): Quotation | undefined {
   return useSessionStore().quotations.find((q) => q.reference === reference);
+}
+
+export function useSessionTask(id: string): Task | undefined {
+  return useSessionStore().tasks.find((t) => t.id === id);
 }

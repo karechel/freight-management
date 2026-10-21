@@ -9,6 +9,8 @@ export interface UploadRequest {
   customerName: string;
   type: DocumentType;
   note?: string;
+  /** End of validity, when the document type expires. */
+  expiresAt?: string;
   files: Omit<DocumentFile, 'uploadedAt' | 'uploadedBy'>[];
 }
 
@@ -35,7 +37,7 @@ export function attachUploads(
   let result = docs;
   request.files.forEach((meta, i) => {
     const file: DocumentFile = { ...meta, uploadedAt: ctx.now, uploadedBy: ctx.actor };
-    const base = { status: 'received' as const, receivedAt: ctx.now, file, note: request.note, reviewedAt: undefined, reviewedBy: undefined };
+    const base = { status: 'received' as const, receivedAt: ctx.now, file, note: request.note, expiresAt: request.expiresAt, reviewedAt: undefined, reviewedBy: undefined };
     if (i === 0 && requirement) {
       result = result.map((d) => (d.id === requirement.id ? { ...d, ...base } : d));
       ids.push(requirement.id);

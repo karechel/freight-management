@@ -336,7 +336,7 @@ export function PartyDetailView(props: PartyDetailViewProps) {
   const { party, source } = props;
   return (
     <>
-      <PageHeader title={party.name} description={`${partyTypeLabel[party.type]} · ${party.location}`} back={{ href: '/parties', label: 'Customers & agents' }}>
+      <PageHeader title={party.name} description={`${partyTypeLabel[party.type]} · ${party.location}`} back={party.type === 'customer' ? { href: '/parties', label: 'Customers & agents' } : { href: '/agents', label: 'Agents & partners' }}>
         <Badge tone="neutral">{partyTypeLabel[party.type]}</Badge>
         {party.type === 'customer' && (
           <ButtonLink href="/quotations/new" variant="secondary" size="sm">

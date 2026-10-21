@@ -29,7 +29,7 @@ function body with a call through `lib/api/client.ts` (`apiGet`) and return
 | `getPayments()` | `GET /payments` | `Payment[]` |
 | `getExpenses(ref?)` | `GET /expenses?shipment=` | `Expense[]` |
 | `getRecentActivity()` | `GET /activity?limit=` | `ActivityItem[]` |
-| `getTasks()` | `GET /tasks?status=open` | `Task[]` |
+| `getTasks()` | `GET /tasks?status=&assignee=&due_before=` | `Task[]` (see Notifications and tasks below) |
 | `getStaff()` | `GET /users?assignable=true` | `{ id, name }[]` (the UI uses names today) |
 | `getShipmentFormOptions()` | Composed from `/parties` and `/users` | Customers, agents, staff, carrier suggestions |
 | `getParty(id)` | `GET /parties/:id` | `Party` with `billing` or `routes` |
@@ -184,3 +184,61 @@ Not built in the UI:
 - Customer-level documents that are not tied to a shipment.
 - File previews inside the app. Files open in a new tab using the browser's own viewer.
 - Virus scanning states.
+
+## Expenses and profitability (sidebar restructure UI)
+
+`Expense` gains `category` (`carrier`, `transport`, `handling`, `storage`, `customs`, `agent_fees`, `other`). Cost estimates are a new `CostEstimate { shipmentReference, category, estimatedKes }`. Profit rules are in `lib/profitability.ts`; with a backend they should be computed on the server from the same definitions.
+
+| Method | Path | Body | Returns | Notes |
+|---|---|---|---|---|
+| GET | `/expenses?shipment=&category=&status=` | — | `Expense[]` | Replaces `getExpenses()`. Finance and management, plus operations for the jobs they handle. |
+| POST | `/shipments/:reference/expenses` | `{ category, description, payee, amountKes, incurredAt, status? }` | `201` `Expense` | Replaces `recordExpense` in the session store. Server sets the author and time, starts at `pending_approval` unless the user may approve, and writes an audit entry. |
+| POST | `/expenses/:id/approve`, `/expenses/:id/mark-paid` | — | `200` `Expense` | Finance or management only. Not in the UI. |
+| GET | `/shipments/:reference/costing` | — | Estimates, expenses, quoted and invoiced totals, profit figures | Replaces `getCostEstimates()` and the client-side calculation. |
+| PUT | `/shipments/:reference/cost-estimates` | `CostEstimate[]` | `200` | Not in the UI (estimates are read-only demo data). |
+
+## Reports (sidebar restructure UI)
+
+The reports page computes everything in the browser (`lib/reports.ts`). With real data volumes this should move to `GET /reports/<name>?from=&to=&customer=&status=&mode=` endpoints returning the same aggregates, with access limited by role. CSV downloads are generated in the browser from the figures on screen; scheduled or emailed reports are not built.
+
+## Users, permissions, settings and audit log (sidebar restructure UI)
+
+All three pages are previews. Nothing is enforced or saved.
+
+- Users: `GET/POST /users`, `PATCH /users/:id` (role, status), and sign-in. The intended role matrix is in `lib/access.ts`. Every API route must check the caller's role; the UI only mirrors the result.
+- Settings: `GET/PUT /settings` (company details, currencies, numbering, charge categories), administrator only.
+- Audit log: `GET /audit-log?record=&user=&from=&to=`, append-only and written by the backend for every create, update, review, approval and permission change. The preview builds its list from the change histories in the session store.
+
+## Notifications and tasks (frontend demo, `/notifications`)
+
+What the UI does now:
+
+- **Notifications** are not stored. `lib/notifications.ts` works them out in the browser from the current records, against the fixed demo date. Each has a stable id.
+- **Rules:**
+  - Arrivals due within 7 days.
+  - Open or monitored delays on active shipments.
+  - Missing or rejected documents on active shipments. These are high priority once the cargo is at destination.
+  - Received or verified documents whose `expiresAt` is within 14 days or already passed.
+  - Quotations sent and awaiting a decision (medium within 3 days of expiry), accepted but not booked, or still a draft.
+  - Unpaid invoices past their due date (high after 30 days).
+- **Read state:** "Read" markers are kept in the tab only.
+- **Tasks** are created, edited, reassigned, re-dated and re-prioritised in the session store (`lib/task-changes.ts`). They have statuses open, in progress, done and cancelled. Each change adds an automatic follow-up note, and users can add their own notes. A task can link to a shipment, quotation, document or invoice.
+- **Nothing is sent** (no email, SMS or push), and assigning a task notifies nobody.
+
+New fields: `ShipmentDocument.expiresAt` (optional; entered on the upload page), and on `Task`: `details`, `status`, `quotationReference`, `documentId`, `invoiceNumber`, `notes[]`, `createdAt`, `createdBy`, `completedAt`, `updatedAt`.
+
+Backend functionality required:
+
+| Method | Path | Body | Returns | Notes |
+|---|---|---|---|---|
+| GET | `/notifications?unread=&kind=` | — | `AppNotification[]` for the signed-in user | Generated on the server by a scheduled job using the same rules, filtered by role (finance sees invoice alerts, operations sees shipment alerts). Stored, so read state and history persist. |
+| POST | `/notifications/read` | `{ ids: string[], read: boolean }` | `204` | Per user. |
+| GET/PUT | `/notification-preferences` | channels per kind (in-app, email, SMS), quiet hours | | Needs the user accounts from the users and permissions work. |
+| — | Delivery | — | — | Email/SMS provider integration, retry and an audit of what was sent to whom. Customer-facing messages (e.g. delay notices) need consent and templates. Not built. |
+| GET | `/tasks?status=&assignee=&priority=&due_before=&shipment=&quotation=&document=&invoice=` | — | `Task[]` | Replaces `getTasks()`. |
+| POST | `/tasks` | `TaskInput` | `201` `Task` | Server sets the id, author and time, checks that the assignee is an active staff account, and checks that linked records exist and are visible to the user. |
+| PATCH | `/tasks/:id` | partial `TaskInput` | `200` `Task` | Records an automatic note per change, as `applyTaskUpdate` does. |
+| POST | `/tasks/:id/notes` | `{ note }` | `201` `TaskNote` | Max 300 characters. |
+| — | Reminders | — | — | Scheduler for due and overdue reminders to the assignee; escalation rules. Not built. |
+
+Every task and notification-read change should also go to the audit log.

@@ -4,11 +4,13 @@
 export function Table({ children, caption }: { children: React.ReactNode; caption: string }) {
   return (
     // Focusable named region so keyboard users can scroll the table sideways on narrow screens.
+    // `relative` contains absolutely positioned descendants (e.g. sr-only text in cells), which
+    // otherwise widen the whole page on phones instead of scrolling inside this region.
     <div
       role="region"
       aria-label={caption}
       tabIndex={0}
-      className="overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600"
+      className="relative overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600"
     >
       <table className="w-full min-w-[640px] border-collapse text-left text-sm">
         <caption className="sr-only">{caption}</caption>

@@ -98,7 +98,8 @@ export type ShipmentEventKind =
   | 'milestone_updated'
   | 'delay_recorded'
   | 'delay_updated'
-  | 'document';
+  | 'document'
+  | 'expense';
 
 /** Entry in a shipment's change history. */
 export interface ShipmentEvent {
@@ -207,6 +208,8 @@ export interface ShipmentDocument {
   /** When the document was last verified or rejected, and by whom. */
   reviewedAt?: string;
   reviewedBy?: string;
+  /** End of validity, for documents that expire (permits, declarations, certificates). */
+  expiresAt?: string;
 }
 
 export type QuotationStatus =
@@ -348,14 +351,49 @@ export interface Payment {
   reconciled: boolean;
 }
 
+export type ExpenseCategory =
+  | 'carrier'
+  | 'transport'
+  | 'handling'
+  | 'storage'
+  | 'customs'
+  | 'agent_fees'
+  | 'other';
+
+export type ExpenseStatus = 'pending_approval' | 'approved' | 'paid';
+
+/** A cost actually charged by a supplier against a shipment. */
 export interface Expense {
   id: string;
   shipmentReference: string;
+  category: ExpenseCategory;
   description: string;
   payee: string;
   amountKes: number;
   incurredAt: string;
-  status: 'pending_approval' | 'approved' | 'paid';
+  status: ExpenseStatus;
+  /** Set for expenses recorded in this browser session. */
+  recordedBy?: string;
+  recordedAt?: string;
+}
+
+/** Budgeted cost for a shipment, from job costing before supplier charges arrive. Demo data only. */
+export interface CostEstimate {
+  shipmentReference: string;
+  category: ExpenseCategory;
+  estimatedKes: number;
+}
+
+export type StaffRole = 'administrator' | 'operations' | 'documentation' | 'finance' | 'management';
+
+/** A staff account in the users and permissions prototype. No sign-in exists. */
+export interface StaffAccount {
+  id: string;
+  name: string;
+  /** Always a reserved `.example` domain in demo data. */
+  email: string;
+  role: StaffRole;
+  status: 'active' | 'invited' | 'disabled';
 }
 
 export interface ActivityItem {
@@ -367,13 +405,38 @@ export interface ActivityItem {
   quotationReference?: string;
 }
 
+export type TaskStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+
+/** Follow-up note on a task. Automatic notes record changes made through the UI. */
+export interface TaskNote {
+  id: string;
+  at: string;
+  actor: string;
+  note: string;
+  automatic?: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
+  /** What needs doing, in the user's words. */
+  details?: string;
   dueAt: string;
   priority: Severity;
+  /** Staff member responsible (a StaffAccount name). */
   assignee: string;
+  status: TaskStatus;
+  /** Related records, when the task concerns them. */
   shipmentReference?: string;
+  quotationReference?: string;
+  documentId?: string;
+  invoiceNumber?: string;
+  /** Oldest first. */
+  notes: TaskNote[];
+  createdAt?: string;
+  createdBy?: string;
+  completedAt?: string;
+  updatedAt?: string;
 }
 
 /** Where a piece of data came from. Only 'live' means a real backend response. */

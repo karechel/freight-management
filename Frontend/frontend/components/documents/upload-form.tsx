@@ -9,10 +9,11 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ErrorSummary, fieldId, FormSection, SelectField, TextAreaField, type SummaryError } from '@/components/ui/form';
+import { DateField, ErrorSummary, fieldId, FormSection, SelectField, TextAreaField, type SummaryError } from '@/components/ui/form';
 import { CloseIcon, FileIcon } from '@/components/ui/icons';
 import { PendingNotice } from '@/components/ui/states';
 import { useSessionStore } from '@/lib/data/session-store';
+import { fromDateInput } from '@/lib/dates';
 import { openRequirement } from '@/lib/document-changes';
 import {
   acceptAttribute,
@@ -36,8 +37,8 @@ interface StagedFile {
   format?: FileFormat;
 }
 
-type UploadField = 'shipment' | 'type' | 'files' | 'note';
-const fieldLabel: Record<UploadField, string> = { shipment: 'Shipment', type: 'Document type', files: 'Files', note: 'Note' };
+type UploadField = 'shipment' | 'type' | 'files' | 'expiresAt' | 'note';
+const fieldLabel: Record<UploadField, string> = { shipment: 'Shipment', type: 'Document type', files: 'Files', expiresAt: 'Valid until', note: 'Note' };
 
 let stagedCounter = 0;
 
@@ -48,6 +49,7 @@ export function UploadForm({ initialShipment, initialType }: { initialShipment?:
   const [shipmentReference, setShipmentReference] = useState(initialShipment ?? '');
   const [type, setType] = useState<DocumentType | ''>(initialType ?? '');
   const [note, setNote] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [errors, setErrors] = useState<Partial<Record<UploadField, string>>>({});
   const [saving, setSaving] = useState(false);
@@ -103,6 +105,7 @@ export function UploadForm({ initialShipment, initialType }: { initialShipment?:
         found.files = `This tab can hold ${formatBytes(MAX_SESSION_BYTES)} of files; ${formatBytes(store.sessionFileBytes)} is already used. Reload the page to clear it, or add fewer files.`;
       }
     }
+    if (expiresAt && !fromDateInput(expiresAt)) found.expiresAt = 'Enter a valid date, or leave it empty.';
     if (note.trim().length > 300) found.note = 'Use 300 characters or fewer.';
     return found;
   }
@@ -145,6 +148,8 @@ export function UploadForm({ initialShipment, initialType }: { initialShipment?:
         customerName: shipment.customerName,
         type,
         note: note.trim() || undefined,
+        // End of the chosen day, Nairobi time.
+        expiresAt: expiresAt ? fromDateInput(expiresAt)?.replace('T00:00:00', 'T23:59:00') : undefined,
         files: copies.map((c) => ({ name: c.s.file.name, sizeBytes: c.s.file.size, mimeType: c.s.format!.mimeTypes[0] })),
       },
       copies.map((c) => c.blob!),
@@ -281,7 +286,15 @@ export function UploadForm({ initialShipment, initialType }: { initialShipment?:
           )}
         </section>
 
-        <FormSection title="Note">
+        <FormSection title="Validity and note">
+          <DateField
+            id={fieldId(FORM_ID, 'expiresAt')}
+            label={fieldLabel.expiresAt}
+            hint="For permits, declarations or certificates that expire. Used for expiry notifications."
+            value={expiresAt}
+            onChange={setExpiresAt}
+            error={errors.expiresAt}
+          />
           <TextAreaField
             id={fieldId(FORM_ID, 'note')}
             label={fieldLabel.note}

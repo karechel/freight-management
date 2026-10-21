@@ -13,6 +13,7 @@ import { Table, Td, Th } from '@/components/ui/table';
 import { useSessionStore } from '@/lib/data/session-store';
 import { validateReview, type ReviewDecision } from '@/lib/document-changes';
 import { formatBytes } from '@/lib/document-upload';
+import { isBefore } from '@/lib/dates';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { documentStatusMeta, documentTypeLabel } from '@/lib/labels';
 import { documentFilterLabel as filterLabels, documentFilters, matchesDocumentFilter as matches, type DocumentFilter } from '@/lib/metrics';
@@ -150,7 +151,8 @@ export function DocumentList({ initialFilter = 'all', shipmentReference }: Docum
           </thead>
           <tbody>
             {visible.map((d) => (
-              <tr key={d.id} className="hover:bg-slate-50">
+              // id: target for links such as /documents#doc-d-07 from notifications and tasks.
+              <tr key={d.id} id={`doc-${d.id}`} className="scroll-mt-20 hover:bg-slate-50 target:bg-amber-50">
                 <Td>
                   <p className="font-medium text-slate-900">{documentTypeLabel[d.type]}</p>
                   {d.file ? (
@@ -160,6 +162,11 @@ export function DocumentList({ initialFilter = 'all', shipmentReference }: Docum
                     </p>
                   ) : (
                     <p className="text-xs text-slate-500">{d.status === 'missing' ? 'Not received' : 'No file in demo data'}</p>
+                  )}
+                  {d.expiresAt && (
+                    <p className={`text-xs ${isBefore(d.expiresAt, store.referenceDate) ? 'font-medium text-red-700' : 'text-slate-600'}`}>
+                      {isBefore(d.expiresAt, store.referenceDate) ? 'Expired' : 'Valid until'} {formatDate(d.expiresAt)}
+                    </p>
                   )}
                 </Td>
                 {!shipmentReference && (

@@ -8,6 +8,7 @@ import type {
   ActivityItem,
   AgentRoute,
   BillingProfile,
+  CostEstimate,
   Expense,
   Invoice,
   Party,
@@ -15,6 +16,7 @@ import type {
   Quotation,
   Shipment,
   ShipmentDocument,
+  StaffAccount,
   Task,
 } from '@/lib/types';
 
@@ -441,7 +443,7 @@ export const demoDocuments: ShipmentDocument[] = [
   { id: 'd-01', shipmentReference: 'FMS-SEA-2610-0041', customerName: 'Baobab Crest Traders Ltd', type: 'bill_of_lading', status: 'verified', receivedAt: '2026-09-16T10:00:00+03:00' },
   { id: 'd-02', shipmentReference: 'FMS-SEA-2610-0041', customerName: 'Baobab Crest Traders Ltd', type: 'commercial_invoice', status: 'verified', receivedAt: '2026-09-16T10:00:00+03:00' },
   { id: 'd-03', shipmentReference: 'FMS-SEA-2610-0041', customerName: 'Baobab Crest Traders Ltd', type: 'packing_list', status: 'verified', receivedAt: '2026-09-16T10:00:00+03:00' },
-  { id: 'd-04', shipmentReference: 'FMS-SEA-2610-0041', customerName: 'Baobab Crest Traders Ltd', type: 'import_declaration_form', status: 'verified', receivedAt: '2026-10-02T09:00:00+03:00' },
+  { id: 'd-04', shipmentReference: 'FMS-SEA-2610-0041', customerName: 'Baobab Crest Traders Ltd', type: 'import_declaration_form', status: 'verified', receivedAt: '2026-10-02T09:00:00+03:00', expiresAt: '2026-10-20T23:59:00+03:00' },
   { id: 'd-05', shipmentReference: 'FMS-AIR-2610-0038', customerName: 'Ziwa Pharma Distributors Ltd', type: 'air_waybill', status: 'verified', receivedAt: '2026-10-16T03:00:00+03:00' },
   { id: 'd-06', shipmentReference: 'FMS-AIR-2610-0038', customerName: 'Ziwa Pharma Distributors Ltd', type: 'commercial_invoice', status: 'received', receivedAt: '2026-10-16T03:00:00+03:00' },
   { id: 'd-07', shipmentReference: 'FMS-AIR-2610-0038', customerName: 'Ziwa Pharma Distributors Ltd', type: 'import_declaration_form', status: 'missing', note: 'Awaiting product import permit from customer.' },
@@ -449,7 +451,7 @@ export const demoDocuments: ShipmentDocument[] = [
   { id: 'd-09', shipmentReference: 'FMS-SEA-2610-0035', customerName: 'Kijani Build Supplies Ltd', type: 'commercial_invoice', status: 'rejected', receivedAt: '2026-10-11T12:00:00+03:00', note: 'HS codes missing on invoice lines; revised copy requested.' },
   { id: 'd-10', shipmentReference: 'FMS-SEA-2610-0035', customerName: 'Kijani Build Supplies Ltd', type: 'packing_list', status: 'missing' },
   { id: 'd-11', shipmentReference: 'FMS-ROAD-2610-0033', customerName: 'Mlima Fresh Exports Ltd', type: 'road_consignment_note', status: 'verified', receivedAt: '2026-10-17T09:00:00+03:00' },
-  { id: 'd-12', shipmentReference: 'FMS-ROAD-2610-0033', customerName: 'Mlima Fresh Exports Ltd', type: 'certificate_of_origin', status: 'verified', receivedAt: '2026-10-17T09:00:00+03:00' },
+  { id: 'd-12', shipmentReference: 'FMS-ROAD-2610-0033', customerName: 'Mlima Fresh Exports Ltd', type: 'certificate_of_origin', status: 'verified', receivedAt: '2026-10-17T09:00:00+03:00', expiresAt: '2026-10-31T23:59:00+03:00' },
   { id: 'd-13', shipmentReference: 'FMS-SEA-2610-0026', customerName: 'Simba Line Textiles Ltd', type: 'bill_of_lading', status: 'verified', receivedAt: '2026-10-01T10:00:00+03:00' },
   { id: 'd-14', shipmentReference: 'FMS-SEA-2610-0026', customerName: 'Simba Line Textiles Ltd', type: 'certificate_of_origin', status: 'missing', note: 'Requested from shipper on 2026-10-18.' },
   { id: 'd-15', shipmentReference: 'FMS-SEA-2610-0026', customerName: 'Simba Line Textiles Ltd', type: 'commercial_invoice', status: 'received', receivedAt: '2026-10-01T10:00:00+03:00' },
@@ -538,11 +540,69 @@ export const demoPayments: Payment[] = [
 ];
 
 export const demoExpenses: Expense[] = [
-  { id: 'e-01', shipmentReference: 'FMS-SEA-2610-0041', description: 'Port and ICD handling charges', payee: 'Port authority (demo payee)', amountKes: 148_300, incurredAt: '2026-10-15T10:00:00+03:00', status: 'paid' },
-  { id: 'e-02', shipmentReference: 'FMS-SEA-2610-0041', description: 'Shipping line delivery order fee', payee: 'Indigo Ocean Lines', amountKes: 42_000, incurredAt: '2026-10-12T10:00:00+03:00', status: 'paid' },
-  { id: 'e-03', shipmentReference: 'FMS-RAIL-2610-0028', description: 'Last-mile haulage, Nairobi ICD to site', payee: 'Mara Haulage Ltd', amountKes: 96_000, incurredAt: '2026-10-19T07:00:00+03:00', status: 'pending_approval' },
-  { id: 'e-04', shipmentReference: 'FMS-AIR-2610-0038', description: 'Cold-store charges (3 days)', payee: 'Airport cold store (demo payee)', amountKes: 54_600, incurredAt: '2026-10-18T18:00:00+03:00', status: 'approved' },
-  { id: 'e-05', shipmentReference: 'FMS-ROAD-2610-0033', description: 'Border agency fees, Malaba', payee: 'Lakeside Clearing Partners', amountKes: 38_500, incurredAt: '2026-10-19T08:00:00+03:00', status: 'pending_approval' },
+  { id: 'e-01', shipmentReference: 'FMS-SEA-2610-0041', category: 'handling', description: 'Port and ICD handling charges', payee: 'Port authority (demo payee)', amountKes: 148_300, incurredAt: '2026-10-15T10:00:00+03:00', status: 'paid' },
+  { id: 'e-02', shipmentReference: 'FMS-SEA-2610-0041', category: 'carrier', description: 'Shipping line delivery order fee', payee: 'Indigo Ocean Lines', amountKes: 42_000, incurredAt: '2026-10-12T10:00:00+03:00', status: 'paid' },
+  { id: 'e-03', shipmentReference: 'FMS-RAIL-2610-0028', category: 'transport', description: 'Last-mile haulage, Nairobi ICD to site', payee: 'Mara Haulage Ltd', amountKes: 96_000, incurredAt: '2026-10-19T07:00:00+03:00', status: 'pending_approval' },
+  { id: 'e-04', shipmentReference: 'FMS-AIR-2610-0038', category: 'storage', description: 'Cold-store charges (3 days)', payee: 'Airport cold store (demo payee)', amountKes: 54_600, incurredAt: '2026-10-18T18:00:00+03:00', status: 'approved' },
+  { id: 'e-05', shipmentReference: 'FMS-ROAD-2610-0033', category: 'agent_fees', description: 'Border agency fees, Malaba', payee: 'Lakeside Clearing Partners', amountKes: 38_500, incurredAt: '2026-10-19T08:00:00+03:00', status: 'pending_approval' },
+  // Added for the expenses and profitability page (fictional, like the rest).
+  { id: 'e-06', shipmentReference: 'FMS-SEA-2610-0041', category: 'storage', description: 'ICD storage after the free period', payee: 'Port authority (demo payee)', amountKes: 18_500, incurredAt: '2026-10-18T10:00:00+03:00', status: 'approved' },
+  { id: 'e-07', shipmentReference: 'FMS-SEA-2610-0030', category: 'customs', description: 'Import duty paid for the customer (disbursement)', payee: 'Customs duty (demo disbursement)', amountKes: 862_150, incurredAt: '2026-10-15T11:00:00+03:00', status: 'paid' },
+  { id: 'e-08', shipmentReference: 'FMS-SEA-2610-0030', category: 'handling', description: 'Port and ICD handling charges', payee: 'Port authority (demo payee)', amountKes: 97_400, incurredAt: '2026-10-14T10:00:00+03:00', status: 'paid' },
+  { id: 'e-09', shipmentReference: 'FMS-RAIL-2610-0028', category: 'customs', description: 'Import duty paid for the customer (disbursement)', payee: 'Customs duty (demo disbursement)', amountKes: 1_045_800, incurredAt: '2026-10-13T12:00:00+03:00', status: 'paid' },
+  { id: 'e-10', shipmentReference: 'FMS-RAIL-2610-0028', category: 'carrier', description: 'SGR rail freight, Mombasa to Nairobi ICD', payee: 'SGR freight service', amountKes: 52_000, incurredAt: '2026-10-15T19:00:00+03:00', status: 'paid' },
+  { id: 'e-11', shipmentReference: 'FMS-AIR-2610-0024', category: 'carrier', description: 'Air freight to destination', payee: 'Kestrel Air Cargo', amountKes: 214_500, incurredAt: '2026-10-13T20:00:00+03:00', status: 'paid' },
+  { id: 'e-12', shipmentReference: 'FMS-AIR-2610-0024', category: 'handling', description: 'Export terminal handling', payee: 'Airport cargo terminal (demo payee)', amountKes: 33_800, incurredAt: '2026-10-13T18:00:00+03:00', status: 'paid' },
+  { id: 'e-13', shipmentReference: 'FMS-AIR-2610-0024', category: 'transport', description: 'Farm-to-airport reefer truck', payee: 'Mara Haulage Ltd', amountKes: 24_000, incurredAt: '2026-10-13T14:00:00+03:00', status: 'paid' },
+];
+
+/**
+ * Job-costing estimates per shipment (fictional). Duty disbursements are
+ * estimated at the assessed duty already shown on the shipment.
+ */
+export const demoCostEstimates: CostEstimate[] = [
+  { shipmentReference: 'FMS-SEA-2610-0041', category: 'handling', estimatedKes: 150_000 },
+  { shipmentReference: 'FMS-SEA-2610-0041', category: 'carrier', estimatedKes: 40_000 },
+  { shipmentReference: 'FMS-SEA-2610-0041', category: 'transport', estimatedKes: 120_000 },
+  { shipmentReference: 'FMS-SEA-2610-0041', category: 'agent_fees', estimatedKes: 35_000 },
+  { shipmentReference: 'FMS-AIR-2610-0038', category: 'handling', estimatedKes: 45_000 },
+  { shipmentReference: 'FMS-AIR-2610-0038', category: 'storage', estimatedKes: 20_000 },
+  { shipmentReference: 'FMS-AIR-2610-0038', category: 'transport', estimatedKes: 30_000 },
+  { shipmentReference: 'FMS-ROAD-2610-0033', category: 'transport', estimatedKes: 160_000 },
+  { shipmentReference: 'FMS-ROAD-2610-0033', category: 'agent_fees', estimatedKes: 40_000 },
+  { shipmentReference: 'FMS-ROAD-2610-0033', category: 'customs', estimatedKes: 15_000 },
+  { shipmentReference: 'FMS-SEA-2610-0030', category: 'customs', estimatedKes: 862_150 },
+  { shipmentReference: 'FMS-SEA-2610-0030', category: 'handling', estimatedKes: 95_000 },
+  { shipmentReference: 'FMS-SEA-2610-0030', category: 'transport', estimatedKes: 45_000 },
+  { shipmentReference: 'FMS-RAIL-2610-0028', category: 'customs', estimatedKes: 1_045_800 },
+  { shipmentReference: 'FMS-RAIL-2610-0028', category: 'carrier', estimatedKes: 52_000 },
+  { shipmentReference: 'FMS-RAIL-2610-0028', category: 'transport', estimatedKes: 60_000 },
+  { shipmentReference: 'FMS-RAIL-2610-0028', category: 'handling', estimatedKes: 18_000 },
+  { shipmentReference: 'FMS-SEA-2610-0026', category: 'handling', estimatedKes: 40_000 },
+  { shipmentReference: 'FMS-SEA-2610-0026', category: 'transport', estimatedKes: 20_000 },
+  { shipmentReference: 'FMS-AIR-2610-0024', category: 'carrier', estimatedKes: 210_000 },
+  { shipmentReference: 'FMS-AIR-2610-0024', category: 'handling', estimatedKes: 35_000 },
+  { shipmentReference: 'FMS-AIR-2610-0024', category: 'transport', estimatedKes: 25_000 },
+  { shipmentReference: 'FMS-SEA-2610-0022', category: 'carrier', estimatedKes: 520_000 },
+  { shipmentReference: 'FMS-SEA-2610-0022', category: 'handling', estimatedKes: 110_000 },
+  { shipmentReference: 'FMS-SEA-2610-0022', category: 'transport', estimatedKes: 95_000 },
+  { shipmentReference: 'FMS-SEA-2610-0022', category: 'agent_fees', estimatedKes: 60_000 },
+  { shipmentReference: 'FMS-AIR-2610-0019', category: 'carrier', estimatedKes: 240_000 },
+  { shipmentReference: 'FMS-AIR-2610-0019', category: 'handling', estimatedKes: 40_000 },
+  { shipmentReference: 'FMS-AIR-2610-0019', category: 'agent_fees', estimatedKes: 30_000 },
+];
+
+/**
+ * Staff accounts for the users and permissions prototype. Names are the ones
+ * already used in the demo records; roles are illustrative. Nobody can sign in.
+ */
+export const demoStaffAccounts: StaffAccount[] = [
+  { id: 'u-01', name: 'A. Wanjiru', email: 'a.wanjiru@freight-demo.example', role: 'operations', status: 'active' },
+  { id: 'u-02', name: 'B. Otieno', email: 'b.otieno@freight-demo.example', role: 'documentation', status: 'active' },
+  { id: 'u-03', name: 'C. Mutua', email: 'c.mutua@freight-demo.example', role: 'operations', status: 'active' },
+  { id: 'u-04', name: 'D. Achieng', email: 'd.achieng@freight-demo.example', role: 'operations', status: 'active' },
+  { id: 'u-05', name: 'E. Kiprono', email: 'e.kiprono@freight-demo.example', role: 'operations', status: 'active' },
+  { id: 'u-06', name: 'F. Mwende', email: 'f.mwende@freight-demo.example', role: 'finance', status: 'active' },
 ];
 
 export const demoActivity: ActivityItem[] = [
@@ -555,11 +615,18 @@ export const demoActivity: ActivityItem[] = [
   { id: 'act-07', at: '2026-10-17T11:20:00+03:00', actor: 'Finance (F. Mwende)', message: 'Reconciled bank transfer against INV-2610-0104.' },
 ];
 
-export const demoTasks: Task[] = [
-  { id: 'tk-01', title: 'Chase product import permit with customer', dueAt: '2026-10-19T12:00:00+03:00', priority: 'high', assignee: 'D. Achieng', shipmentReference: 'FMS-AIR-2610-0038' },
+// Demo tasks. Expiry dates on d-04 and d-12 above are fictional and exist so the
+// notifications page can show expiring documents.
+type SeedTask = Omit<Task, 'status' | 'notes'> & Partial<Pick<Task, 'status' | 'notes'>>;
+
+const seedTasks: SeedTask[] = [
+  { id: 'tk-01', title: 'Chase product import permit with customer', dueAt: '2026-10-19T12:00:00+03:00', priority: 'high', assignee: 'D. Achieng', shipmentReference: 'FMS-AIR-2610-0038', documentId: 'd-07', status: 'in_progress', notes: [{ id: 'tn-01', at: '2026-10-18T11:10:00+03:00', actor: 'D. Achieng', note: 'Customer says the permit application is with the regulator.' }] },
   { id: 'tk-02', title: 'Send supplier price list for valuation query', dueAt: '2026-10-19T17:00:00+03:00', priority: 'high', assignee: 'D. Achieng', shipmentReference: 'FMS-AIR-2610-0019' },
   { id: 'tk-03', title: 'Arrange duty payment for appliances entry', dueAt: '2026-10-20T12:00:00+03:00', priority: 'medium', assignee: 'A. Wanjiru', shipmentReference: 'FMS-SEA-2610-0041' },
-  { id: 'tk-04', title: 'Obtain certificate of origin before free storage ends', dueAt: '2026-10-21T17:00:00+03:00', priority: 'medium', assignee: 'B. Otieno', shipmentReference: 'FMS-SEA-2610-0026' },
-  { id: 'tk-05', title: 'Request revised commercial invoice with HS codes', dueAt: '2026-10-22T17:00:00+03:00', priority: 'low', assignee: 'B. Otieno', shipmentReference: 'FMS-SEA-2610-0035' },
-  { id: 'tk-06', title: 'Follow up overdue invoice INV-2610-0098', dueAt: '2026-10-20T10:00:00+03:00', priority: 'medium', assignee: 'Finance (F. Mwende)' },
+  { id: 'tk-04', title: 'Obtain certificate of origin before free storage ends', dueAt: '2026-10-21T17:00:00+03:00', priority: 'medium', assignee: 'B. Otieno', shipmentReference: 'FMS-SEA-2610-0026', documentId: 'd-14' },
+  { id: 'tk-05', title: 'Request revised commercial invoice with HS codes', dueAt: '2026-10-22T17:00:00+03:00', priority: 'low', assignee: 'B. Otieno', shipmentReference: 'FMS-SEA-2610-0035', documentId: 'd-09' },
+  { id: 'tk-06', title: 'Follow up overdue invoice INV-2610-0098', dueAt: '2026-10-20T10:00:00+03:00', priority: 'medium', assignee: 'F. Mwende', invoiceNumber: 'INV-2610-0098' },
+  { id: 'tk-07', title: 'Ask customer for a decision on quotation QT-2610-0057', dueAt: '2026-10-23T12:00:00+03:00', priority: 'low', assignee: 'B. Otieno', quotationReference: 'QT-2610-0057' },
 ];
+
+export const demoTasks: Task[] = seedTasks.map((t) => ({ status: 'open', notes: [], createdAt: '2026-10-17T09:00:00+03:00', ...t }));

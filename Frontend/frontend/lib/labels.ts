@@ -10,6 +10,8 @@ import type {
   DelayStatus,
   DocumentStatus,
   DocumentType,
+  ExpenseCategory,
+  ExpenseStatus,
   InvoiceStatus,
   PartyType,
   PaymentMethod,
@@ -17,6 +19,7 @@ import type {
   Severity,
   ShipmentDirection,
   ShipmentStatus,
+  TaskStatus,
   TransportMode,
 } from '@/lib/types';
 
@@ -165,3 +168,32 @@ export const accountStatusMeta: Record<AccountStatus, StatusMeta> = {
 /** e.g. "Shanghai, CN → Nairobi ICD (Sea)". */
 export const routeLabel = (r: Pick<AgentRoute, 'origin' | 'destination' | 'modes'>) =>
   `${r.origin} → ${r.destination} (${r.modes.map((m) => modeLabel[m]).join(', ')})`;
+
+export const expenseCategoryLabel: Record<ExpenseCategory, string> = {
+  carrier: 'Carrier charges',
+  transport: 'Transport',
+  handling: 'Handling',
+  storage: 'Storage',
+  customs: 'Customs and duties',
+  agent_fees: 'Agent fees',
+  other: 'Other',
+};
+
+export const expenseStatusMeta: Record<ExpenseStatus, StatusMeta> = {
+  pending_approval: { label: 'Pending approval', tone: 'warning' },
+  approved: { label: 'Approved', tone: 'info' },
+  paid: { label: 'Paid', tone: 'success' },
+};
+
+export const taskStatusMeta: Record<TaskStatus, StatusMeta> = {
+  open: { label: 'Open', tone: 'info' },
+  in_progress: { label: 'In progress', tone: 'progress' },
+  done: { label: 'Done', tone: 'success' },
+  cancelled: { label: 'Cancelled', tone: 'neutral' },
+};
+
+export const taskPriorityMeta: Record<Severity, StatusMeta> = {
+  high: { label: 'High priority', tone: 'danger' },
+  medium: { label: 'Medium priority', tone: 'warning' },
+  low: { label: 'Low priority', tone: 'neutral' },
+};

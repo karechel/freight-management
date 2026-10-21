@@ -44,6 +44,7 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 - **Backend conventions:** ESM (`"type": "module"`), relative imports use `.js` suffix, top-level await in `main.ts`, Prettier (single quotes, trailing commas), oxlint type-aware.
 - **Frontend:** App Router app with a shared shell (`components/layout/`), shared UI (`components/ui/`, including form primitives), typed domain model (`lib/types.ts`), data-access layer (`lib/data/index.ts`, demo data only) and a thin API client (`lib/api/client.ts`, only `GET /health` is live).
   - Since 2026-10-21 (uncommitted): `lib/data/session-store.tsx` holds in-browser edits and uploaded files for the tab session, seeded from `lib/data` in `app/layout.tsx`. Validation and change rules are pure modules in `lib/` (`*-form.ts`, `*-changes.ts`).
+  - Since 2026-10-21 evening (uncommitted, LOG-20261021-2240-sidebar-pages): the sidebar is grouped (Overview, Operations, Contacts, Finance, Insights, Administration; `components/layout/nav-items.ts`). New routes: `/agents` (+ `/agents/[id]`), `/expenses` (+ `/expenses/new`), `/reports`, `/users`, and `/notifications` (+ task pages; LOG-20261021-2338-notifications-tasks). `/settings` is now "Settings & audit log" and keeps the System status content as one section. Expenses live in the session store; costing, report and access rules are pure modules (`lib/profitability.ts`, `lib/reports.ts`, `lib/access.ts`, `lib/expense-form.ts`).
   - Pitfall: never import a non-component value (constant, function) from a `'use client'` module into a Server Component. It arrives as a client reference (LOG-20261021-0111-frontend-phase3). See LOG-20261019-1503-frontend-decisions and `Frontend/frontend/docs/api-contracts.md`. No new dependencies. Before writing Next.js code, read `Frontend/frontend/node_modules/next/dist/docs/` (this Next.js version has breaking changes — see `Frontend/frontend/AGENTS.md`).
 - **Not present:** auth, validation pipe, exception filters, logging config, file storage, integrations, CI, Docker, deployment config.
 
@@ -60,7 +61,7 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/migrations/` | Prisma 8 migration ref + snapshot |
 | `Backend/backend/test/app.e2e-spec.ts` | e2e test (connects to the real DB in `.env`) |
 | `Backend/backend/.env.example`, `Frontend/frontend/.env.example` | Documented env variables (committed) |
-| `Frontend/frontend/app/` | Routes: `layout.tsx` (metadata, app shell, session-store provider), `page.tsx` (dashboard), `shipments/`, `quotations/`, `documents/`, `parties/`, `customs/`, `finance/`, `settings/`, `globals.css` (updated 2026-10-21; it previously described the original health-check page) |
+| `Frontend/frontend/app/` | Routes: `layout.tsx` (metadata, app shell, session-store provider), `page.tsx` (dashboard), `shipments/`, `quotations/`, `documents/`, `parties/`, `customs/`, `finance/`, `settings/`, `globals.css` (updated 2026-10-21; it previously described the original health-check page). Added 2026-10-21 evening: `agents/`, `expenses/`, `reports/`, `users/` |
 | `Frontend/frontend/lib/` | Domain types, labels, formatting, derivations (`metrics.ts`), validation and change rules (`*-form.ts`, `*-changes.ts`), money and dates; `lib/data/` = data-access layer, demo data and the in-browser session store |
 | `Frontend/frontend/docs/api-contracts.md` | Proposed backend API, storage and integration contracts that the demo UI needs |
 | `Backend/backend/README.md`, `Frontend/frontend/README.md` | Unmodified framework boilerplate |
@@ -84,9 +85,14 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Backend `GET /health` | Implemented, unverified | `app.controller.ts`; unit test exists, not run in audit |
 | Frontend → backend health check | Implemented, unverified | Originally `Frontend/frontend/app/page.tsx`; moved (2026-10-19) to `lib/api/client.ts` + `components/layout/api-status.tsx` (top bar, System status page). Backend `/health` returned HTTP 200 to curl on the collaborator's machine; the browser path was not exercised |
 | Frontend shell, dashboard and core screens (demo data) | Implemented; build and link crawl verified, not visually reviewed (branch `feature/frontend-foundation`, committed and pushed per LOG-20261019-1553-frontend-review; not merged to `main`) | Routes `/`, `/shipments`, `/shipments/[reference]`, `/quotations`, `/documents`, `/customs`, `/parties`, `/finance`, `/settings`. All data is fictional demo data, labelled in the UI. See LOG-20261019-1503-frontend-decisions |
-| Frontend shipment create/edit/status, actual dates, milestones, delays (demo, session only) | Implemented, uncommitted; tsc, eslint, build, logic tests and curl verified; not browser-tested | LOG-20261021-0111-frontend-phase1. Saved only in the browser tab (session store) |
-| Frontend quotations, customer billing and service history, agent routes (demo, session only) | Implemented, uncommitted; same checks; not browser-tested | LOG-20261021-0111-frontend-phase2. No email sending; balances indicative |
-| Frontend document uploads (demo, in-memory only) | Implemented, uncommitted; same checks; file selection, open and download not exercised in a browser | LOG-20261021-0111-frontend-phase3. Files never leave the tab; production storage not built |
+| Frontend shipment create/edit/status, actual dates, milestones, delays (demo, session only) | Implemented; committed in `5e2910f`; **browser-tested 2026-10-21** (LOG-20261021-2304-browser-review) | LOG-20261021-0111-frontend-phase1. Saved only in the browser tab (session store) |
+| Frontend quotations, customer billing and service history, agent routes (demo, session only) | Implemented; committed in `5e2910f`; **browser-tested** including print layout | LOG-20261021-0111-frontend-phase2. No email sending; balances indicative |
+| Frontend document uploads (demo, in-memory only) | Implemented; committed in `5e2910f`; **browser-tested** (file selection, rejection, open, download, review) | LOG-20261021-0111-frontend-phase3. Files never leave the tab; production storage not built |
+| Frontend grouped sidebar; Agents & partners page (demo) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); **browser-tested** (desktop and mobile drawer) | LOG-20261021-2240-sidebar-pages. Customers page (`/parties`) unchanged and still one page |
+| Frontend expenses and profitability (demo, session only) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); **browser-tested** (recording, filters, cross-page updates) | LOG-20261021-2240-sidebar-pages. Cost estimates are fixed demo figures; no approval or payment |
+| Frontend reports and analytics (demo) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); **browser-tested** (filters, all six CSV downloads); printing of the reports page not separately checked | LOG-20261021-2240-sidebar-pages. Computed in the browser; scheduled/emailed reports planned |
+| Frontend users and permissions, settings and audit log (prototype) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); pages and audit-log filters **browser-tested** | LOG-20261021-2240-sidebar-pages. Read-only; **permissions are not enforced** (no auth); audit log is a session preview |
+| Frontend notifications and tasks (demo, session only) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); **browser-tested** (LOG-20261021-2338-notifications-tasks) | `/notifications` under Operations. Notifications are calculated in the browser and never sent; tasks and read markers are kept in the tab only; reminders and delivery need a backend. (Reported missing in LOG-20261021-2304-browser-review.) |
 | `DATABASE_URL` env validation | Implemented, unverified | `src/config/env.validation.ts` + spec, not run in audit |
 | `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD |
 | `GET /` list all users | Implemented, unverified — **security concern** (see §12) | `app.service.ts` |
@@ -170,6 +176,9 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
   - Scratch logic tests (outside the repo) → 22/22 groups pass.
   - Curl on `next start` → 25/25 pages render the expected `<h1>`, `/nowhere` → 404. No browser testing has been done.
   - Status codes alone are not enough: a page can return 200 while rendering not-found or error UI because of streaming from `loading.tsx`, so check page content. Backend checks not re-run.
+- **Latest browser run (2026-10-21 23:37 +03:00, LOG-20261021-2338-notifications-tasks):** all scenarios pass on the final build, including notifications and tasks (12 steps) and the sidebar fit at 1280×900/800/720. tsc, lint and build (29 route entries) pass; logic tests 34/34.
+- **First browser testing (2026-10-21 23:04 +03:00, LOG-20261021-2304-browser-review):** 49 browser steps on headless Chrome against `next start` all pass, with no console errors. They cover the sidebar, mobile drawer, shipments, delays, quotations, customer history, agents, documents (select/open/download/review), expenses, report filters and CSV, the audit log, and no sideways scrolling at 390/768/1280 px. One defect was fixed (table overflow on phones). tsc, lint and build pass. Not covered: manual visual review of every page, screen readers, Safari/Firefox.
+- **Latest frontend results (2026-10-21 22:39 +03:00, LOG-20261021-2240-sidebar-pages):** `npx tsc --noEmit --incremental false` → pass; `npm run lint` → pass; `npm run build` → success, 25 route entries (24 app routes + `/_not-found`); scratch logic tests → 28/28 groups pass (9 + 8 + 5 + 6 new); curl on `next start -p 3100` → all 12 sidebar links present in the HTML, all 23 pages checked → 200 with the expected `<h1>`, `/nowhere` → 404, no server errors. No browser testing.
 
 ## 12. Known issues, technical debt and blockers
 
@@ -669,17 +678,274 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261021-2240-sidebar-pages — Grouped sidebar; agents, expenses, reports, users and settings pages (frontend, demo)
+- Time: work started 2026-10-21 22:21:04 +03:00; checks finished 22:39:16 +03:00; entry written about 22:40 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5).
+- Instructions received:
+  - A pasted brief: reorganise the sidebar into Overview, Operations, Contacts, Finance, Insights and Administration groups, in a fixed order. Add pages for Agents and Partners (if missing), Expenses and Profitability, Reports and Analytics, Users and Permissions, and Settings and Audit Logs.
+  - Do not rename the shipments page. Do not split the Customers page. Preserve existing features.
+  - Frontend only (plus this log). No backend, schema, Prisma, dependency or integration changes. No database or deploy commands. No reset, stash or branch switch. No commit or push.
+  - Run tsc, lint and build; verify every sidebar link; report.
+  - The operator added: "make sure you also write what you do in the claude.md".
+- **Confirmation for LOG-20261021-0159-final-commit:** the push succeeded. `git ls-remote origin` (22:21) shows `refs/heads/feature/frontend-foundation` = `77471c7` = local HEAD = `origin/feature/frontend-foundation`; `main` = `883f93b` (unchanged). Working tree was clean and there were no stashes at the start.
+- What changed (all under `Frontend/frontend/`):
+  - **Sidebar** (`components/layout/nav-items.ts`, `sidebar.tsx`):
+    - Six labelled groups in the requested order.
+    - Each group can be collapsed. The group holding the current page always stays open. Collapsed state is not stored.
+    - Active-page highlighting is unchanged.
+    - Sidebar labels differ from page titles where requested; routes and page titles were not renamed.
+    - New icons in `components/ui/icons.tsx`.
+  - **Agents and partners:**
+    - New `/agents` page: agents, carriers and transporters (reusing `PartyTable`), plus agent routes.
+    - New `/agents/[id]` page reuses `PartyDetailView` for non-customers; a customer id returns not-found.
+    - Links to agents, carriers and transporters now go to `/agents/…`. Old `/parties/a-…` links still work.
+    - `/parties` (Customers & agents) is unchanged and still one page.
+  - **Expenses and profitability** (`/expenses`, `/expenses/new`):
+    - `Expense` gained a `category` (carrier, transport, handling, storage, customs, agent fees, other).
+    - New demo data: `CostEstimate` records (job-costing estimates) and 8 more demo expenses (`e-06`–`e-13`). These include duty disbursements equal to the assessed duty already shown on two shipments. Existing expenses `e-01`–`e-05` are unchanged except for the new category. The "awaiting approval" total is unchanged.
+    - Expenses are now held in the session store (`recordExpense`). Recording one adds an "Expense" entry to the shipment history.
+    - The page shows estimated vs invoiced charges, estimated vs actual costs, cost variance, estimated and actual-to-date profit with margin, an expense list with filters and totals, costs by category, and how each figure is calculated (`lib/profitability.ts`).
+    - The Finance page's "Job expenses" card and "Expenses awaiting approval" tile now read the session store. The shipment page's "Costs and billing" card does too, and links to "Record expense".
+  - **Reports and analytics** (`/reports`):
+    - Filters: planned-ETA date range, customer, status and mode.
+    - Sections: shipment volumes (by mode, status and month); delivery performance (arrival vs planned ETA, 24 h grace); customs delays; outstanding invoices with ageing; revenue and expenses by month; shipment profitability.
+    - CSV downloads are built in the browser, with formula-injection protection. "Print / save as PDF" uses the browser.
+    - Scheduled and emailed reports are labelled planned.
+  - **Users and permissions** (`/users`):
+    - 6 demo accounts using names already in the demo data, with illustrative roles.
+    - Five roles and a permission matrix (`lib/access.ts`). Customer billing, invoices, payments and margins are limited to finance and management.
+    - Banner: "Prototype: permissions are not enforced". "Invite user" is disabled and labelled planned.
+  - **Settings and audit log** (`/settings`):
+    - Read-only sections: company details (unknown values say "Not recorded"), currencies, charge categories, numbering formats, and other configuration.
+    - The previous System status content (backend health card, integrations, planned modules) is kept as a section; the planned-modules list was updated.
+    - Audit log preview built from shipment and quotation change histories plus the demo activity entries. It has filters and labels each entry "This tab" or "Demo entry". It states that it is not a production audit log.
+  - `docs/api-contracts.md`: added contracts for expenses and costing, reports, users, settings and the audit log.
+- Files:
+  - Edited (17): `app/finance/page.tsx`, `app/layout.tsx`, `app/settings/page.tsx`, `app/shipments/[reference]/page.tsx`, `components/layout/{nav-items.ts,sidebar.tsx}`, `components/parties/{party-detail-view,party-table}.tsx`, `components/shipments/{shipment-detail-view,shipment-history}.tsx`, `components/ui/icons.tsx`, `docs/api-contracts.md`, `lib/data/{demo-data.ts,index.ts,session-store.tsx}`, `lib/{labels,types}.ts`.
+  - Created (17): `app/agents/page.tsx`, `app/agents/[id]/page.tsx`, `app/expenses/page.tsx`, `app/expenses/new/page.tsx`, `app/reports/page.tsx`, `app/users/page.tsx`, `components/expenses/{expense-form,expenses-view,shipment-costs-card}.tsx`, `components/finance/job-expenses.tsx`, `components/reports/{report-parts,reports-view}.tsx`, `components/settings/audit-log.tsx`, `lib/{access,expense-form,profitability,reports}.ts`.
+  - Deleted: none. Also edited: `CLAUDE.md` (§3, §4, §5, §11, §14, this entry).
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Commands that changed project state: `next typegen` and `npm run build` (git-ignored `.next/` only); `next start -p 3100` using the project's own binary by absolute path, stopped by PID 3856 after confirming its command line (the "exit code 127" reported afterwards is that stop). Port 3100 free afterwards. `git fetch origin` (nothing new).
+- Checks run and results:
+  - `tsc --noEmit --incremental false` → exit 0; `npm run lint` → exit 0; `npm run build` → exit 0, 25 route entries.
+  - Logic tests in the session scratchpad (outside the repo) → 28/28 groups pass: the three earlier suites plus a new `logic-test-p4.ts` with 6 groups (demo data integrity, expense validation, costing figures checked by hand, reports, CSV quoting and formula protection, permission matrix).
+  - Curl: all 12 sidebar hrefs present in the rendered HTML; all 23 pages checked → 200 with the expected `<h1>`; `/agents/c-001` → not-found; `/nowhere` → 404.
+  - Content checks on the new pages passed; no server errors.
+  - `git diff --check` clean. Scan of added lines: no emails other than `.example`, no secrets or connection strings, no `localStorage`/`sessionStorage`, `console.log` or new network calls.
+  - No browser or visual review.
+- **Failed attempts and findings:**
+  - The first edit of `lib/data/demo-data.ts` (Bash heredoc plus `node -e`) failed with a shell quoting error before writing anything (`git status` confirmed); it was redone with the Edit tool.
+  - The new logic test found that the shared `fromDateInput` (phase 1) accepts impossible dates such as `2026-02-30`, which roll over to 2 March. Not changed: browser date pickers cannot produce such values, and changing a shared helper was outside this task. Recorded as a known limitation.
+  - The curl script first marked 10 headings "FAIL" only because it compared `&` with the HTML-escaped `&amp;`; the headings were correct.
+- Outside the repository: session scratchpad files `alias-hooks.mjs`, `register.mjs` and the three earlier logic tests (copied from the previous session's scratchpad), plus `logic-test-p4.ts`, `crawl.sh`, `crawl_body.html` and `build.log`. Nothing else.
+- Known limitations / outstanding:
+  - All new pages use demo data or the session store; nothing is saved permanently.
+  - Cost estimates, settings, roles and permissions are read-only.
+  - Expenses cannot be approved, paid, edited or deleted.
+  - There is no auth, so the permission matrix is a design, not enforcement.
+  - Report figures depend on the fixed demo date (19 Oct 2026).
+  - Needs a browser check: sidebar collapse and the mobile drawer at phone width; recording an expense end to end; CSV download and print; report filters; audit log filters after making edits.
+- Commit: not committed · Pushed: no (as instructed; awaiting the operator's approval).
+- Working-tree status after: 18 modified (17 frontend files + `CLAUDE.md`) and 17 untracked (35 entries in total), all under `Frontend/frontend/` apart from `CLAUDE.md`; nothing staged; branch `feature/frontend-foundation` = `77471c7`.
+
+### LOG-20261021-2304-browser-review — Requirements review and first browser testing of the whole frontend
+- Time: started 2026-10-21 22:49:58 +03:00; testing finished and processes stopped 23:04:00 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5).
+- Instruction received (pasted brief):
+  - Review the whole frontend against all of the repository owner's requirements, "including the screenshots and the clarification about sidebar grouping".
+  - Report Notifications and Tasks explicitly.
+  - Run a browser review and fix only verified frontend defects.
+  - No commit, push, merge, reset, revert, stash or branch switch.
+  - Log the checks actually performed.
+- **Sources available:** §2 of this file, the earlier phase logs, and the sidebar brief from this session. **No screenshots and no written Notifications and Tasks requirement were available in this session or in the repository**, so the review could not be checked against them.
+- **How the browser testing was done:**
+  - Tools: installed Google Chrome, headless, with a throwaway profile in the session scratchpad and remote debugging on `127.0.0.1:9333`. It was driven by scratchpad scripts using only Node 24 built-ins (`fetch` and `WebSocket`, Chrome DevTools Protocol).
+  - Target: the production build served by `next start -p 3100`.
+  - Nothing was installed, and nothing was added to the repository or to `package.json`.
+  - Forms were filled as a user would. Files were attached through the real file input. Open and Download used trusted mouse clicks. Downloads went to the scratchpad. Print layout was checked by emulating print media.
+- **Browser-tested and passing (final run on the rebuilt app; 49 steps, 0 failures, no console errors or exceptions):**
+  - **Sidebar:**
+    - Six groups in the requested order with the requested items. All 12 links navigate client-side to the right page, with the correct highlight and top-bar label.
+    - A group collapses and expands; the group holding the current page cannot be collapsed.
+    - Customers (`/parties`) is one page with all four sections.
+  - **Mobile, 390×844:**
+    - The sidebar is hidden; the menu opens the drawer and moves focus to its close button.
+    - A drawer link navigates and closes the drawer. Escape closes it and returns focus to the menu button.
+    - Screenshots were reviewed visually.
+  - **No sideways page scrolling:** checked on 22 pages, including detail and form pages, at 390, 768 and 1280 px.
+  - **Shipments:**
+    - An empty submit shows a focused error summary (12 problems). Create works (`FMS-SEA-2610-0042`), as does edit (carrier).
+    - Status changes to In transit with a note. Arrived without an actual arrival time is rejected, and accepted once the time is given.
+    - Milestone update works.
+    - Delay recording: "Next action" is required for an open delay. The revised ETA is shown, and a follow-up action can be added.
+    - The change history and dashboard activity list the changes; the "Delayed" view filters correctly.
+    - Reloading clears session data, as the UI says.
+  - **Quotations:**
+    - Create with two lines: 450 × 320.50 + 15,000 + 16% gives KES 161,625.00 exactly.
+    - Print calls the browser dialog, hides the app shell, and shows the demo banner.
+    - Record sent → accepted → convert to a prefilled shipment (`FMS-AIR-2610-0042`). The quotation shows Booked; duplicate as draft works.
+  - **Customer page:** billing, balance and service history include the new quotation; the history type filter works.
+  - **Agents and Partners:** list → agent `a-001` (routes and jobs, nav highlight on Agents and Partners) → back link → transporter `t-001`.
+  - **Documents:**
+    - A `.pdf` that is really a program, and an empty file, are both rejected with clear messages.
+    - A real PDF is accepted and fulfils the missing certificate-of-origin requirement.
+    - Open shows it in exactly one new tab (`blob:` URL). Download saves it with the original name and identical bytes.
+    - Rejecting without a reason is refused; verify works.
+  - **Expenses:**
+    - An empty submit shows the error summary. Recording an expense raises the count from 13 to 14 and shows a notice ("Ksh 125,000").
+    - The expense appears in the Finance "Job expenses" card, the shipment costs card and the shipment history.
+    - The category and status filters work.
+  - **Reports:**
+    - Filters change the counts: all 11 → air 3 → plus a customer 1 → a single day 1. Reset restores them.
+    - The filtered CSV contains only air rows. All six CSV buttons download a file.
+  - **Audit log:** entries made in this tab appear, and the "This tab", "Demo entries" and record-type filters work.
+- **Defect found and fixed (1):**
+  - Symptom: `/documents` scrolled sideways by 245 px at phone width.
+  - Cause: screen-reader-only text (`sr-only`, absolutely positioned) inside table cells was positioned relative to the page, not the table's scroll box.
+  - Fix: `components/ui/table.tsx` — added `relative` to the shared table scroll region, with a comment.
+  - Verified: no overflow on 22 pages at three widths after rebuilding.
+- **Observations, not changed:**
+  - The milestone panel allowed the last milestone ("Delivered") to be marked current while the shipment status was Arrived. This is a consistency question for the repository owner, not a confirmed defect.
+  - Script-side mistakes during testing were corrected in the scripts, not the app:
+    - Group headings are shown in capitals by CSS.
+    - The delay form needs "Next action".
+    - "Update a milestone" first reveals its form.
+    - The money format shows "Ksh".
+    - Background tabs pause `requestAnimationFrame`.
+    - Two scratch-script edits broke because `$'` in a JS replacement string is a special pattern; the scripts were repaired.
+- **Notifications and Tasks — status: missing (no dedicated functionality):**
+  - What exists:
+    - A read-only "Pending tasks" card on the dashboard (`TaskList`, `getTasks()`, 6 fixed demo tasks).
+    - The delay field "Customer notification", recorded manually, with a "No notifications are sent" notice.
+    - "Notifications and reminders" in the Settings planned-modules list.
+  - What is missing: a Notifications/Tasks page, route and sidebar entry. Also missing: creating, assigning, completing or snoozing tasks; reminders; a notification list or inbox; and any sending (email/SMS/in-app).
+  - Not built in this session: it is a missing feature, not a defect. The sidebar brief from this session did not include it, so its place in the six groups needs the repository owner's decision.
+- Other checks: `tsc --noEmit` → exit 0; `npm run lint` → exit 0; `npm run build` → exit 0, 25 route entries; `git diff --check` clean.
+- Processes:
+  - `next start -p 3100` was started twice (before and after the rebuild).
+  - Headless Chrome was started once, then 13 processes were stopped by their profile path.
+  - The "exit code 127" notices are from these stops.
+  - Ports 3100 and 9333 were free afterwards.
+- Files outside the repository (session scratchpad):
+  - Scripts: `cdp.mjs`, `t1-sidebar.mjs` … `t5-overflow.mjs`, `probe-*.mjs`.
+  - Test files: `upload/` (test PDF, a renamed program, an empty file), `downloads/` (downloaded PDF and 6 CSVs).
+  - Other: `chrome-profile/`, PNG screenshots, `build2.log`.
+- Files changed in the repository: `Frontend/frontend/components/ui/table.tsx`; `CLAUDE.md` (this entry, §5, §11, §14). The §5 rows for phases 1–3 still said "uncommitted" although they were committed in `5e2910f`; they were corrected, and a "Notifications and tasks — Missing" row was added.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: 19 modified (18 frontend + `CLAUDE.md`) and 17 untracked (36 entries); nothing staged; no stashes; branch `feature/frontend-foundation` = `77471c7`.
+
+### LOG-20261021-2338-notifications-tasks — Notifications and Tasks page (frontend, demo)
+- Time: started 2026-10-21 23:13:36 +03:00; checks finished and processes stopped 23:38:15 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5).
+- Instruction received (pasted):
+  - Add a dedicated Notifications and Tasks page under Operations.
+  - Notifications: upcoming arrivals, delayed shipments, missing or expiring documents, pending quotations, overdue invoices.
+  - Tasks: assignee, due date, priority, status and follow-up notes.
+  - Link each item to its shipment, quotation, document or invoice. Add a summary to the dashboard.
+  - Keep the sidebar grouping and all pages. Demo data only, clearly labelled; no fake persistence or integrations. Update the API contracts.
+  - No commit, push, merge, reset, revert, stash or branch switch.
+- Pre-work checks: branch `feature/frontend-foundation` = `77471c7`; 36 uncommitted entries from the earlier work in this session, all preserved; no stashes.
+- What changed (all under `Frontend/frontend/`):
+  - **Sidebar:**
+    - "Notifications and Tasks" (`/notifications`) is the last item under Operations. No other item, group or page was renamed or moved.
+    - The link shows the number of unread notifications.
+    - All sidebar labels now wrap instead of truncating, and link spacing was tightened slightly so the sidebar fits at 1280×900 (see defects below).
+  - **Notifications** (`lib/notifications.ts`): calculated in the browser from the current records against the fixed demo date. Nothing is stored or sent. Rules:
+    - Arrivals due within 7 days.
+    - Open or monitored delays.
+    - Missing or rejected documents on active shipments (high priority once the cargo is at destination).
+    - Documents expiring within 14 days or already expired.
+    - Quotations sent and awaiting a decision, accepted but not booked, or still a draft.
+    - Unpaid invoices past their due date (same day count as the reports page).
+  - **Notification behaviour:**
+    - Ids are stable, so "read" markers (session only) survive recalculation; a notification disappears when its cause is resolved.
+    - Filters: by type, and unread only. Actions: mark read or unread, mark all read.
+    - "Create task" opens a task form prefilled from the notification.
+  - **Tasks** (`lib/task-form.ts`, `lib/task-changes.ts`; routes `/notifications/tasks/new`, `/[id]`, `/[id]/edit`):
+    - Fields: title, details, assignee (staff accounts), due date and time, priority, and status (open, in progress, done, cancelled).
+    - Optional links to a shipment, document (which must belong to that shipment), quotation or invoice.
+    - Each change adds an automatic follow-up note; users can add their own notes. Status buttons follow the allowed transitions.
+    - Filters: status (outstanding, overdue, done, cancelled, all), assignee, priority.
+    - Tasks live in the session store. Task changes appear in the dashboard activity and in the audit-log preview (new "Tasks" record type).
+  - **Dashboard:** the static "Pending tasks" card was replaced by "Alerts and tasks", which reads the session store. It shows unread medium and high alerts and outstanding tasks, with links. The old `TaskList` component was removed.
+  - **Documents:**
+    - Optional `expiresAt` field. The upload form has an optional "Valid until" date.
+    - The documents list shows the validity date (red once expired). Rows have `id="doc-…"` anchors for links.
+    - Demo data: fictional expiry dates on `d-04` (20 Oct 2026) and `d-12` (31 Oct 2026).
+  - **Demo tasks:**
+    - Status and notes added; `tk-01` is in progress with one note.
+    - Links added to existing documents and invoices (`tk-01`→`d-07`, `tk-04`→`d-14`, `tk-05`→`d-09`, `tk-06`→`INV-2610-0098`).
+    - New `tk-07` (quotation `QT-2610-0057`).
+    - `tk-06` assignee changed from "Finance (F. Mwende)" to "F. Mwende" to match the staff accounts.
+  - Settings planned-modules wording updated (notification delivery and reminders still planned). `docs/api-contracts.md` gained a "Notifications and tasks" section describing the backend that will be needed.
+- Files:
+  - Edited: `app/layout.tsx`, `app/page.tsx`, `app/settings/page.tsx`, `components/dashboard/panels.tsx`, `components/documents/{document-list,upload-form}.tsx`, `components/layout/{nav-items.ts,sidebar.tsx}`, `components/settings/audit-log.tsx`, `components/ui/icons.tsx`, `docs/api-contracts.md`, `lib/data/{demo-data.ts,session-store.tsx}`, `lib/{document-changes,labels,types}.ts`.
+  - Created: `app/notifications/page.tsx`, `app/notifications/tasks/new/page.tsx`, `app/notifications/tasks/[id]/page.tsx`, `app/notifications/tasks/[id]/edit/page.tsx`, `components/dashboard/alerts-summary.tsx`, `components/notifications/{notification-list,notifications-view,record-links,task-detail-view,task-form,task-list}.tsx`, `lib/{notifications,task-changes,task-form}.ts`.
+  - Deleted: none. `CLAUDE.md`: this entry, §3, §5, §11, §14.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Checks run and results:
+  - `tsc --noEmit` → exit 0; `npm run lint` → exit 0; `npm run build` → exit 0, 29 route entries.
+  - Logic tests → 34/34 groups pass. The new `logic-test-p5.ts` has 6 groups, with hand-worked expected notifications (17 on the seed data), task validation, task changes and seed links.
+  - Headless Chrome, final run on the last build:
+    - Notifications and tasks: 12/12 steps.
+    - Earlier scenarios: sidebar 19, shipments 12, quotations/customers/agents 8, documents/expenses/reports/audit 11, overflow 3 (25 pages at 390, 768 and 1280 px), sidebar fit 4 (1280×900, 1440×900, 1280×800, 1280×720).
+    - No browser console errors.
+    - Screenshots reviewed: desktop and mobile notifications page, task page, dashboard card.
+- **Defects found and fixed during testing:**
+  1. The sidebar label was cut off ("Notifications and T…") by the unread count.
+  2. With the extra item, the sidebar scrolled at 1280×900, and its scrollbar truncated "Quotations and Bookings" and "Expenses and Profitability". Fixed by wrapping labels, slightly tighter spacing and a thin scrollbar; it now fits at 900 px height, and labels stay complete when it scrolls at 800 and 720 px.
+  3. The task page showed "Due: due 19 Oct".
+  4. The notification overdue-day count rounded differently from the reports page (9 vs 8 days); now uses the same formula.
+- **Observations, not changed:**
+  - After a client-side link to `/finance#INV-…`, the `:target` highlight does not appear, because browsers do not apply it when the URL changes without a full page load. The row is still the link target. This also applies to older invoice links.
+  - Seed tasks due on 19 Oct are not "overdue" at the fixed demo time (19 Oct, 09:00).
+- Script-only problems corrected during testing:
+  - Text styled in capitals.
+  - Template-string regex escapes.
+  - A navigation race in the upload step (passes three times out of three in isolation).
+  - A `rm` of the scratchpad downloads folder was blocked by a safety check before running; fresh folders (`downloads-run3` to `downloads-run5`) were used instead and nothing was deleted.
+- Processes: `next start -p 3100` started 4 times (around rebuilds) and headless Chrome once (16 processes), each stopped after checking its command line. The "exit code 127" notices are from those stops. Ports 3100 and 9333 free afterwards.
+- Outside the repository (scratchpad): `logic-test-p5.ts`, `t6-notifications.mjs`, `t7-sidebar-fit.mjs`, `shot.mjs`, `probe-upload.mjs`, `build3.log`–`build5.log`, new PNG screenshots, `downloads-run3`–`downloads-run5/`.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: 24 modified (23 frontend + `CLAUDE.md`) and 31 untracked (55 entries); nothing staged; no stashes; branch `feature/frontend-foundation` = `77471c7`.
+
+### LOG-20261021-2341-commit-push — Commit and push of the sidebar pages, browser review and notifications and tasks
+- Time: 2026-10-21 23:41:16 +03:00 (Africa/Nairobi), taken before this entry — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "commit and push".
+- **Confirmation for LOG-20261021-0159-final-commit:** already recorded in LOG-20261021-2240-sidebar-pages (`77471c7` is on `origin`).
+- Pre-commit checks:
+  - `git fetch origin` → nothing new. `git ls-remote origin` → `feature/frontend-foundation` = `77471c7` = local HEAD = `origin/feature/frontend-foundation`; `main` = `883f93b`.
+  - 55 changed entries, all under `Frontend/frontend/` or `CLAUDE.md`. Nothing staged; no stashes; no merge, rebase or `index.lock`.
+  - The checks from LOG-20261021-2338-notifications-tasks were run on this exact code: tsc, lint, build, logic tests 34/34, all browser scenarios. Only `CLAUDE.md` has changed since.
+- What is committed:
+  - The work in LOG-20261021-2240-sidebar-pages, LOG-20261021-2304-browser-review and LOG-20261021-2338-notifications-tasks.
+  - The `CLAUDE.md` updates, including this entry.
+  - Staged with `git add -- CLAUDE.md Frontend/frontend`. Before committing, the staged list is checked: exactly 55 files, nothing outside those paths, `git diff --cached --check` clean.
+- Commit message: "feat(frontend): grouped sidebar, agents, expenses, reports, users, settings, notifications and tasks (demo)", parent `77471c7`, with the Claude co-author trailer. A file cannot record its own hash; see `git log -1 feature/frontend-foundation`.
+- Push: a normal (non-force) `git push origin feature/frontend-foundation`, only if the remote branch is still `77471c7`. `main` is not changed and nothing is merged.
+- **How the result is recorded:** as in LOG-20261021-0159-final-commit, no local entry is written after the push, so the working tree ends clean.
+  - Verify with `git ls-remote origin refs/heads/feature/frontend-foundation` (should equal `git log -1 --format=%H feature/frontend-foundation`).
+  - The remote-tracking reflog should show "update by push" from `77471c7`.
+  - If the push failed, the next session's first entry must say so.
+- Database/schema changes: none · Dependency changes: none · Backend: untouched.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
-- **Git state (2026-10-21 01:31 +03:00):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` = `origin/feature/frontend-foundation` = `5e2910f` (frontend phases 1–3, committed and pushed; LOG-20261021-0130-commit-phases, LOG-20261021-0131-push-confirmed). The log entries up to LOG-20261021-0154-commit-log are committed on top of it (see `git log -1 feature/frontend-foundation`). Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft.
+- **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
 - **Session ended 2026-10-21 ~01:58 +03:00 (LOG-20261021-0158-wrap-up):** the incomplete npx cache folder from LOG-20261021-0128-precommit-review was deleted on the collaborator's instruction. No servers running. All log entries, including LOG-20261021-0159-final-commit, are committed and pushed on `feature/frontend-foundation` (verify with `git log -1` and `git ls-remote origin`).
+- **Sidebar pages (2026-10-21 22:40 +03:00, LOG-20261021-2240-sidebar-pages):** grouped sidebar and new Agents, Expenses & profitability, Reports, Users & permissions and Settings & audit log pages. Committed and pushed in LOG-20261021-2341-commit-push.
+- **Notifications and tasks (2026-10-21 23:38, LOG-20261021-2338-notifications-tasks):** added under Operations, with a dashboard summary. Demo only: notifications are calculated in the browser, nothing is sent, and tasks last for the tab only. Committed and pushed in LOG-20261021-2341-commit-push.
+- **Browser review (2026-10-21 23:04, LOG-20261021-2304-browser-review):** all phase 1–3 flows and the new pages were browser-tested in headless Chrome and pass. One layout fix (`components/ui/table.tsx`), committed with the work above. **Notifications and Tasks are missing** apart from a read-only dashboard task card. The screenshots referred to in the review request were not available to that session.
 - **Authorized work:** frontend development (collaborator, 2026-10-19), and recording every phase in this log (2026-10-21). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push requires explicit collaborator approval.
-- **Frontend state:** the shell plus shipment management and delays, quotations, customer billing and history, agent routes, and document uploads, all on fictional demo data. Edits and uploaded files live only in the browser tab (session store) until reload. The only live backend call is `GET /health`. Endpoint, storage and integration contracts: `Frontend/frontend/docs/api-contracts.md`.
+- **Frontend state:** the shell (grouped sidebar) plus shipment management and delays, quotations, customer billing and history, agents and partners, document uploads, expenses and profitability, reports, and preview pages for users and permissions and for settings and the audit log, all on fictional demo data. Edits and uploaded files live only in the browser tab (session store) until reload. The only live backend call is `GET /health`. Endpoint, storage and integration contracts: `Frontend/frontend/docs/api-contracts.md`.
 - **Most important open security issue:** unauthenticated `GET /` returns every `User` row (§12 item 1). Not fixed; it must be removed or protected before any real data is stored.
 - **Documentation audit:** §16 (2026-10-15). Necessary corrections applied (LOG-20261015-2305-corrections); Recommended corrections applied (LOG-20261015-2310-corrections). Pre-commit consistency review done (LOG-20261015-2314-consistency): §16 now carries dated notes marking its "not modified / NOT applied" statements as historical; the findings themselves are preserved unchanged.
 - **Decided 2026-10-19 (§16.6 decisions note):** naming convention, collaborator confirmation, frontend scope, Node (observed only), line-ending preference, Prisma freeze, integration labelling, commit strategy.
 - **Still unresolved:** "Phase 0" definition; agreed Node.js version; the repository owner's DB state and how the `User` table was created; keep/remove the `deploy` script; Prisma RC vs stable and `@prisma/client` 7; KRA iCMS / M-Pesa access; the repository owner's own confirmation of these decisions.
 - **Next recommended action:**
+  0. Browser-test any further changes the same way (headless Chrome scripts, LOG-20261021-2304-browser-review), and update the PR description to cover the newer pages before opening the pull request.
   1. Review phases 1–3 in a browser (`npm run dev` in `Frontend/frontend`), including on a phone-width screen. In particular: create and edit a shipment, record a delay, the quotation lifecycle and printing, and uploading, opening and downloading a real file.
   2. Then decide whether to open a pull request from `feature/frontend-foundation` (now `5e2910f`) into `main` for the repository owner to review. Commit the pending `CLAUDE.md` follow-up entry with the next change.
   3. Separately, decide whether to authorize backend work, starting with removing or protecting `GET /`, then the write endpoints and private document storage in `docs/api-contracts.md`.

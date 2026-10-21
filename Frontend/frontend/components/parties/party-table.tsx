@@ -9,7 +9,9 @@ import { partyTypeLabel } from '@/lib/labels';
 import { isActive } from '@/lib/metrics';
 import type { Party, PartyType, Shipment } from '@/lib/types';
 
-export const partyHref = (id: string) => `/parties/${encodeURIComponent(id)}`;
+/** Customers open under Customers; agents, carriers and transporters under Agents and Partners. */
+export const partyHref = (party: Pick<Party, 'id' | 'type'>) =>
+  `${party.type === 'customer' ? '/parties' : '/agents'}/${encodeURIComponent(party.id)}`;
 
 /** Shipments a party is involved in: as customer, agent or carrier. */
 export function shipmentsForParty(party: Pick<Party, 'id' | 'name' | 'type'>, shipments: Shipment[]): Shipment[] {
@@ -44,7 +46,7 @@ export function PartyTable({ parties, type }: { parties: Party[]; type: PartyTyp
           <tr key={p.id} className="hover:bg-slate-50">
             <Td>
               <Link
-                href={partyHref(p.id)}
+                href={partyHref(p)}
                 className="rounded font-medium text-blue-700 hover:text-blue-900 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600"
               >
                 {p.name}

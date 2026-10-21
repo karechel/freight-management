@@ -9,6 +9,7 @@
 import { routeLabel } from '@/lib/labels';
 import type {
   ActivityItem,
+  CostEstimate,
   Expense,
   Invoice,
   Party,
@@ -18,12 +19,14 @@ import type {
   Shipment,
   ShipmentDocument,
   Sourced,
+  StaffAccount,
   Task,
 } from '@/lib/types';
 import {
   demoActivity,
   demoAgentRoutes,
   demoBilling,
+  demoCostEstimates,
   DEMO_QUOTATION_TERMS,
   demoDocuments,
   demoExpenses,
@@ -33,6 +36,7 @@ import {
   demoQuotations,
   demoShipments,
   demoStaff,
+  demoStaffAccounts,
   demoTasks,
 } from './demo-data';
 
@@ -114,6 +118,16 @@ export async function getExpenses(
       ? demoExpenses.filter((e) => e.shipmentReference === shipmentReference)
       : demoExpenses,
   );
+}
+
+/** Job-costing estimates (demo only; there is no costing backend). */
+export async function getCostEstimates(): Promise<Sourced<CostEstimate[]>> {
+  return demo([...demoCostEstimates]);
+}
+
+/** Staff accounts for the users and permissions prototype. No account can sign in. */
+export async function getStaffAccounts(): Promise<Sourced<StaffAccount[]>> {
+  return demo([...demoStaffAccounts]);
 }
 
 export async function getRecentActivity(): Promise<Sourced<ActivityItem[]>> {

@@ -1,4 +1,5 @@
-import { IntegrationSummary, TaskList } from '@/components/dashboard/panels';
+import { AlertsSummary } from '@/components/dashboard/alerts-summary';
+import { IntegrationSummary } from '@/components/dashboard/panels';
 import { DashboardKpis, SessionActivityFeed, SessionStatusBreakdown } from '@/components/dashboard/session-panels';
 import { ShipmentExplorer } from '@/components/shipments/shipment-explorer';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -52,7 +53,7 @@ export default async function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <TaskList tasks={tasks.data} referenceDate={ref} />
+          <AlertsSummary />
         </div>
         <IntegrationSummary />
       </div>

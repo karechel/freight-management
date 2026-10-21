@@ -1,7 +1,16 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
-import { getDocuments, getQuotations, getRecentActivity, getShipments } from "@/lib/data";
+import {
+  DEMO_REFERENCE_DATE,
+  getDocuments,
+  getExpenses,
+  getInvoices,
+  getQuotations,
+  getRecentActivity,
+  getShipments,
+  getTasks,
+} from "@/lib/data";
 import { SessionStoreProvider } from "@/lib/data/session-store";
 import "./globals.css";
 
@@ -26,11 +35,14 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Seed the in-browser session store; edits made in the UI live there only.
-  const [shipments, quotations, activity, documents] = await Promise.all([
+  const [shipments, quotations, activity, documents, expenses, invoices, tasks] = await Promise.all([
     getShipments(),
     getQuotations(),
     getRecentActivity(),
     getDocuments(),
+    getExpenses(),
+    getInvoices(),
+    getTasks(),
   ]);
   return (
     <html
@@ -43,6 +55,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           initialQuotations={quotations.data}
           initialActivity={activity.data}
           initialDocuments={documents.data}
+          initialExpenses={expenses.data}
+          initialInvoices={invoices.data}
+          initialTasks={tasks.data}
+          referenceDate={DEMO_REFERENCE_DATE}
         >
           <AppShell>{children}</AppShell>
         </SessionStoreProvider>

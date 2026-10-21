@@ -1,13 +1,12 @@
 // Dashboard panels. Presentational only; data is passed in by the page.
 
 import Link from 'next/link';
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { ClockIcon } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/states';
-import { daysBetween, formatDateTime } from '@/lib/format';
-import { severityMeta, shipmentStatusMeta, shipmentStatusOrder } from '@/lib/labels';
-import type { ActivityItem, ShipmentStatus, Task } from '@/lib/types';
+import { formatDateTime } from '@/lib/format';
+import { shipmentStatusMeta, shipmentStatusOrder } from '@/lib/labels';
+import type { ActivityItem, ShipmentStatus } from '@/lib/types';
 
 const linkClass =
   'rounded font-mono text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600';
@@ -42,49 +41,6 @@ export function StatusBreakdown({ counts }: { counts: Record<ShipmentStatus, num
           })}
         </ul>
       </CardBody>
-    </Card>
-  );
-}
-
-export function TaskList({ tasks, referenceDate }: { tasks: Task[]; referenceDate: string }) {
-  return (
-    <Card>
-      <CardHeader title="Pending tasks" description="Ordered by due date" />
-      {tasks.length === 0 ? (
-        <EmptyState title="No pending tasks" description="Follow-ups for shipments, documents and invoices will appear here." />
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {tasks.map((task) => {
-            const overdue = task.dueAt < referenceDate;
-            const days = daysBetween(referenceDate, task.dueAt);
-            return (
-              <li key={task.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
-                <ClockIcon className={`mt-0.5 size-4 shrink-0 ${overdue ? 'text-red-600' : 'text-slate-400'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                    <span>{task.assignee}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className={overdue ? 'font-medium text-red-700' : undefined}>
-                      {overdue ? 'Overdue' : days <= 0 ? 'Due today' : `Due in ${days} day${days === 1 ? '' : 's'}`} (
-                      {formatDateTime(task.dueAt)})
-                    </span>
-                    {task.shipmentReference && (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <Link href={`/shipments/${task.shipmentReference}`} className={linkClass}>
-                          {task.shipmentReference}
-                        </Link>
-                      </>
-                    )}
-                  </p>
-                </div>
-                <StatusBadge meta={severityMeta[task.priority]} />
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </Card>
   );
 }

@@ -52,6 +52,7 @@ const shipmentKindMeta: Record<ShipmentEventKind, StatusMeta> = {
   milestone_updated: { label: 'Milestone', tone: 'progress' },
   delay_recorded: { label: 'Delay', tone: 'warning' },
   delay_updated: { label: 'Delay', tone: 'warning' },
+  expense: { label: 'Expense', tone: 'neutral' },
   document: { label: 'Document', tone: 'neutral' },
 };
 

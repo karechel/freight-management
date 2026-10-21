@@ -133,7 +133,7 @@ export function ShipmentDetailView({ reference, options, source, records }: Ship
                     label: 'Overseas / partner agent',
                     value:
                       s.agentName && options.agentIds[s.agentName] ? (
-                        <Link href={`/parties/${encodeURIComponent(options.agentIds[s.agentName])}`} className={textLink}>
+                        <Link href={`/agents/${encodeURIComponent(options.agentIds[s.agentName])}`} className={textLink}>
                           {s.agentName}
                         </Link>
                       ) : (
