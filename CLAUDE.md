@@ -957,11 +957,44 @@ Entry template:
 - **How the result is recorded:** as in LOG-20261021-0159-final-commit, no local entry is written after the push, so the working tree ends clean. Verify with `git ls-remote origin refs/heads/feature/frontend-foundation` against `git log -1 feature/frontend-foundation`. If the push failed, the next session's first entry must say so.
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged.
 
+### LOG-20261021-2346-pr-refs — PR description commit references updated
+- Time: 2026-10-21 23:46:37 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "update the PR description commit references to 2c4eb8e".
+- **Confirmation for LOG-20261021-2345-commit-log:** the push succeeded. `git push` reported `a0cb63b..2c4eb8e`, and `git ls-remote origin` shows `feature/frontend-foundation` = `2c4eb8e`. The remote-tracking reflog records "update by push", `main` = `883f93b` is unchanged, and the working tree was clean.
+- Changed in the scratchpad `pr-description.md` (outside the repository):
+  - The Compare line and the expected `git log` output now show `2c4eb8e`; "5 commits" became "6 commits". The file count stays at 120.
+  - The checks line now says the checks ran at `a0cb63b`, and that `2c4eb8e` only adds `CLAUDE.md` log entries, so the application code is identical (`git diff --name-only a0cb63b 2c4eb8e` → `CLAUDE.md` only). The checks were not re-run.
+  - The fresh-clone caveat now names `2c4eb8e`; LOG-20261021-2344 and -2345 were added to the log list.
+- Files edited: `CLAUDE.md` (this entry). Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261021-2347-wrap-up — End of session: final commit and push
+- Time: 2026-10-21 23:47:33 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: operator not confirmed in this session; local Git identity Sean Macharia / Claude Code (Opus 5.5). Instruction: "make sure everything is committed and pushed so i can stop for today".
+- **End-of-session checks:**
+  - No dev or production servers and no test browser running (no `next` processes; no Chrome processes with the session's test profile). Ports 3000, 3001, 3100 and 9333 free.
+  - `git fetch origin` → nothing new. `feature/frontend-foundation` = `origin` = `2c4eb8e`; `main` = `883f93b` (never changed this session).
+  - Only `CLAUDE.md` modified (LOG-20261021-2346-pr-refs and this entry). Nothing staged; no stashes; no lock or merge in progress.
+- What is committed: `CLAUDE.md` only, plus the §14 note below. Commit message: "docs: log PR description references and session wrap-up in CLAUDE.md", parent `2c4eb8e`.
+- Push: a normal `git push origin feature/frontend-foundation`, only if the remote branch is still `2c4eb8e`. `main` is not changed; nothing is merged.
+- **How the result is recorded:** as in LOG-20261021-0159-final-commit, no local entry is written after this push, so the session ends with a clean working tree. Verify with `git ls-remote origin refs/heads/feature/frontend-foundation` against `git log -1 feature/frontend-foundation`. If the push failed, the next session's first entry must say so.
+- **Left on this machine, outside the repository (not part of the project):**
+  - The session scratchpad (a temporary folder; may be cleared automatically). It holds the test scripts and screenshots, the Chrome test profile, the download folders, and **`pr-description.md`, the pull request description to paste into GitHub**. Copy it somewhere safe before it is cleared; it can be regenerated from LOG-20261021-2344-pr-description if lost.
+  - The Claude Code memory note with the "log everything in CLAUDE.md" rule (unchanged).
+- **Open items for the next session:**
+  1. Open the pull request `feature/frontend-foundation` → `main` using `pr-description.md` (the GitHub CLI is not installed here).
+  2. A person should click through the app in a normal browser (checklist in the PR description). Safari, Firefox and screen readers are not yet tested.
+  3. Repository owner decisions: whether the "Delivered" milestone may be current while the status is "Arrived", and whether the roles and permission matrix fit the team.
+  4. Decide on backend work, starting with removing or protecting `GET /`.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
 - **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
 - **Session ended 2026-10-21 ~01:58 +03:00 (LOG-20261021-0158-wrap-up):** the incomplete npx cache folder from LOG-20261021-0128-precommit-review was deleted on the collaborator's instruction. No servers running. All log entries, including LOG-20261021-0159-final-commit, are committed and pushed on `feature/frontend-foundation` (verify with `git log -1` and `git ls-remote origin`).
 - **Sidebar pages (2026-10-21 22:40 +03:00, LOG-20261021-2240-sidebar-pages):** grouped sidebar and new Agents, Expenses & profitability, Reports, Users & permissions and Settings & audit log pages. Committed and pushed in LOG-20261021-2341-commit-push.
+- **Session ended 2026-10-21 ~23:48 +03:00 (LOG-20261021-2347-wrap-up):** everything is committed and pushed on `feature/frontend-foundation`, including that entry (verify with `git log -1` and `git ls-remote origin`). No servers or test browsers are running. The PR description to paste into GitHub is in the session scratchpad (`pr-description.md`); next step: open the pull request into `main`.
 - **Notifications and tasks (2026-10-21 23:38, LOG-20261021-2338-notifications-tasks):** added under Operations, with a dashboard summary. Demo only: notifications are calculated in the browser, nothing is sent, and tasks last for the tab only. Committed and pushed in LOG-20261021-2341-commit-push.
 - **Browser review (2026-10-21 23:04, LOG-20261021-2304-browser-review):** all phase 1–3 flows and the new pages were browser-tested in headless Chrome and pass. One layout fix (`components/ui/table.tsx`), committed with the work above. **Notifications and Tasks are missing** apart from a read-only dashboard task card. The screenshots referred to in the review request were not available to that session.
 - **Authorized work:** frontend development (collaborator, 2026-10-19), and recording every phase in this log (2026-10-21). Backend, schema, integrations, deployment and Phase 0 cleanup are **not** authorized. Commit/push requires explicit collaborator approval.
