@@ -1,8 +1,1091 @@
 // use prisma-8
 
+// Freight management data contract. Design and decisions: docs/database-design.md.
+//
+// Conventions
+// - Money: KES only, Numeric(14, 2). Never floating point.
+// - Instants (events, deadlines, tracking): timestamptz(3), JavaScript Date in code.
+// - Calendar dates (validity, issue/due dates, cheque dates): date, "YYYY-MM-DD" string in code.
+// - Statuses: text enums enforced by CHECK constraints; allowed transitions are enforced in
+//   the NestJS services.
+// - Business records are never hard-deleted (onDelete defaults to Restrict). Only rows owned
+//   by a parent (lines, contacts, roles, milestones) cascade.
+// - updatedAt is set by application code (Prisma 8 has no lifecycle hooks).
+
+types {
+  Money    = Numeric(14, 2)
+  Quantity = Numeric(12, 3)
+  Percent  = Numeric(5, 2)
+  Instant  = TimestamptzJsDate(3)
+  CalDate  = DateString
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  @@type("pg/text@1")
+  active   = "active"
+  invited  = "invited"
+  disabled = "disabled"
+}
+
+enum PartyRoleType {
+  @@type("pg/text@1")
+  customer    = "customer"
+  agent       = "agent"
+  supplier    = "supplier"
+  carrier     = "carrier"
+  transporter = "transporter"
+}
+
+enum AccountStatus {
+  @@type("pg/text@1")
+  active  = "active"
+  on_hold = "on_hold"
+  closed  = "closed"
+}
+
+enum ChargeCategory {
+  @@type("pg/text@1")
+  service_fee = "service_fee"
+  carrier     = "carrier"
+  transport   = "transport"
+  handling    = "handling"
+  storage     = "storage"
+  customs     = "customs"
+  agent_fees  = "agent_fees"
+  other       = "other"
+}
+
+enum TaxCategory {
+  @@type("pg/text@1")
+  standard    = "standard"
+  zero_rated  = "zero_rated"
+  exempt      = "exempt"
+  outside_vat = "outside_vat"
+}
+
+enum TransportMode {
+  @@type("pg/text@1")
+  sea  = "sea"
+  air  = "air"
+  road = "road"
+  rail = "rail"
+}
+
+enum ShipmentDirection {
+  @@type("pg/text@1")
+  import  = "import"
+  export  = "export"
+  transit = "transit"
+}
+
+enum QuotationStatus {
+  @@type("pg/text@1")
+  draft    = "draft"
+  sent     = "sent"
+  accepted = "accepted"
+  declined = "declined"
+  expired  = "expired"
+}
+
+enum BookingStatus {
+  @@type("pg/text@1")
+  pending   = "pending"
+  confirmed = "confirmed"
+  completed = "completed"
+  cancelled = "cancelled"
+}
+
+enum ShipmentStatus {
+  @@type("pg/text@1")
+  booked           = "booked"
+  in_transit       = "in_transit"
+  arrived          = "arrived"
+  customs          = "customs"
+  released         = "released"
+  out_for_delivery = "out_for_delivery"
+  delivered        = "delivered"
+  on_hold          = "on_hold"
+}
+
+enum ContainerType {
+  @@type("pg/text@1")
+  dry_20       = "dry_20"
+  dry_40       = "dry_40"
+  high_cube_40 = "high_cube_40"
+  reefer_20    = "reefer_20"
+  reefer_40    = "reefer_40"
+  open_top     = "open_top"
+  flat_rack    = "flat_rack"
+  other        = "other"
+}
+
+enum Severity {
+  @@type("pg/text@1")
+  low    = "low"
+  medium = "medium"
+  high   = "high"
+}
+
+enum IssueType {
+  @@type("pg/text@1")
+  delay         = "delay"
+  damage        = "damage"
+  documentation = "documentation"
+  customs_query = "customs_query"
+  other         = "other"
+}
+
+enum DelayReason {
+  @@type("pg/text@1")
+  port_congestion    = "port_congestion"
+  border_queue       = "border_queue"
+  carrier_schedule   = "carrier_schedule"
+  customs_query      = "customs_query"
+  missing_documents  = "missing_documents"
+  permit_pending     = "permit_pending"
+  payment_pending    = "payment_pending"
+  equipment_shortage = "equipment_shortage"
+  weather            = "weather"
+  other              = "other"
+}
+
+enum IssueStatus {
+  @@type("pg/text@1")
+  open       = "open"
+  monitoring = "monitoring"
+  resolved   = "resolved"
+}
+
+enum CustomerNotificationStatus {
+  @@type("pg/text@1")
+  not_notified      = "not_notified"
+  informed_manually = "informed_manually"
+  not_required      = "not_required"
+}
+
+enum TransportJobStatus {
+  @@type("pg/text@1")
+  planned    = "planned"
+  dispatched = "dispatched"
+  delivered  = "delivered"
+  cancelled  = "cancelled"
+}
+
+enum TaskStatus {
+  @@type("pg/text@1")
+  open        = "open"
+  in_progress = "in_progress"
+  done        = "done"
+  cancelled   = "cancelled"
+}
+
+enum DocumentType {
+  @@type("pg/text@1")
+  bill_of_lading          = "bill_of_lading"
+  air_waybill             = "air_waybill"
+  road_consignment_note   = "road_consignment_note"
+  packing_list            = "packing_list"
+  commercial_invoice      = "commercial_invoice"
+  certificate_of_origin   = "certificate_of_origin"
+  import_declaration_form = "import_declaration_form"
+  release_order           = "release_order"
+  permit                  = "permit"
+  proof_of_delivery       = "proof_of_delivery"
+  other                   = "other"
+}
+
+enum DocumentStatus {
+  @@type("pg/text@1")
+  missing  = "missing"
+  received = "received"
+  verified = "verified"
+  rejected = "rejected"
+}
+
+enum DocumentCategory {
+  @@type("pg/text@1")
+  operational = "operational"
+  financial   = "financial"
+  customs     = "customs"
+}
+
+enum OriginalStatus {
+  @@type("pg/text@1")
+  none     = "none"
+  held     = "held"
+  released = "released"
+  returned = "returned"
+}
+
+enum CustomsRegime {
+  @@type("pg/text@1")
+  import_home_use  = "import_home_use"
+  transit          = "transit"
+  export           = "export"
+  re_export        = "re_export"
+  temporary_import = "temporary_import"
+  other            = "other"
+}
+
+enum CustomsStatus {
+  @@type("pg/text@1")
+  not_started       = "not_started"
+  documents_pending = "documents_pending"
+  lodged            = "lodged"
+  assessed          = "assessed"
+  duty_paid         = "duty_paid"
+  released          = "released"
+  query             = "query"
+}
+
+enum PaidBy {
+  @@type("pg/text@1")
+  company  = "company"
+  customer = "customer"
+}
+
+enum FinancialDocStatus {
+  @@type("pg/text@1")
+  draft     = "draft"
+  issued    = "issued"
+  cancelled = "cancelled"
+}
+
+enum EtimsStatus {
+  @@type("pg/text@1")
+  not_submitted = "not_submitted"
+  submitted     = "submitted"
+  accepted      = "accepted"
+  rejected      = "rejected"
+}
+
+enum PaymentMethod {
+  @@type("pg/text@1")
+  cheque        = "cheque"
+  bank_transfer = "bank_transfer"
+}
+
+enum PaymentStatus {
+  @@type("pg/text@1")
+  received  = "received"
+  cleared   = "cleared"
+  bounced   = "bounced"
+  cancelled = "cancelled"
+}
+
+enum ExpenseStatus {
+  @@type("pg/text@1")
+  pending_approval = "pending_approval"
+  approved         = "approved"
+  paid             = "paid"
+}
+
+enum CreditDecision {
+  @@type("pg/text@1")
+  proceed = "proceed"
+  blocked = "blocked"
+}
+
+// ---------------------------------------------------------------------------
+// Access control and audit
+// ---------------------------------------------------------------------------
+
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  name         String?
+  passwordHash String?
+  status       UserStatus @default(active)
+  lastLoginAt  Instant?
+  // Set only for future customer/agent portal accounts.
+  partyId      Int?
+  party        Party?     @relation(fields: [partyId], references: [id])
+  // Pre-existing column: kept at timestamptz(6) so the migration does not rewrite it.
+  createdAt    TimestamptzJsDate @default(now())
+  updatedAt    Instant    @default(now())
+
+  @@index([partyId])
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   Instant  @default(now())
+}
+
+model UserRole {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+// Permission codes are checked by backend guards, e.g. "credit.override".
+model Permission {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  description String?
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+// Append-only history of important business changes (before/after values in `changes`).
+model AuditLog {
+  id          Int     @id @default(autoincrement())
+  occurredAt  Instant @default(now())
+  actorUserId Int?
+  actor       User?   @relation(fields: [actorUserId], references: [id])
+  entityType  String
+  entityId    Int
+  action      String
+  summary     String?
+  changes     Jsonb?
+
+  @@index([entityType, entityId])
+  @@index([occurredAt])
+  @@index([actorUserId])
+}
+
+// Configurable retention periods per record category (changeable without code changes).
+model RetentionPolicy {
+  id             Int     @id @default(autoincrement())
+  recordCategory String  @unique
+  retentionYears Int
+  basis          String
+  description    String?
+  updatedById    Int?
+  updatedBy      User?   @relation(fields: [updatedById], references: [id])
+  updatedAt      Instant @default(now())
+
+  @@check(expression: "\"retentionYears\" > 0", name: "retention_years_positive")
+}
+
+// ---------------------------------------------------------------------------
+// Parties: customers, agents, suppliers, carriers, transporters
+// ---------------------------------------------------------------------------
+
+model Party {
+  id               Int           @id @default(autoincrement())
+  name             String
+  legalName        String?
+  kraPin           String?
+  email            String?
+  phone            String?
+  address          String?
+  city             String?
+  country          String?
+  paymentTermsDays Int?
+  creditLimit      Money?
+  accountStatus    AccountStatus @default(active)
+  notes            String?
+  archivedAt       Instant?
+  createdById      Int?
+  createdBy        User?         @relation(fields: [createdById], references: [id])
+  createdAt        Instant       @default(now())
+  updatedAt        Instant       @default(now())
+
+  @@index([name])
+  @@index([kraPin], unique: true, where: "(\"kraPin\" IS NOT NULL)", name: "party_kra_pin_unique")
+  @@check(expression: "\"paymentTermsDays\" IS NULL OR \"paymentTermsDays\" >= 0", name: "party_terms_non_negative")
+  @@check(expression: "\"creditLimit\" IS NULL OR \"creditLimit\" >= 0", name: "party_credit_limit_non_negative")
+}
+
+model PartyRole {
+  id      Int           @id @default(autoincrement())
+  partyId Int
+  party   Party         @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  role    PartyRoleType
+
+  @@unique([partyId, role])
+  @@index([role])
+}
+
+model Contact {
+  id        Int     @id @default(autoincrement())
+  partyId   Int
+  party     Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  name      String
+  title     String?
+  email     String?
+  phone     String?
+  isPrimary Boolean @default(false)
+  createdAt Instant @default(now())
+  updatedAt Instant @default(now())
+
+  @@index([partyId])
+}
+
+// ---------------------------------------------------------------------------
+// Shared reference data
+// ---------------------------------------------------------------------------
+
+model ChargeType {
+  id                 Int            @id @default(autoincrement())
+  code               String         @unique
+  name               String
+  category           ChargeCategory
+  defaultTaxCategory TaxCategory    @default(standard)
+  defaultTaxRate     Percent        @default(0)
+  isDisbursement     Boolean        @default(false)
+  isActive           Boolean        @default(true)
+
+  @@check(expression: "\"defaultTaxRate\" >= 0 AND \"defaultTaxRate\" <= 100", name: "charge_type_tax_rate_range")
+}
+
+// Gap-free business references (e.g. SHP-2026-00042), incremented under a row lock.
+model NumberSequence {
+  id        Int    @id @default(autoincrement())
+  prefix    String
+  year      Int
+  nextValue Int    @default(1)
+
+  @@unique([prefix, year])
+  @@check(expression: "\"nextValue\" >= 1", name: "number_sequence_next_positive")
+}
+
+// ---------------------------------------------------------------------------
+// Sales: quotations and bookings
+// ---------------------------------------------------------------------------
+
+// Editable while draft or sent; locked once accepted. "Booked" is derived (a Booking exists).
+model Quotation {
+  id               Int               @id @default(autoincrement())
+  reference        String            @unique
+  customerId       Int
+  customer         Party             @relation("QuotationCustomer", fields: [customerId], references: [id])
+  agentId          Int?
+  agent            Party?            @relation("QuotationAgent", fields: [agentId], references: [id])
+  mode             TransportMode
+  direction        ShipmentDirection
+  origin           String
+  destination      String
+  incoterm         String?
+  cargoSummary     String
+  packages         Int?
+  grossWeightKg    Quantity?
+  volumeCbm        Quantity?
+  terms            String?
+  internalNote     String?
+  status           QuotationStatus   @default(draft)
+  issueDate        CalDate
+  validUntil       CalDate
+  sentAt           Instant?
+  sentTo           String?
+  decidedAt        Instant?
+  duplicatedFromId Int?
+  duplicatedFrom   Quotation?        @relation("QuotationDuplicate", fields: [duplicatedFromId], references: [id])
+  preparedById     Int?
+  preparedBy       User?             @relation(fields: [preparedById], references: [id])
+  createdAt        Instant           @default(now())
+  updatedAt        Instant           @default(now())
+
+  @@index([customerId, status])
+  @@index([status, validUntil])
+  @@check(expression: "\"validUntil\" >= \"issueDate\"", name: "quotation_valid_after_issue")
+}
+
+model QuotationLine {
+  id           Int         @id @default(autoincrement())
+  quotationId  Int
+  quotation    Quotation   @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  chargeTypeId Int?
+  chargeType   ChargeType? @relation(fields: [chargeTypeId], references: [id])
+  description  String
+  quantity     Quantity
+  unitPrice    Money
+  taxCategory  TaxCategory
+  taxRate      Percent
+  sortOrder    Int         @default(0)
+
+  @@index([quotationId])
+  @@check(expression: "quantity > 0 AND \"unitPrice\" >= 0 AND \"taxRate\" >= 0 AND \"taxRate\" <= 100", name: "quotation_line_amounts")
+}
+
+model Booking {
+  id                   Int               @id @default(autoincrement())
+  reference            String            @unique
+  // At most one booking per quotation.
+  quotationId          Int?              @unique
+  quotation            Quotation?        @relation(fields: [quotationId], references: [id])
+  customerId           Int
+  customer             Party             @relation("BookingCustomer", fields: [customerId], references: [id])
+  carrierId            Int?
+  carrier              Party?            @relation("BookingCarrier", fields: [carrierId], references: [id])
+  agentId              Int?
+  agent                Party?            @relation("BookingAgent", fields: [agentId], references: [id])
+  carrierBookingNumber String?
+  mode                 TransportMode
+  direction            ShipmentDirection
+  origin               String
+  destination          String
+  cargoSummary         String
+  plannedEtd           Instant?
+  plannedEta           Instant?
+  status               BookingStatus     @default(pending)
+  confirmedAt          Instant?
+  cancelledAt          Instant?
+  cancellationReason   String?
+  createdById          Int?
+  createdBy            User?             @relation(fields: [createdById], references: [id])
+  createdAt            Instant           @default(now())
+  updatedAt            Instant           @default(now())
+
+  @@index([customerId, status])
+  @@check(expression: "status <> 'cancelled' OR \"cancelledAt\" IS NOT NULL", name: "booking_cancelled_has_time")
+}
+
+// ---------------------------------------------------------------------------
+// Operations: shipments, containers, tracking, delays, transport, tasks
+// ---------------------------------------------------------------------------
+
+// `eta` is the planned ETA. The current ETA is derived from open delays with affectsEta.
+model Shipment {
+  id                  Int               @id @default(autoincrement())
+  reference           String            @unique
+  // Optional: clearing-only jobs have no booking. One booking may have several shipments.
+  bookingId           Int?
+  booking             Booking?          @relation(fields: [bookingId], references: [id])
+  customerId          Int
+  customer            Party             @relation("ShipmentCustomer", fields: [customerId], references: [id])
+  carrierId           Int?
+  carrier             Party?            @relation("ShipmentCarrier", fields: [carrierId], references: [id])
+  agentId             Int?
+  agent               Party?            @relation("ShipmentAgent", fields: [agentId], references: [id])
+  assignedToId        Int?
+  assignedTo          User?             @relation("ShipmentAssignee", fields: [assignedToId], references: [id])
+  mode                TransportMode
+  direction           ShipmentDirection
+  status              ShipmentStatus    @default(booked)
+  origin              String
+  destination         String
+  transportDocRef     String?
+  vesselOrFlight      String?
+  voyageNumber        String?
+  equipment           String?
+  cargoDescription    String
+  packages            Int?
+  grossWeightKg       Quantity?
+  volumeCbm           Quantity?
+  etd                 Instant?
+  eta                 Instant?
+  estimatedDeliveryAt Instant?
+  atd                 Instant?
+  ata                 Instant?
+  deliveredAt         Instant?
+  createdById         Int?
+  createdBy           User?             @relation("ShipmentCreator", fields: [createdById], references: [id])
+  createdAt           Instant           @default(now())
+  updatedAt           Instant           @default(now())
+
+  @@index([bookingId])
+  @@index([customerId, status])
+  @@index([status, eta])
+  @@index([assignedToId])
+  @@check(expression: "atd IS NULL OR ata IS NULL OR ata >= atd", name: "shipment_arrival_after_departure")
+  @@check(expression: "ata IS NULL OR \"deliveredAt\" IS NULL OR \"deliveredAt\" >= ata", name: "shipment_delivery_after_arrival")
+  @@check(expression: "status <> 'delivered' OR \"deliveredAt\" IS NOT NULL", name: "shipment_delivered_has_time")
+  @@check(expression: "packages IS NULL OR packages >= 0", name: "shipment_packages_non_negative")
+}
+
+model Container {
+  id              Int           @id @default(autoincrement())
+  shipmentId      Int
+  shipment        Shipment      @relation(fields: [shipmentId], references: [id])
+  containerNumber String
+  type            ContainerType
+  sealNumber      String?
+  grossWeightKg   Quantity?
+  packages        Int?
+  createdAt       Instant       @default(now())
+  updatedAt       Instant       @default(now())
+
+  @@unique([shipmentId, containerNumber])
+  @@index([containerNumber])
+  @@check(expression: "\"containerNumber\" ~ '^[A-Z]{4}[0-9]{7}$'", name: "container_number_format")
+}
+
+// Planned checkpoints and actual tracking events. Done/current/pending is derived from actualAt.
+model ShipmentMilestone {
+  id           Int      @id @default(autoincrement())
+  shipmentId   Int
+  shipment     Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  sequence     Int
+  label        String
+  location     String?
+  plannedAt    Instant?
+  actualAt     Instant?
+  note         String?
+  recordedById Int?
+  recordedBy   User?    @relation(fields: [recordedById], references: [id])
+  createdAt    Instant  @default(now())
+  updatedAt    Instant  @default(now())
+
+  @@unique([shipmentId, sequence])
+}
+
+// Delays and other exceptions. For delays, revisedExpectedAt never overwrites the planned ETA.
+model ShipmentIssue {
+  id                   Int                        @id @default(autoincrement())
+  shipmentId           Int
+  shipment             Shipment                   @relation(fields: [shipmentId], references: [id])
+  type                 IssueType
+  severity             Severity
+  reason               DelayReason?
+  reasonDetail         String
+  identifiedAt         Instant
+  affectedMilestoneId  Int?
+  affectedMilestone    ShipmentMilestone?         @relation(fields: [affectedMilestoneId], references: [id], onDelete: SetNull)
+  originalExpectedAt   Instant?
+  revisedExpectedAt    Instant?
+  affectsEta           Boolean                    @default(false)
+  followUpUserId       Int?
+  followUpUser         User?                      @relation("IssueFollowUp", fields: [followUpUserId], references: [id])
+  status               IssueStatus                @default(open)
+  nextAction           String?
+  notes                String?
+  resolvedAt           Instant?
+  resolution           String?
+  customerNotification CustomerNotificationStatus @default(not_notified)
+  customerNotifiedAt   Instant?
+  createdById          Int?
+  createdBy            User?                      @relation("IssueCreator", fields: [createdById], references: [id])
+  createdAt            Instant                    @default(now())
+  updatedAt            Instant                    @default(now())
+
+  @@index([shipmentId])
+  @@index([shipmentId], where: "(status <> 'resolved')", name: "shipment_issue_open")
+  @@check(expression: "type <> 'delay' OR (reason IS NOT NULL AND \"originalExpectedAt\" IS NOT NULL)", name: "issue_delay_fields")
+  @@check(expression: "status <> 'resolved' OR \"resolvedAt\" IS NOT NULL", name: "issue_resolved_has_time")
+  @@check(expression: "\"customerNotification\" <> 'informed_manually' OR \"customerNotifiedAt\" IS NOT NULL", name: "issue_notified_has_time")
+}
+
+// One row per hired truck / delivery leg (the company owns no vehicles).
+model TransportJob {
+  id                 Int                @id @default(autoincrement())
+  shipmentId         Int
+  shipment           Shipment           @relation(fields: [shipmentId], references: [id])
+  containerId        Int?
+  container          Container?         @relation(fields: [containerId], references: [id])
+  transporterId      Int
+  transporter        Party              @relation(fields: [transporterId], references: [id])
+  truckRegistration  String?
+  driverName         String?
+  driverPhone        String?
+  pickupLocation     String
+  deliveryLocation   String
+  plannedPickupAt    Instant?
+  actualPickupAt     Instant?
+  plannedDeliveryAt  Instant?
+  actualDeliveryAt   Instant?
+  status             TransportJobStatus @default(planned)
+  notes              String?
+  createdAt          Instant            @default(now())
+  updatedAt          Instant            @default(now())
+
+  @@index([shipmentId])
+  @@index([transporterId])
+  @@check(expression: "status <> 'delivered' OR \"actualDeliveryAt\" IS NOT NULL", name: "transport_job_delivered_has_time")
+}
+
+model Task {
+  id          Int        @id @default(autoincrement())
+  title       String
+  details     String?
+  dueAt       Instant
+  priority    Severity
+  status      TaskStatus @default(open)
+  assigneeId  Int?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  shipmentId  Int?
+  shipment    Shipment?  @relation(fields: [shipmentId], references: [id])
+  quotationId Int?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+  documentId  Int?
+  document    Document?  @relation(fields: [documentId], references: [id])
+  invoiceId   Int?
+  invoice     Invoice?   @relation(fields: [invoiceId], references: [id])
+  completedAt Instant?
+  createdById Int?
+  createdBy   User?      @relation("TaskCreator", fields: [createdById], references: [id])
+  createdAt   Instant    @default(now())
+  updatedAt   Instant    @default(now())
+
+  @@index([assigneeId, status, dueAt])
+  @@index([shipmentId])
+  @@check(expression: "status <> 'done' OR \"completedAt\" IS NOT NULL", name: "task_done_has_time")
+}
+
+// Manual or automatic follow-up notes on a task or a delay/issue (exactly one parent).
+model Note {
+  id              Int            @id @default(autoincrement())
+  body            String
+  isAutomatic     Boolean        @default(false)
+  authorId        Int?
+  author          User?          @relation(fields: [authorId], references: [id])
+  taskId          Int?
+  task            Task?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  shipmentIssueId Int?
+  shipmentIssue   ShipmentIssue? @relation(fields: [shipmentIssueId], references: [id], onDelete: Cascade)
+  createdAt       Instant        @default(now())
+
+  @@index([taskId])
+  @@index([shipmentIssueId])
+  @@check(expression: "num_nonnulls(\"taskId\", \"shipmentIssueId\") = 1", name: "note_single_parent")
+}
+
+// ---------------------------------------------------------------------------
+// Documents (metadata only; files live in private object storage)
+// ---------------------------------------------------------------------------
+
+model Document {
+  id                 Int              @id @default(autoincrement())
+  type               DocumentType
+  category           DocumentCategory
+  customerVisible    Boolean          @default(false)
+  status             DocumentStatus   @default(missing)
+  documentNumber     String?
+  issueDate          CalDate?
+  expiresOn          CalDate?
+  receivedAt         Instant?
+  storageKey         String?          @unique
+  fileName           String?
+  mimeType           String?
+  sizeBytes          Int?
+  sha256             String?
+  uploadedById       Int?
+  uploadedBy         User?            @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  uploadedAt         Instant?
+  reviewedById       Int?
+  reviewedBy         User?            @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt         Instant?
+  rejectionReason    String?
+  note               String?
+  originalStatus     OriginalStatus   @default(none)
+  originalLocation   String?
+  originalReleasedTo String?
+  originalReleasedAt Instant?
+  legalHold          Boolean          @default(false)
+  legalHoldReason    String?
+  partyId            Int?
+  party              Party?           @relation(fields: [partyId], references: [id])
+  quotationId        Int?
+  quotation          Quotation?       @relation(fields: [quotationId], references: [id])
+  bookingId          Int?
+  booking            Booking?         @relation(fields: [bookingId], references: [id])
+  shipmentId         Int?
+  shipment           Shipment?        @relation(fields: [shipmentId], references: [id])
+  customsEntryId     Int?
+  customsEntry       CustomsEntry?    @relation(fields: [customsEntryId], references: [id])
+  invoiceId          Int?
+  invoice            Invoice?         @relation(fields: [invoiceId], references: [id])
+  deletedAt          Instant?
+  createdAt          Instant          @default(now())
+  updatedAt          Instant          @default(now())
+
+  @@index([shipmentId, status])
+  @@index([partyId])
+  @@index([quotationId])
+  @@index([bookingId])
+  @@index([customsEntryId])
+  @@index([invoiceId])
+  @@check(expression: "num_nonnulls(\"partyId\", \"quotationId\", \"bookingId\", \"shipmentId\", \"customsEntryId\", \"invoiceId\") >= 1", name: "document_has_link")
+  @@check(expression: "(\"storageKey\" IS NULL) = (\"fileName\" IS NULL) AND (\"storageKey\" IS NULL) = (\"mimeType\" IS NULL) AND (\"storageKey\" IS NULL) = (\"sizeBytes\" IS NULL)", name: "document_file_fields_together")
+  @@check(expression: "\"sizeBytes\" IS NULL OR \"sizeBytes\" > 0", name: "document_size_positive")
+  @@check(expression: "sha256 IS NULL OR sha256 ~ '^[0-9a-f]{64}$'", name: "document_sha256_format")
+  @@check(expression: "status <> 'rejected' OR \"rejectionReason\" IS NOT NULL", name: "document_rejected_has_reason")
+  @@check(expression: "NOT \"legalHold\" OR \"legalHoldReason\" IS NOT NULL", name: "document_legal_hold_reason")
+}
+
+// ---------------------------------------------------------------------------
+// Customs
+// ---------------------------------------------------------------------------
+
+model CustomsEntry {
+  id                 Int           @id @default(autoincrement())
+  // Internal reference only; declarationNumber is the official customs number.
+  reference          String        @unique
+  shipmentId         Int
+  shipment           Shipment      @relation(fields: [shipmentId], references: [id])
+  declarationNumber  String?
+  regime             CustomsRegime
+  customsStation     String?
+  status             CustomsStatus @default(not_started)
+  lodgedAt           Instant?
+  assessedAt         Instant?
+  releasedAt         Instant?
+  releaseOrderNumber String?
+  queryDetails       String?
+  legalHold          Boolean       @default(false)
+  legalHoldReason    String?
+  createdById        Int?
+  createdBy          User?         @relation(fields: [createdById], references: [id])
+  createdAt          Instant       @default(now())
+  updatedAt          Instant       @default(now())
+
+  @@index([shipmentId])
+  @@index([status])
+  @@index([declarationNumber], unique: true, where: "(\"declarationNumber\" IS NOT NULL)", name: "customs_declaration_number_unique")
+  @@check(expression: "status <> 'released' OR \"releasedAt\" IS NOT NULL", name: "customs_released_has_time")
+  @@check(expression: "NOT \"legalHold\" OR \"legalHoldReason\" IS NOT NULL", name: "customs_legal_hold_reason")
+}
+
+model CustomsCharge {
+  id               Int          @id @default(autoincrement())
+  customsEntryId   Int
+  customsEntry     CustomsEntry @relation(fields: [customsEntryId], references: [id], onDelete: Cascade)
+  chargeTypeId     Int
+  chargeType       ChargeType   @relation(fields: [chargeTypeId], references: [id])
+  description      String?
+  amount           Money
+  paidBy           PaidBy
+  paidAt           Instant?
+  paymentReference String?
+  createdAt        Instant      @default(now())
+  updatedAt        Instant      @default(now())
+
+  @@index([customsEntryId])
+  @@check(expression: "amount >= 0", name: "customs_charge_amount_non_negative")
+}
+
+// ---------------------------------------------------------------------------
+// Finance: invoices, credit notes, payments, expenses, credit checks
+// ---------------------------------------------------------------------------
+
+// One invoice per shipment (no consolidation); supplementary invoices are allowed.
+// Issued invoices are locked (eTIMS): corrections are credit notes. Totals are frozen at issue;
+// part_paid / paid / overdue are derived from allocations, credit notes and dueDate.
+model Invoice {
+  id               Int                @id @default(autoincrement())
+  number           String             @unique
+  shipmentId       Int
+  shipment         Shipment           @relation(fields: [shipmentId], references: [id])
+  customerId       Int
+  customer         Party              @relation(fields: [customerId], references: [id])
+  status           FinancialDocStatus @default(draft)
+  issueDate        CalDate?
+  dueDate          CalDate?
+  customerName     String?
+  customerKraPin   String?
+  subtotal         Money?
+  taxTotal         Money?
+  total            Money?
+  etimsReference   String?
+  etimsStatus      EtimsStatus        @default(not_submitted)
+  etimsSubmittedAt Instant?
+  notes            String?
+  legalHold        Boolean            @default(false)
+  legalHoldReason  String?
+  issuedAt         Instant?
+  issuedById       Int?
+  issuedBy         User?              @relation("InvoiceIssuer", fields: [issuedById], references: [id])
+  createdById      Int?
+  createdBy        User?              @relation("InvoiceCreator", fields: [createdById], references: [id])
+  createdAt        Instant            @default(now())
+  updatedAt        Instant            @default(now())
+
+  @@index([shipmentId])
+  @@index([customerId, status, dueDate])
+  @@check(expression: "status <> 'issued' OR (\"issueDate\" IS NOT NULL AND \"dueDate\" IS NOT NULL AND \"customerName\" IS NOT NULL AND subtotal IS NOT NULL AND \"taxTotal\" IS NOT NULL AND total IS NOT NULL AND \"issuedAt\" IS NOT NULL)", name: "invoice_issued_fields")
+  @@check(expression: "\"dueDate\" IS NULL OR \"issueDate\" IS NULL OR \"dueDate\" >= \"issueDate\"", name: "invoice_due_after_issue")
+  @@check(expression: "total IS NULL OR (subtotal >= 0 AND \"taxTotal\" >= 0 AND total = subtotal + \"taxTotal\")", name: "invoice_totals_consistent")
+  @@check(expression: "NOT \"legalHold\" OR \"legalHoldReason\" IS NOT NULL", name: "invoice_legal_hold_reason")
+}
+
+model InvoiceLine {
+  id             Int          @id @default(autoincrement())
+  invoiceId      Int
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  chargeTypeId   Int?
+  chargeType     ChargeType?  @relation(fields: [chargeTypeId], references: [id])
+  description    String
+  quantity       Quantity
+  unitPrice      Money
+  taxCategory    TaxCategory
+  taxRate        Percent
+  isDisbursement Boolean      @default(false)
+  sortOrder      Int          @default(0)
+
+  @@index([invoiceId])
+  @@check(expression: "quantity > 0 AND \"unitPrice\" >= 0 AND \"taxRate\" >= 0 AND \"taxRate\" <= 100", name: "invoice_line_amounts")
+}
+
+model CreditNote {
+  id               Int                @id @default(autoincrement())
+  number           String             @unique
+  invoiceId        Int
+  invoice          Invoice            @relation(fields: [invoiceId], references: [id])
+  status           FinancialDocStatus @default(draft)
+  reason           String
+  issueDate        CalDate?
+  subtotal         Money?
+  taxTotal         Money?
+  total            Money?
+  etimsReference   String?
+  etimsStatus      EtimsStatus        @default(not_submitted)
+  etimsSubmittedAt Instant?
+  issuedAt         Instant?
+  issuedById       Int?
+  issuedBy         User?              @relation("CreditNoteIssuer", fields: [issuedById], references: [id])
+  createdById      Int?
+  createdBy        User?              @relation("CreditNoteCreator", fields: [createdById], references: [id])
+  createdAt        Instant            @default(now())
+  updatedAt        Instant            @default(now())
+
+  @@index([invoiceId])
+  @@check(expression: "status <> 'issued' OR (\"issueDate\" IS NOT NULL AND subtotal IS NOT NULL AND \"taxTotal\" IS NOT NULL AND total IS NOT NULL AND \"issuedAt\" IS NOT NULL)", name: "credit_note_issued_fields")
+  @@check(expression: "total IS NULL OR (subtotal >= 0 AND \"taxTotal\" >= 0 AND total = subtotal + \"taxTotal\")", name: "credit_note_totals_consistent")
+}
+
+model CreditNoteLine {
+  id            Int          @id @default(autoincrement())
+  creditNoteId  Int
+  creditNote    CreditNote   @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  invoiceLineId Int?
+  invoiceLine   InvoiceLine? @relation(fields: [invoiceLineId], references: [id])
+  description   String
+  quantity      Quantity
+  unitPrice     Money
+  taxCategory   TaxCategory
+  taxRate       Percent
+  sortOrder     Int          @default(0)
+
+  @@index([creditNoteId])
+  @@check(expression: "quantity > 0 AND \"unitPrice\" >= 0 AND \"taxRate\" >= 0 AND \"taxRate\" <= 100", name: "credit_note_line_amounts")
+}
+
+// Bounced or cancelled payments no longer count toward invoice balances.
+model Payment {
+  id                Int           @id @default(autoincrement())
+  reference         String        @unique
+  customerId        Int
+  customer          Party         @relation(fields: [customerId], references: [id])
+  method            PaymentMethod
+  amount            Money
+  receivedAt        Instant
+  externalReference String?
+  chequeNumber      String?
+  chequeBank        String?
+  chequeDate        CalDate?
+  status            PaymentStatus @default(received)
+  clearedAt         Instant?
+  bouncedAt         Instant?
+  bounceReason      String?
+  reconciledAt      Instant?
+  reconciledById    Int?
+  reconciledBy      User?         @relation("PaymentReconciler", fields: [reconciledById], references: [id])
+  notes             String?
+  recordedById      Int?
+  recordedBy        User?         @relation("PaymentRecorder", fields: [recordedById], references: [id])
+  createdAt         Instant       @default(now())
+  updatedAt         Instant       @default(now())
+
+  @@index([customerId, receivedAt])
+  @@index([status])
+  @@index([externalReference], unique: true, where: "(method = 'bank_transfer' AND \"externalReference\" IS NOT NULL AND status <> 'cancelled')", name: "payment_bank_reference_unique")
+  @@check(expression: "amount > 0", name: "payment_amount_positive")
+  @@check(expression: "method <> 'cheque' OR (\"chequeNumber\" IS NOT NULL AND \"chequeBank\" IS NOT NULL)", name: "payment_cheque_details")
+  @@check(expression: "status <> 'bounced' OR \"bouncedAt\" IS NOT NULL", name: "payment_bounced_has_time")
+  @@check(expression: "status <> 'cleared' OR \"clearedAt\" IS NOT NULL", name: "payment_cleared_has_time")
+}
+
+// Allocation totals (per payment and per invoice) are enforced by the service under a row lock.
+model PaymentAllocation {
+  id            Int     @id @default(autoincrement())
+  paymentId     Int
+  payment       Payment @relation(fields: [paymentId], references: [id])
+  invoiceId     Int
+  invoice       Invoice @relation(fields: [invoiceId], references: [id])
+  amount        Money
+  allocatedAt   Instant @default(now())
+  allocatedById Int?
+  allocatedBy   User?   @relation(fields: [allocatedById], references: [id])
+
+  @@unique([paymentId, invoiceId])
+  @@index([invoiceId])
+  @@check(expression: "amount > 0", name: "payment_allocation_amount_positive")
+}
+
+model Expense {
+  id                    Int           @id @default(autoincrement())
+  shipmentId            Int?
+  shipment              Shipment?     @relation(fields: [shipmentId], references: [id])
+  transportJobId        Int?
+  transportJob          TransportJob? @relation(fields: [transportJobId], references: [id])
+  // Set when the company paid a customs charge on the customer's behalf (disbursement).
+  customsChargeId       Int?          @unique
+  customsCharge         CustomsCharge? @relation(fields: [customsChargeId], references: [id])
+  supplierId            Int?
+  supplier              Party?        @relation(fields: [supplierId], references: [id])
+  payeeName             String?
+  chargeTypeId          Int
+  chargeType            ChargeType    @relation(fields: [chargeTypeId], references: [id])
+  description           String
+  amount                Money
+  incurredOn            CalDate
+  supplierInvoiceNumber String?
+  status                ExpenseStatus @default(pending_approval)
+  approvedById          Int?
+  approvedBy            User?         @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  approvedAt            Instant?
+  paidAt                Instant?
+  paymentReference      String?
+  billable              Boolean       @default(false)
+  // The invoice line that re-bills this cost to the customer, if any.
+  invoiceLineId         Int?          @unique
+  invoiceLine           InvoiceLine?  @relation(fields: [invoiceLineId], references: [id])
+  recordedById          Int?
+  recordedBy            User?         @relation("ExpenseRecorder", fields: [recordedById], references: [id])
+  createdAt             Instant       @default(now())
+  updatedAt             Instant       @default(now())
+
+  @@index([shipmentId])
+  @@index([supplierId])
+  @@index([status])
+  @@check(expression: "amount > 0", name: "expense_amount_positive")
+  @@check(expression: "num_nonnulls(\"supplierId\", \"payeeName\") >= 1", name: "expense_has_payee")
+  @@check(expression: "status = 'pending_approval' OR (\"approvedById\" IS NOT NULL AND \"approvedAt\" IS NOT NULL)", name: "expense_approved_fields")
+  @@check(expression: "status <> 'paid' OR \"paidAt\" IS NOT NULL", name: "expense_paid_has_time")
+}
+
+// Every credit-limit decision. Only users holding the "credit.override" permission
+// (finance, management, admin) may record "proceed"; the backend enforces this.
+model CreditCheck {
+  id              Int            @id @default(autoincrement())
+  customerId      Int
+  customer        Party          @relation(fields: [customerId], references: [id])
+  bookingId       Int?
+  booking         Booking?       @relation(fields: [bookingId], references: [id])
+  invoiceId       Int?
+  invoice         Invoice?       @relation(fields: [invoiceId], references: [id])
+  exposure        Money
+  creditLimit     Money
+  attemptedAmount Money
+  decision        CreditDecision
+  reason          String
+  decidedById     Int
+  decidedBy       User           @relation(fields: [decidedById], references: [id])
+  decidedAt       Instant        @default(now())
+
+  @@index([customerId, decidedAt])
+  @@check(expression: "length(btrim(reason)) > 0", name: "credit_check_reason_required")
+  @@check(expression: "num_nonnulls(\"bookingId\", \"invoiceId\") <= 1", name: "credit_check_single_subject")
 }

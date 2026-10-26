@@ -20,6 +20,8 @@ No requirements document exists in the repo yet; this summary comes from the pro
 
 **Purpose:** operations system for a Kenyan freight forwarding and clearing business — quotation/booking → shipment job (sea, air, road, rail) → documents (B/L, AWB, packing list, commercial invoice, certificate of origin) → customs entry and duties (KRA iCMS) → release, transport, delivery → invoicing, expenses, M-Pesa/bank payments, reconciliation. Customer and agent portals.
 
+**Update 2026-10-26 (repository owner, LOG-20261026-2215-database-schema):** payments are **cheque and bank transfer only**; M-Pesa is removed from scope. Other confirmed business rules: KES only; VAT-registered with KRA eTIMS; disbursements re-billed; clearing-only jobs; one invoice per shipment; credit terms and limits; external agents; no owned trucks; paper originals tracked. Full list: `docs/database-design.md` §1.
+
 **Intended roles (none exist in code):** admin, operations/clearing staff, documentation, accounts/finance, management, external freight agents, customers.
 
 **Intended modules:** auth & access control; users/staff; customers/suppliers/partners; agents & agent portal; shipments/jobs/references; tracking events/milestones/exceptions; document management; customs/duties/KRA iCMS; quotations & bookings; invoicing/expenses/costing/payments/reconciliation; M-Pesa; customer & agent portals; notifications/reminders/tasks; transport/warehouse/delivery; dashboards/reporting; audit logs/security/backups/deployment.
@@ -41,6 +43,8 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 - **Prisma (important — not classic Prisma):** schema in `Backend/backend/src/prisma/contract.prisma` (`// use prisma-8`); generated `contract.json` / `contract.d.ts` via `prisma contract emit` (never hand-edit); runtime `postgres<Contract>()` from `@prisma/orm-postgres/runtime` in `src/prisma/db.ts`; queries like `db.orm.public.User.all()`; config in `prisma.config.ts`; migration ref/snapshot in `Backend/backend/migrations/` (no SQL migration files).
 - **Installed versions (read from node_modules on 2026-10-15; identical to the `package-lock.json` resolved versions):** `prisma` 8.0.0-rc.17, `@prisma/orm-postgres` 8.0.0-rc.12, `@prisma/client` 7.10.0 (installed but **unused**), `dotenv` 17.4.2 (transitive only), `@nestjs/cli` 12.0.6, Vitest 4.1.11, oxlint 1.85.0. `package.json` files use caret ranges; the lockfiles pin the exact versions.
 - **Node.js version:** required version **unknown / not specified** (no `engines` field in either `package.json`, no `.nvmrc` or `.node-version`). This needs a project decision (§16.6). Observed on the local clone with Git identity Sean Macharia: Node v24.20.0, npm 11.19.0. This is an observation, not a requirement.
+  - **Decided 2026-10-26 (repository owner, LOG-20261026-2215-database-schema): Node.js 24.20.0** for both apps. Root `.nvmrc` = `24.20.0`; both `package.json` files have `"engines": { "node": "^24.20.0" }` (any 24.x from 24.20.0). npm 11.19.0 ships with it. All installed dependencies' `engines` ranges accept it (checked 2026-10-26).
+- **Database schema (2026-10-26, branch `feature/database-schema`):** 33 tables, designed and approved in `docs/database-design.md`. Column-type conventions (verified against the installed Prisma): money `Numeric(14, 2)`, instants `TimestamptzJsDate(3)` (`timestamptz(3)`, JS `Date`), calendar dates `DateString` (`date`, `"YYYY-MM-DD"` string). Do **not** use PSL `DateTime`/`Date`: in this Prisma version they need `Temporal`, which Node 24 lacks. No new dependency was added. Migrations: `Backend/backend/migrations/app/20261026T1925_baseline` and `20261026T1926_freight_core_schema`.
 - **Backend conventions:** ESM (`"type": "module"`), relative imports use `.js` suffix, top-level await in `main.ts`, Prettier (single quotes, trailing commas), oxlint type-aware.
 - **Frontend:** App Router app with a shared shell (`components/layout/`), shared UI (`components/ui/`, including form primitives), typed domain model (`lib/types.ts`), data-access layer (`lib/data/index.ts`, demo data only) and a thin API client (`lib/api/client.ts`, only `GET /health` is live).
   - Since 2026-10-21 (uncommitted): `lib/data/session-store.tsx` holds in-browser edits and uploaded files for the tab session, seeded from `lib/data` in `app/layout.tsx`. Validation and change rules are pure modules in `lib/` (`*-form.ts`, `*-changes.ts`).
@@ -58,7 +62,9 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/src/config/env.validation.ts` (+ `.spec.ts`) | Fail-fast check for `DATABASE_URL` |
 | `Backend/backend/src/prisma/` | `contract.prisma` (source schema), generated contract files, `db.ts`, Nest module/service |
 | `Backend/backend/prisma.config.ts` | Prisma 8 config |
-| `Backend/backend/migrations/` | Prisma 8 migration ref + snapshot |
+| `Backend/backend/migrations/` | Prisma 8 migrations: `app/<timestamp>_<name>/` packages (`migration.ts` framework-rendered, `ops.json`, `migration.json`), `app/refs/db.json` (dev-DB ref), `snapshots/<hash>/` (contract snapshots). Never hand-edit `ops.json`/`migration.json` |
+| `.nvmrc` | Node.js version for the repository (24.20.0) |
+| `docs/database-design.md` | Approved database design: business rules, conventions, tables, relationships, setup and migration commands, pgAdmin inspection |
 | `Backend/backend/test/app.e2e-spec.ts` | e2e test (connects to the real DB in `.env`) |
 | `Backend/backend/.env.example`, `Frontend/frontend/.env.example` | Documented env variables (committed) |
 | `Frontend/frontend/app/` | Routes: `layout.tsx` (metadata, app shell, session-store provider), `page.tsx` (dashboard), `shipments/`, `quotations/`, `documents/`, `parties/`, `customs/`, `finance/`, `settings/`, `globals.css` (updated 2026-10-21; it previously described the original health-check page). Added 2026-10-21 evening: `agents/`, `expenses/`, `reports/`, `users/` |
@@ -69,7 +75,7 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/vitest.config.ts` | Unit tests: includes `**/*.spec.ts` |
 | `Backend/backend/vitest.config.e2e.ts` | e2e tests: includes `**/*.e2e-spec.ts` |
 | `Backend/backend/nest-cli.json` | Nest CLI config; `deleteOutDir: true` (build clears `dist/`) |
-| `Backend/backend/tsconfig.json`, `tsconfig.build.json` | TS config (`nodenext`, strict, decorators); build excludes `test` and `*spec.ts` |
+| `Backend/backend/tsconfig.json`, `tsconfig.build.json` | TS config (`nodenext`, strict, decorators); build excludes `test` and `*spec.ts`. Since 2026-10-26 `tsconfig.json` excludes `migrations` (Prisma-rendered `migration.ts` files use extensionless imports that `nodenext` rejects, and must not be edited) |
 | `Backend/backend/.oxlintrc.json`, `.prettierrc` | Lint rules (`no-floating-promises` error, `no-explicit-any` off); Prettier (single quotes, trailing commas) |
 | `Frontend/frontend/eslint.config.mjs` | ESLint with `eslint-config-next` (core-web-vitals + typescript) |
 | `Frontend/frontend/next.config.ts` | Next.js config (currently empty) |
@@ -94,12 +100,13 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Frontend users and permissions, settings and audit log (prototype) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); pages and audit-log filters **browser-tested** | LOG-20261021-2240-sidebar-pages. Read-only; **permissions are not enforced** (no auth); audit log is a session preview |
 | Frontend notifications and tasks (demo, session only) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); **browser-tested** (LOG-20261021-2338-notifications-tasks) | `/notifications` under Operations. Notifications are calculated in the browser and never sent; tasks and read markers are kept in the tab only; reminders and delivery need a backend. (Reported missing in LOG-20261021-2304-browser-review.) |
 | `DATABASE_URL` env validation | Implemented, unverified | `src/config/env.validation.ts` + spec, not run in audit |
-| `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD |
+| `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD. Superseded 2026-10-26 by the row below (User gained status, passwordHash, lastLoginAt, partyId, updatedAt) |
+| Database schema (33 tables) and migration | Implemented; **verified on the repository owner's local DB** (LOG-20261026-2215-database-schema): `migration check` pass, applied with `db migrate`, `db verify` pass. Not committed at time of writing | `contract.prisma`, `migrations/app/20261026T1925_baseline`, `20261026T1926_freight_core_schema`, `docs/database-design.md`. No API endpoints, no seed data (roles, permissions, retention, charge types), no auth yet |
 | `GET /` list all users | Implemented, unverified — **security concern** (see §12) | `app.service.ts` |
 | Modules 1 and 3–16 (§2) | Planned | No code, models or config found |
 | Module 2 (users/staff) | In progress (minimal) | Only the `User` model above; no roles, auth or management features |
 | KRA iCMS integration | Planned; possibly **Blocked** on KRA onboarding/accreditation (assumption from general domain knowledge; not established by repository evidence; status of any application unknown) | No code |
-| M-Pesa integration | Planned | No code |
+| M-Pesa integration | **Removed from scope** (repository owner, 2026-10-26: cheque and bank transfer only) | No code. The frontend demo still offers `mpesa` as a payment method (`lib/types.ts`); see `docs/database-design.md` §7 |
 
 Last checks actually run (2026-10-15 audit, read-only): see §11.
 
@@ -113,13 +120,15 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 6. Core domain: customers → shipments/jobs → documents (private storage) → tracking.
 7. Finance, then integrations (M-Pesa sandbox first; KRA iCMS once access is confirmed).
 
-**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3). Nothing else.
+**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3); **database design and schema implementation** (2026-10-26, repository owner: approved schema, Node 24.20.0 pin, migration on the owner's own local DB, on branch `feature/database-schema`). Backend API endpoints, auth, seeding, integrations and deployment are **not** yet authorized.
 
 ## 7. Database and integration notes
 
 - **Each developer uses their own local PostgreSQL database and their own `Backend/backend/.env`.** There is no shared development database (collaborator instruction, 2026-10-15; the repo contains no DB configuration other than the `.env.example` placeholder, and the owner's local setup is not verifiable from the repo). Do not assume another contributor's DB exists or matches yours. (A shared dev DB may be configured later only by explicit decision — record it in §9 if so.)
 - Never write real connection strings, credentials or database names tied to a person's machine into this file or any committed file. Copy `.env.example` → `.env` and fill in your own values.
 - Database state (whether the `User` table exists, how it was created) is not recorded in the repo. Verify against your own local DB only.
+  - **2026-10-26:** the repository owner's local DB was at the original `User` contract (marker `a9d7a849…`, matching the committed `db` ref) and now has the full schema (marker `32773253…`). The collaborator's DB state is unknown. Check it with `npx prisma db verify` and `npx prisma db migrate --show` (both read-only) before applying anything.
+- **Migration workflow (decided 2026-10-26):** `prisma migration plan` + `prisma db migrate`, with migration folders, snapshots and `refs/db.json` committed. `db update` only on throwaway databases. Full steps: `docs/database-design.md` §8. A database-writing command still needs explicit authorization in the session.
 - **Do not run** Prisma migration/push/reset/seed commands, or anything that writes to a database, without explicit authorization for that session.
 - No M-Pesa or KRA iCMS code exists. Never claim either works without evidence of a real, authorized integration.
 
@@ -151,6 +160,13 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 | Role labels ("repository owner", "collaborator") in shared docs; no personal emails (2026-10-19) | Collaborator decision, 2026-10-19 (§16.6) |
 | Record everything done in a session in §13 of this file: changes, read-only checks, processes, files created outside the repo, failed attempts, instructions (2026-10-21) | Collaborator instructions, 2026-10-21 ("make sure you always document the entries"; "make sure you write everything you do in the claude.md") |
 | Frontend demo edits and files stay in the browser session only: no `localStorage`, no fake backend, nothing in `public/` (2026-10-21) | Repository owner's requirements as relayed by the collaborator, 2026-10-20 |
+| Database schema v2 approved, using `TimestamptzJsDate(3)`, `DateString` and `Numeric(14,2)`; no new dependency (no `temporal-polyfill`); reviewable migrations; never reset or overwrite an existing database (2026-10-26) | Repository owner, 2026-10-26 |
+| Business rules for the data model: KES only; VAT + KRA eTIMS (issued invoices locked, credit notes for corrections); disbursements re-billed; clearing-only jobs; quotation → at most one booking, edited in place; booking → many shipments, containers tracked; one invoice per shipment; external agents; no owned trucks; cheque and bank transfer only (no M-Pesa); credit terms and limits; paper originals tracked (2026-10-26) | Repository owner, 2026-10-26 (`docs/database-design.md` §1) |
+| Credit-limit overrides: finance, management and admin may proceed past a warning; sales and operations see it only; user, time and reason recorded every time (`CreditCheck`); enforced in the backend, not only the UI (2026-10-26) | Repository owner, 2026-10-26 |
+| Permissions are data (`Permission`/`RolePermission`), starting from the owner's matrix (`docs/database-design.md` §6); adjustable later (2026-10-26) | Repository owner, 2026-10-26 |
+| Retention: 5 years from end of reporting period, longer under legal hold; stored in `RetentionPolicy`, adjustable later (2026-10-26) | Repository owner, 2026-10-26 |
+| Node.js 24.20.0 pinned (`.nvmrc`, `engines ^24.20.0` in both apps). This replaces the 2026-10-19 "observed only" note (2026-10-26) | Repository owner, 2026-10-26 |
+| Database work on `feature/database-schema`, branched from `feature/frontend-foundation` (2026-10-26) | Repository owner, 2026-10-26 |
 
 ## 10. Setup and safe development commands
 
@@ -166,11 +182,23 @@ Setup (each developer): `npm ci` in each app folder (installs exactly the lockfi
 
 Backend runs on `PORT` (default 3001); frontend on 3000.
 
+**Node and Prisma (added 2026-10-26):**
+- Use Node 24.20.0 (`nvm install 24.20.0`). On the repository owner's machine, nvm-windows 2.0 runs in shim mode: it picks 24.20.0 from `.nvmrc` at the repository root and from `engines` inside each app folder, while other folders keep the machine default. Check with `node -v` in each folder.
+- On that machine, **Git Bash** finds a separate older `~/.nvm` (Node 8.17.0) first on its PATH. Run Node, npm and Prisma commands from **PowerShell**.
+- Read-only Prisma commands (from `Backend/backend`): `npx prisma --version`, `npx prisma contract emit` (writes only `src/prisma/contract.json`/`.d.ts`), `npx prisma migration check`, `npx prisma migration show <dir>`, `npx prisma db verify`, `npx prisma db schema`, `npx prisma db migrate --show`.
+- Database-writing commands need authorization: `npx prisma db migrate --advance-ref db`, `db update`, `db sign`, `db init`. `migration plan` writes migration folders but does not touch the database.
+
 ## 11. Testing and verification procedures
 
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
+- **Latest results on Node 24.20.0 (2026-10-26, repository owner's machine, LOG-20261026-2215-database-schema):**
+  - Backend: `tsc --noEmit` → only the long-standing TS2307 in `test/app.e2e-spec.ts`; `npm run lint` → pass; `npm test` → 2 files, 4 tests pass; `npm run build` → pass.
+  - Prisma: `migration check` → all checks passed; `db migrate` → 1 migration, 253 additive operations; `db verify` → marker and schema match.
+  - A read-only query through `src/prisma/db.ts` works without `Temporal`. The tables were empty, so decoding a stored date was **not** exercised.
+  - e2e tests **not run**.
+  - Frontend: `next typegen`, `tsc --noEmit`, `npm run lint`, `npm run build` → all pass.
 - **Latest frontend results (2026-10-21 01:10 +03:00, LOG-20261021-0111-frontend-phase3):**
   - Re-run in the pre-commit review (2026-10-21 01:20–01:27, LOG-20261021-0128-precommit-review): `npx tsc --noEmit --incremental false` → pass; `npx eslint` → pass; `npx next build` → success, 19 route entries (18 app routes + `/_not-found`; an earlier "20 routes" figure was a miscount).
   - Scratch logic tests (outside the repo) → 22/22 groups pass.
@@ -185,7 +213,7 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 1. `GET /` returns all users unauthenticated (`Backend/backend/src/app.service.ts`).
 2. No auth, authorization, ValidationPipe, exception filter, helmet, rate limiting, logging.
 3. Prisma 8 is a release candidate with caret ranges; unused Prisma 7 `@prisma/client` installed alongside.
-4. No SQL migrations; DB creation process undocumented.
+4. No SQL migrations; DB creation process undocumented. (Update 2026-10-26: Prisma 8 migration packages now exist and the process is documented in `docs/database-design.md` §8. Prisma 8 still has no SQL migration files; `migration show` prints the SQL.)
 5. `dotenv` imported (`main.ts`, `db.ts`, `prisma.config.ts`) but not a declared dependency.
 6. `Backend/backend/src/prisma/db.ts` creates the Prisma client at import time using `DATABASE_URL!` (non-null assertion, no validation in that path); the connection itself opens lazily on the first query (`@prisma/orm-postgres/dist/runtime.mjs`, `getRuntime()`). The e2e test imports `AppModule` directly and therefore bypasses `validateEnv()`.
 7. `deploy` script (`nest deploy`) deploys to the cloud via NestJS Mau (verified from `@nestjs/cli` source). Whether this incurs cost is unknown from the repo; treat it as potentially paid and do not run it.
@@ -193,6 +221,12 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 9. TS2307 in e2e test; Prettier drift: `--check` flags 10 files on a working copy checked out with CRLF (`core.autocrlf=true`, a per-machine Git setting), while committed files are LF (`git ls-files --eol`). Ignoring line endings (`--end-of-line auto`), 8 files are flagged, including the generated `src/prisma/contract.d.ts`. No `.gitattributes` exists, so line endings depend on each developer's Git config. No CI; boilerplate READMEs/metadata; TS 5.9 (frontend) vs 6.0 (backend).
 10. No requirements document or phase definitions in the repo.
 11. `.env.example` uses placeholder DB name `freight_management`; developers' actual DB names may differ (expected — placeholder only).
+12. (2026-10-26) The schema exists, but nothing uses it yet:
+    - Reference data is not seeded: roles, the permission matrix (incl. `credit.override`), retention policy, charge types.
+    - No service enforces allocation limits, credit-limit permissions or number sequences.
+    - Prisma 8 has no seed command; plan a script or data migration together with the auth module.
+13. (2026-10-26) The frontend demo types differ from the database in places (`USD` currency, `mpesa`, a stored `booked` quotation status, integer-cent prices, a single customs entry per shipment). See `docs/database-design.md` §7. The API layer or the frontend must reconcile these.
+14. (2026-10-26) Applying a migration to a fresh database (baseline + delta) has not been tested; only the delta was applied, on the repository owner's DB.
 
 ## 13. Shared activity log
 
@@ -1078,7 +1112,107 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261026-2215-database-schema — Database schema designed, approved and applied; Node 24.20.0 pinned
+- Time: work started 2026-10-26 22:15:10 +03:00; migration applied 22:26:06–22:26:11; this entry written 2026-10-26 22:32:24 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`. The earlier read-only parts of this session (2026-10-20 and 2026-10-26, before 22:15) have no recorded start times; exact time unavailable.
+- Contributor/session: **repository owner** (stated in this session on 2026-10-20: "i am the owner"), working on their own machine (clone at `C:\Users\ENVY\Desktop\Freight WebApp\Project`; Git author identity "Chelsea", unchanged) / Claude Code (Opus 5.5).
+- **First entry from the repository owner's machine.** Earlier in this session, before this work (none of it recorded until now):
+  - Read `CLAUDE.md`, the code and Git history. `git fetch origin`. Switched this clone from `main` to `feature/frontend-foundation` (then at `46ad529`) on the owner's request ("i want to pull these changes"). No files changed.
+  - The owner instructed: record every change in `CLAUDE.md` for the collaborator.
+  - Database design discussion (phases 1–2): the owner answered the 12 business questions and the follow-up questions. Their answers are in `docs/database-design.md` §1 and §9 of this file.
+- **Instructions for this work (repository owner, 2026-10-26):**
+  - Approve schema v2 with `TimestamptzJsDate(3)`, `DateString`, `Numeric(14,2)` and no new dependency. Verify the types against the installed Prisma before creating migrations.
+  - Keep the migration reviewable; do not reset or overwrite an existing database.
+  - Branch `feature/database-schema` from `feature/frontend-foundation`.
+  - Pin Node 24.20.0 (`.nvmrc` plus `engines` in both apps), checking compatibility first. Switch this machine via nvm without disrupting other projects.
+  - Credit-limit overrides: finance, management and admin only, recorded every time, enforced in the backend.
+  - Document the decisions here.
+- **Pre-work checks:**
+  - `git fetch origin` found the collaborator's newer commits on `feature/frontend-foundation` (`46ad529` → `9c5bdf3`, up to LOG-20261022-0007-commit-log). The working tree was clean, so it was fast-forwarded (`git merge --ff-only`). `feature/database-schema` was created from `9c5bdf3`.
+  - The collaborator's newer frontend types (delays with action timelines, task notes, quotation terms, document expiry, account status) were read, and the schema covers them.
+- **Node.js:**
+  - Every direct dependency's `engines` range accepts 24.20.0. The strictest are `@nestjs/schematics` (`^24.15.0` on the 24 line) and `prisma` (`>=22.18.0`).
+  - `nvm install 24.20.0` (nvm-windows 2.0.0, shim mode). The machine default stays **22.23.3**; nothing else was changed in nvm. Other folders still resolve to 22.23.3 (checked in the user profile folder).
+  - Added root `.nvmrc` (`24.20.0`); the shim reads it only in the repository root. Added `"engines": { "node": "^24.20.0" }` to both `package.json` files; the shim reads that in each app folder. `node -v` → v24.20.0 in the root, `Backend/backend` and `Frontend/frontend`.
+  - Lockfiles:
+    - Backend: `npm install --package-lock-only --ignore-scripts` added only the 3-line `engines` entry.
+    - Frontend: the same command also added 66 lines of bundled `@tailwindcss/oxide-wasm32-wasi` entries. That change was **reverted** (`git checkout -- package-lock.json`) and only the `engines` entry was added, in npm's own format. `npm ls --depth=0` is clean.
+    - No dependency versions changed.
+  - Found: on this machine Git Bash puts a separate `~/.nvm` (Node 8.17.0) first on its PATH. It was left untouched (user configuration outside the project); PowerShell was used for all Node, npm and Prisma commands.
+- **Database (all from `Backend/backend`, PowerShell, Node 24.20.0):**
+  - Read-only state check before any change: `prisma db schema` → only the `User` table plus Prisma's `prisma_contract` schema (PostgreSQL 16.1). `prisma db verify` → marker `a9d7a849…` matches the original contract and the committed `db` ref.
+  - Confirmed the type mappings in the installed `@prisma/orm-target-postgres`:
+    - `TimestamptzJsDate` → `timestamptz`, JS `Date` (no `Temporal`).
+    - `DateString` → `date`, string.
+    - `Numeric(p,s)` → `numeric`, string.
+    - `DateTime`/`Date` need `Temporal`.
+    - `Jsonb` → `jsonb`.
+  - Wrote `src/prisma/contract.prisma` (33 tables) and ran `prisma contract emit`. The emitted contract was checked for column types, 88 CHECKs, 87 foreign keys, 106 indexes and 23 uniques. `AuditLog.changes` was changed from `Json` to `Jsonb` and re-emitted.
+  - First `prisma migration plan` (19:24 UTC) put a `placeholder` data transform in the delta, for changing the existing `User.createdAt` from `timestamptz` to `timestamptz(3)`. To avoid rewriting an existing column, `User.createdAt` was kept at `timestamptz` (codec `TimestamptzJsDate`, still a JS `Date`). The generated packages were deleted.
+    - The first delete attempt partly failed: the folder was locked because the Bash tool's working directory was inside it. It succeeded on retry; only the committed ref and snapshot remained.
+  - Second plan: `20261026T1925_baseline` (recreates the original `User` table; used only on empty databases) and `20261026T1926_freight_core_schema` (**253 operations, all additive**, no placeholders, no drops).
+  - Before applying:
+    - `prisma migration check` → all checks passed.
+    - `prisma migration show` → the CHECK, partial-index and foreign-key SQL was reviewed (391 statements, no `DROP`).
+    - `prisma db migrate --show` → 1 migration would run.
+  - **Applied** with `prisma db migrate --advance-ref db` (22:26:06–22:26:11 +03:00) to the repository owner's own local database (dev data only; the owner said nothing in it was worth keeping, and the migration changed no existing data): 1 migration, 253 operations. `db verify` → marker `32773253…` and schema match. `migrations/app/refs/db.json` now points at `32773253…`.
+- **Other changes:**
+  - `Backend/backend/tsconfig.json` now has `"exclude": ["node_modules", "dist", "migrations"]`. Prisma-rendered `migration.ts` files use extensionless imports (TS2835 under `nodenext`) and must not be edited. `tsconfig.build.json` was unaffected (it includes only `src`). This is the only config change besides `engines`.
+  - Created `docs/database-design.md`: the approved design, business rules, setup and migration commands, pgAdmin inspection, and the frontend type differences.
+- Files created: `.nvmrc`, `docs/database-design.md`, `Backend/backend/migrations/app/20261026T1925_baseline/{migration.ts,migration.json,ops.json}`, `Backend/backend/migrations/app/20261026T1926_freight_core_schema/{migration.ts,migration.json,ops.json}`, `Backend/backend/migrations/snapshots/3277325397aec2a66c498a80377ddeeeee51528527b3b4c6864dd3167eb01cdc/{contract.json,contract.d.ts}`.
+- Files edited: `CLAUDE.md` (§2, §3, §4, §5, §6, §7, §9, §10, §11, §12, this entry, §14), `Backend/backend/src/prisma/contract.prisma`, generated `src/prisma/contract.json` and `contract.d.ts`, `Backend/backend/migrations/app/refs/db.json`, `Backend/backend/tsconfig.json`, both `package.json` and both `package-lock.json` files (`engines` only). Deleted: none (the only deletions were the first, unused migration packages generated in this session).
+- Database/schema changes: the repository owner's local DB only, as above. Dependency changes: none (no packages added, removed or updated).
+- **Checks run and results (Node 24.20.0):**
+  - Backend:
+    - `tsc --noEmit` → only the long-standing TS2307 (`supertest/types`). It first also showed TS2835 in the migration files, fixed by the `exclude` above.
+    - `npm run lint` → exit 0; `npm test` → 2 files, 4 tests pass; `npm run build` → exit 0, with no migration files in `dist/`.
+  - Read-only runtime query through `src/prisma/db.ts` (scratch script): `User` and `Invoice` queries ran with `Temporal` unavailable. Both tables were empty, so decoding a stored date was not exercised.
+  - Frontend: `next typegen`, `tsc --noEmit`, `npm run lint`, `npm run build` → all exit 0.
+  - Not run: e2e tests, `npm audit`, browser tests, a migration onto a fresh empty database.
+- **Failed attempts:**
+  - Two inline `node -e` scripts failed: one on PowerShell quoting, one on a wrong guess at the `contract.json` structure.
+  - The migration-folder delete was locked (see above).
+  - The first `migration plan` was replaced (see above).
+- **Files outside the repository:**
+  - Session scratchpad (`C:\Users\ENVY\AppData\Local\Temp\claude\…\scratchpad\`): `plan-summary.cjs`, `show-sql.cjs`, `smoke-read.mts`.
+  - `%TEMP%`: `plan-out.txt`, `mig-show.txt`, `lint.txt`, `fe-lint.txt`, `fe-build.txt`.
+  - Claude Code's own tool-output and memory files.
+  - Node 24.20.0 installed under nvm's `installs` folder.
+  - Rebuilt (git-ignored): `Backend/backend/dist/`, `Frontend/frontend/.next/`.
+  - No servers or processes left running.
+- **Not done (outside the approved scope):**
+  - No seed data: roles, the permission matrix, `credit.override`, retention policy, charge types.
+  - No API endpoints, auth or permission guard; the credit-override rule is in the schema and documentation and will be enforced when the backend services are built.
+  - No frontend changes.
+  - `GET /` is still unauthenticated.
+- Commit: not committed · Pushed: no (not authorized yet).
+- Working-tree status after: branch `feature/database-schema` (from `9c5bdf3`). Modified and untracked files are exactly the ones listed above; nothing staged.
+
+### LOG-20261026-2301-commit-push — Commit and push of `feature/database-schema`
+- Time: 2026-10-26 23:01:50 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: "yes" (to committing and pushing `feature/database-schema`). Before that, the owner asked whether the collaborator's work had been pulled: a fresh `git fetch` confirmed `origin/feature/frontend-foundation` = `9c5bdf3`, already contained in this branch.
+- Pre-commit checks: `git fetch origin` → nothing new. `origin` has `main` = `883f93b` and `feature/frontend-foundation` = `9c5bdf3`; `feature/database-schema` does not exist on `origin` yet. Commits are authored as "Chelsea" (Git metadata, unchanged).
+- Correction to the repository owner's session of 2026-10-20 (not previously logged): Claude reported then that this clone's Git `user.name` was set to an email address. That was a misreading of `git config` output; the email setting was shown, and the author name is "Chelsea".
+- What is committed: everything listed in LOG-20261026-2215-database-schema, plus this entry. Commit message: "feat(db): freight core schema, Prisma migrations and Node 24.20.0 pin", parent `9c5bdf3`.
+- First attempt failed: `git commit -F -` was given the message as a PowerShell argument, not on stdin, so Git treated it as a pathspec and made no commit. The `git push -u` in the same command still ran and created `origin/feature/database-schema` at `9c5bdf3` (identical to `feature/frontend-foundation`, none of this work). The changes stayed staged. The commit was then made from a message file and pushed again as a normal fast-forward.
+- Push: a normal `git push -u origin feature/database-schema` (no force). `main` and `feature/frontend-foundation` are not changed; nothing is merged. Verify with `git ls-remote origin`. If the push failed, the next entry must say so.
+- Database/schema changes: none in this step · Dependency changes: none.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
+
+- **Latest (2026-10-26 22:32 +03:00, LOG-20261026-2215-database-schema):**
+  - The repository owner approved and the database schema was built on the new branch **`feature/database-schema`** (from `feature/frontend-foundation` at `9c5bdf3`): 33 tables, two migration packages, `docs/database-design.md`.
+  - Node 24.20.0 is pinned.
+  - It is applied only to the repository owner's local DB. Committed and pushed as a new branch in LOG-20261026-2301-commit-push; verify with `git ls-remote origin`. Not merged.
+  - **For the collaborator, after it is pushed:**
+    1. Switch to Node 24.20.0.
+    2. In `Backend/backend`, run `npm ci`.
+    3. Run `npx prisma db verify` and `npx prisma db migrate --show` (read-only) to see your DB's state.
+    4. Apply with `npx prisma db migrate --advance-ref db` only once that state is understood.
+  - **Next decisions:**
+    - Order of the PRs: frontend first, then database.
+    - Authorize the next backend phase: auth and roles with seeded permissions, the credit-override guard, then the API endpoints. Removing or protecting `GET /` comes first.
+- **Superseded by the entry above where they conflict:** the "Authorized work", "Decided" and "Still unresolved" bullets below. The Node version and the repository owner's DB state are now resolved. The owner has not explicitly reviewed the collaborator's other 2026-10-19 decisions.
 
 - **Git state (2026-10-21 23:41 +03:00, LOG-20261021-2341-commit-push):** `main` = `origin/main` = `883f93b` (unchanged). `feature/frontend-foundation` contains phases 1–3 (`5e2910f`) and, in the commit after `77471c7`, the grouped sidebar, the new pages, the browser-review fix and notifications and tasks (see `git log -1 feature/frontend-foundation`). It is pushed with a normal push; verify with `git ls-remote origin`. Nothing is merged into `main`. A pull request for the repository owner's review is the suggested next step; a draft description is described in LOG-20261021-0144-pr-draft (it predates the newer pages).
 - **Session ended 2026-10-21 ~01:58 +03:00 (LOG-20261021-0158-wrap-up):** the incomplete npx cache folder from LOG-20261021-0128-precommit-review was deleted on the collaborator's instruction. No servers running. All log entries, including LOG-20261021-0159-final-commit, are committed and pushed on `feature/frontend-foundation` (verify with `git log -1` and `git ls-remote origin`).
