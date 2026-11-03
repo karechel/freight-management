@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { CurrentUserProvider } from "@/components/layout/current-user";
 import {
   DEMO_REFERENCE_DATE,
   getDocuments,
@@ -60,7 +61,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           initialTasks={tasks.data}
           referenceDate={DEMO_REFERENCE_DATE}
         >
-          <AppShell>{children}</AppShell>
+          <CurrentUserProvider>
+            <AppShell>{children}</AppShell>
+          </CurrentUserProvider>
         </SessionStoreProvider>
       </body>
     </html>

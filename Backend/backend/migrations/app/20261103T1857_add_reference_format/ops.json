@@ -1,0 +1,164 @@
+[
+  {
+    "id": "table.ReferenceFormat",
+    "label": "Create table \"ReferenceFormat\"",
+    "summary": "Creates table \"ReferenceFormat\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ReferenceFormat"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ReferenceFormat\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReferenceFormat\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ReferenceFormat\"",
+        "sql": "CREATE TABLE \"public\".\"ReferenceFormat\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"documentType\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"resetPolicy\" text DEFAULT 'never' NOT NULL,\n  \"template\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"updatedById\" int4,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"ReferenceFormat_documentType_check_ea19f9ed\" CHECK (\"documentType\" IN ('shipment', 'quotation', 'invoice', 'booking', 'credit_note', 'payment', 'customs_entry')),\n  CONSTRAINT \"ReferenceFormat_resetPolicy_check_aab625b6\" CHECK (\"resetPolicy\" IN ('never', 'yearly', 'monthly')),\n  CONSTRAINT \"reference_format_has_sequence_31975ed0\" CHECK (template LIKE '%{SEQ:%}%')\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ReferenceFormat\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReferenceFormat\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ReferenceFormat.ReferenceFormat_documentType_key",
+    "label": "Add unique constraint on \"ReferenceFormat\" (documentType)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ReferenceFormat_documentType_key",
+        "table": "ReferenceFormat"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ReferenceFormat_documentType_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReferenceFormat_documentType_key",
+          "public",
+          "\"public\".\"ReferenceFormat\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ReferenceFormat_documentType_key\"",
+        "sql": "ALTER TABLE \"public\".\"ReferenceFormat\" ADD CONSTRAINT \"ReferenceFormat_documentType_key\" UNIQUE (\"documentType\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"ReferenceFormat_documentType_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReferenceFormat_documentType_key",
+          "public",
+          "\"public\".\"ReferenceFormat\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ReferenceFormat.ReferenceFormat_updatedById_idx_d0517c24",
+    "label": "Create index \"ReferenceFormat_updatedById_idx_d0517c24\" on \"ReferenceFormat\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ReferenceFormat_updatedById_idx_d0517c24",
+        "table": "ReferenceFormat"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ReferenceFormat_updatedById_idx_d0517c24\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReferenceFormat_updatedById_idx_d0517c24\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ReferenceFormat_updatedById_idx_d0517c24\"",
+        "sql": "CREATE INDEX \"ReferenceFormat_updatedById_idx_d0517c24\" ON \"public\".\"ReferenceFormat\" (\"updatedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ReferenceFormat_updatedById_idx_d0517c24\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReferenceFormat_updatedById_idx_d0517c24\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ReferenceFormat.ReferenceFormat_updatedById_fkey",
+    "label": "Add foreign key \"ReferenceFormat_updatedById_fkey\" on \"ReferenceFormat\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ReferenceFormat_updatedById_fkey",
+        "table": "ReferenceFormat"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ReferenceFormat_updatedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReferenceFormat_updatedById_fkey",
+          "public",
+          "\"public\".\"ReferenceFormat\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ReferenceFormat_updatedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ReferenceFormat\"\nADD CONSTRAINT \"ReferenceFormat_updatedById_fkey\"\nFOREIGN KEY (\"updatedById\")\nREFERENCES \"public\".\"User\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ReferenceFormat_updatedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReferenceFormat_updatedById_fkey",
+          "public",
+          "\"public\".\"ReferenceFormat\""
+        ]
+      }
+    ]
+  }
+]

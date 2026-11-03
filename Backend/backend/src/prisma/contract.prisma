@@ -290,6 +290,24 @@ enum CreditDecision {
   blocked = "blocked"
 }
 
+enum ReferenceDocumentType {
+  @@type("pg/text@1")
+  shipment      = "shipment"
+  quotation     = "quotation"
+  invoice       = "invoice"
+  booking       = "booking"
+  credit_note   = "credit_note"
+  payment       = "payment"
+  customs_entry = "customs_entry"
+}
+
+enum ReferenceResetPolicy {
+  @@type("pg/text@1")
+  never   = "never"
+  yearly  = "yearly"
+  monthly = "monthly"
+}
+
 // ---------------------------------------------------------------------------
 // Access control and audit
 // ---------------------------------------------------------------------------
@@ -451,7 +469,8 @@ model ChargeType {
   @@check(expression: "\"defaultTaxRate\" >= 0 AND \"defaultTaxRate\" <= 100", name: "charge_type_tax_rate_range")
 }
 
-// Gap-free business references (e.g. SHP-2026-00042), incremented under a row lock.
+// Running-number counters for business references. `prefix` holds the document type; `year` holds
+// the counter's period: 0 (never resets), YYYY (yearly) or YYYYMM (monthly).
 model NumberSequence {
   id        Int    @id @default(autoincrement())
   prefix    String
@@ -460,6 +479,21 @@ model NumberSequence {
 
   @@unique([prefix, year])
   @@check(expression: "\"nextValue\" >= 1", name: "number_sequence_next_positive")
+}
+
+// Administrator-editable reference format per document type, e.g. FMS-{MODE}-{YYMM}-{SEQ:4}.
+// Issued references are stored as text on their records, so changing a format never alters them.
+model ReferenceFormat {
+  id           Int                   @id @default(autoincrement())
+  documentType ReferenceDocumentType @unique
+  template     String
+  resetPolicy  ReferenceResetPolicy  @default(never)
+  updatedById  Int?
+  updatedBy    User?                 @relation(fields: [updatedById], references: [id])
+  createdAt    Instant               @default(now())
+  updatedAt    Instant               @default(now())
+
+  @@check(expression: "template LIKE '%{SEQ:%}%'", name: "reference_format_has_sequence")
 }
 
 // ---------------------------------------------------------------------------
