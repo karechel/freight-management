@@ -65,6 +65,7 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/migrations/` | Prisma 8 migrations: `app/<timestamp>_<name>/` packages (`migration.ts` framework-rendered, `ops.json`, `migration.json`), `app/refs/db.json` (dev-DB ref), `snapshots/<hash>/` (contract snapshots). Never hand-edit `ops.json`/`migration.json` |
 | `.nvmrc` | Node.js version for the repository (24.20.0) |
 | `docs/database-design.md` | Approved database design: business rules, conventions, tables, relationships, setup and migration commands, pgAdmin inspection |
+| `docs/backend-implementation-plan.md` | Proposed backend plan: decisions, API conventions, reference-number and auth design, phases, open items (implementation not started) |
 | `Backend/backend/test/app.e2e-spec.ts` | e2e test (connects to the real DB in `.env`) |
 | `Backend/backend/.env.example`, `Frontend/frontend/.env.example` | Documented env variables (committed) |
 | `Frontend/frontend/app/` | Routes: `layout.tsx` (metadata, app shell, session-store provider), `page.tsx` (dashboard), `shipments/`, `quotations/`, `documents/`, `parties/`, `customs/`, `finance/`, `settings/`, `globals.css` (updated 2026-10-21; it previously described the original health-check page). Added 2026-10-21 evening: `agents/`, `expenses/`, `reports/`, `users/` |
@@ -90,7 +91,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 |---|---|---|
 | Backend `GET /health` | Implemented, unverified | `app.controller.ts`; unit test exists, not run in audit |
 | Frontend → backend health check | Implemented, unverified | Originally `Frontend/frontend/app/page.tsx`; moved (2026-10-19) to `lib/api/client.ts` + `components/layout/api-status.tsx` (top bar, System status page). Backend `/health` returned HTTP 200 to curl on the collaborator's machine; the browser path was not exercised |
-| Frontend shell, dashboard and core screens (demo data) | Implemented; build and link crawl verified, not visually reviewed (branch `feature/frontend-foundation`, committed and pushed per LOG-20261019-1553-frontend-review; not merged to `main`) | Routes `/`, `/shipments`, `/shipments/[reference]`, `/quotations`, `/documents`, `/customs`, `/parties`, `/finance`, `/settings`. All data is fictional demo data, labelled in the UI. See LOG-20261019-1503-frontend-decisions |
+| Frontend shell, dashboard and core screens (demo data) | Implemented; build and link crawl verified, not visually reviewed (branch `feature/frontend-foundation`, committed and pushed per LOG-20261019-1553-frontend-review; merged to `main` via PR #1 on 2026-10-29, LOG-20261029-2138-merged) | Routes `/`, `/shipments`, `/shipments/[reference]`, `/quotations`, `/documents`, `/customs`, `/parties`, `/finance`, `/settings`. All data is fictional demo data, labelled in the UI. See LOG-20261019-1503-frontend-decisions |
 | Frontend shipment create/edit/status, actual dates, milestones, delays (demo, session only) | Implemented; committed in `5e2910f`; **browser-tested 2026-10-21** (LOG-20261021-2304-browser-review) | LOG-20261021-0111-frontend-phase1. Saved only in the browser tab (session store) |
 | Frontend quotations, customer billing and service history, agent routes (demo, session only) | Implemented; committed in `5e2910f`; **browser-tested** including print layout | LOG-20261021-0111-frontend-phase2. No email sending; balances indicative |
 | Frontend document uploads (demo, in-memory only) | Implemented; committed in `5e2910f`; **browser-tested** (file selection, rejection, open, download, review) | LOG-20261021-0111-frontend-phase3. Files never leave the tab; production storage not built |
@@ -101,7 +102,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Frontend notifications and tasks (demo, session only) | Implemented; committed and pushed (LOG-20261021-2341-commit-push); **browser-tested** (LOG-20261021-2338-notifications-tasks) | `/notifications` under Operations. Notifications are calculated in the browser and never sent; tasks and read markers are kept in the tab only; reminders and delivery need a backend. (Reported missing in LOG-20261021-2304-browser-review.) |
 | `DATABASE_URL` env validation | Implemented, unverified | `src/config/env.validation.ts` + spec, not run in audit |
 | `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD. Superseded 2026-10-26 by the row below (User gained status, passwordHash, lastLoginAt, partyId, updatedAt) |
-| Database schema (33 tables) and migration | Implemented; **verified on the repository owner's local DB** (LOG-20261026-2215-database-schema): `migration check` pass, applied with `db migrate`, `db verify` pass. Not committed at time of writing | `contract.prisma`, `migrations/app/20261026T1925_baseline`, `20261026T1926_freight_core_schema`, `docs/database-design.md`. No API endpoints, no seed data (roles, permissions, retention, charge types), no auth yet |
+| Database schema (33 tables) and migration | Implemented; **verified on the repository owner's local DB** (LOG-20261026-2215-database-schema): `migration check` pass, applied with `db migrate`, `db verify` pass. Committed as `a4239fc`; merged to `main` via PR #2 on 2026-10-29 (LOG-20261029-2138-merged) | `contract.prisma`, `migrations/app/20261026T1925_baseline`, `20261026T1926_freight_core_schema`, `docs/database-design.md`. No API endpoints, no seed data (roles, permissions, retention, charge types), no auth yet |
 | `GET /` list all users | Implemented, unverified — **security concern** (see §12) | `app.service.ts` |
 | Modules 1 and 3–16 (§2) | Planned | No code, models or config found |
 | Module 2 (users/staff) | In progress (minimal) | Only the `User` model above; no roles, auth or management features |
@@ -120,7 +121,7 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 6. Core domain: customers → shipments/jobs → documents (private storage) → tracking.
 7. Finance, then integrations (M-Pesa sandbox first; KRA iCMS once access is confirmed).
 
-**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3); **database design and schema implementation** (2026-10-26, repository owner: approved schema, Node 24.20.0 pin, migration on the owner's own local DB, on branch `feature/database-schema`). Backend API endpoints, auth, seeding, integrations and deployment are **not** yet authorized.
+**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3); **database design and schema implementation** (2026-10-26, repository owner: approved schema, Node 24.20.0 pin, migration on the owner's own local DB, on branch `feature/database-schema`). **Backend Phase 0** (2026-11-03, repository owner: foundation, auth, `ReferenceFormat` migration, local test database, seeding the owner's local DB; on `feature/backend-foundation`; see `docs/backend-implementation-plan.md`). Later backend phases follow that plan. Integrations and deployment are **not** authorized.
 
 ## 7. Database and integration notes
 
@@ -167,6 +168,12 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 | Retention: 5 years from end of reporting period, longer under legal hold; stored in `RetentionPolicy`, adjustable later (2026-10-26) | Repository owner, 2026-10-26 |
 | Node.js 24.20.0 pinned (`.nvmrc`, `engines ^24.20.0` in both apps). This replaces the 2026-10-19 "observed only" note (2026-10-26) | Repository owner, 2026-10-26 |
 | Database work on `feature/database-schema`, branched from `feature/frontend-foundation` (2026-10-26) | Repository owner, 2026-10-26 |
+| Fictional data only throughout development; importing the client's real data is a separate phase before production launch (2026-11-03) | Repository owner, 2026-11-03 |
+| Reference formats are configurable by an authorized administrator without code changes; existing frontend formats (`FMS-…`, `QT-…`, `INV-…`) are the defaults; issued references never change and must be unique. Replaces the 2026-10-26 `PREFIX-YYYY-NNNNN` rule (2026-11-03) | Repository owner, 2026-11-03 (`docs/backend-implementation-plan.md` §3) |
+| Request validation: `class-validator` and `class-transformer` with NestJS's `ValidationPipe` configured globally, and DTOs for incoming requests (2026-11-03) | Repository owner, 2026-11-03 |
+| Login in Phase 0: `@nestjs/jwt` and Node's built-in `crypto` with a secure password-hashing algorithm; guards and role-based authorization, with permissions enforced on the backend (2026-11-03) | Repository owner, 2026-11-03 |
+| Customers use numeric database ids in API URLs; any customer reference code stays separate; no migration for this decision (2026-11-03) | Repository owner, 2026-11-03 |
+| Backend plan approved: additive `ReferenceFormat` table; separate local test database; seed scripts on the owner's local DB; converting a quotation auto-creates the booking, with minimal booking pages; credit-limit checks at booking and at invoicing (2026-11-03) | Repository owner, 2026-11-03 (`docs/backend-implementation-plan.md` §7) |
 
 ## 10. Setup and safe development commands
 
@@ -1198,7 +1205,99 @@ Entry template:
 - Database/schema changes: none in this step · Dependency changes: none.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261029-2128-pr-prep — Pull request descriptions prepared (PRs not opened from here)
+- Time: 2026-10-29 21:28:04 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: "do step 1" (open a PR for `feature/frontend-foundation` into `main` first, then one for `feature/database-schema`).
+- **Confirmation for LOG-20261026-2301-commit-push:** the push succeeded. `git ls-remote origin` shows `feature/database-schema` = `a4239fc`, `feature/frontend-foundation` = `9c5bdf3`, `main` = `883f93b`. `git fetch origin` found nothing new, and the working tree was clean.
+- Read-only checks:
+  - `feature/frontend-foundation` is 10 commits and 120 files ahead of `main`; apart from `CLAUDE.md`, all of them are under `Frontend/frontend/`. `main` is an ancestor, so the PR merges without conflicts.
+  - `feature/database-schema` is 1 commit (20 files) ahead of `feature/frontend-foundation`.
+- The GitHub CLI (`gh`) is not installed on this machine, so the PRs were not opened from here. The repository owner opens them in the browser, using GitHub "compare" links.
+- PR descriptions written to the session scratchpad (`pr-descriptions.md`, outside the repository). They use role labels only. PR 2 is stacked: its base is `feature/frontend-foundation`, so it shows only the database changes; change its base to `main` after PR 1 is merged.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry). Commit: not committed · Pushed: no (left uncommitted so the branches stay as they are while the PRs are opened; include it in the next approved commit).
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261029-2138-merged — Both feature branches merged into `main` (PR #1, PR #2)
+- Time: 2026-10-29 21:38:39 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). The owner chose to merge through pull requests ("1"), opened and merged them in the browser, then reported "both are merged".
+- **Merges (done by the repository owner on GitHub, both as merge commits):**
+  - PR #1 `feature/frontend-foundation` → `main`: merge commit `f663dd2` (2026-10-29 21:35 +03:00).
+  - PR #2 `feature/database-schema` → `main`: merge commit `293a951` (21:37 +03:00).
+- **Verified:**
+  - `git fetch origin --prune`: `main` moved from `883f93b` to `293a951`.
+  - `9c5bdf3` and `a4239fc` are both ancestors of `origin/main`, and `git diff a4239fc origin/main` is empty, so `main` now has exactly the reviewed content.
+  - Both feature branches still exist on GitHub, unchanged.
+- **Local Git, including a hiccup:**
+  - `git switch main` was refused at first: local `main` was still at `883f93b`, and the uncommitted `CLAUDE.md` would have been overwritten.
+  - The chained `git merge --ff-only origin/main` then ran on `feature/database-schema` instead, moving that local branch to `293a951`. Nothing was pushed.
+  - Fixed with pointer moves only:
+    - `git branch -f main origin/main` (a fast-forward; old `main` was an ancestor).
+    - `git switch main`.
+    - `git branch -f feature/database-schema origin/feature/database-schema` (back to `a4239fc`).
+  - Afterwards all three local branches match `origin`, and the `CLAUDE.md` edits were kept.
+- **For the collaborator:** run `git fetch origin`, then `git switch main` and `git pull` (when your working tree is clean). Then set up Node 24.20.0 and your database as in `docs/database-design.md` §8.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (LOG-20261029-2128-pr-prep, this entry, §14). Commit: not committed · Pushed: no (awaiting the owner's approval).
+- Working-tree status after: branch `main` = `origin/main` = `293a951`; `CLAUDE.md` modified; nothing else.
+
+### LOG-20261029-2146-backend-audit — Read-only backend audit; phased backend plan proposed (awaiting approval)
+- Time: 2026-10-29, after 21:46 +03:00 (Africa/Nairobi); exact start time not recorded.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: audit the backend, Prisma connection, migrations and frontend integration, and propose a phased plan (foundation + Customer CRUD, then Quotations and Bookings, then Shipments and Tracking). **No implementation until the plan is reviewed.**
+- **Checks run (all read-only, on `main` at `293a951`, Node 24.20.0, PowerShell):**
+  - Read the backend `src/`, `test/`, configuration, the frontend `lib/api/client.ts`, `lib/data/index.ts`, `lib/data/session-store.tsx` and `docs/api-contracts.md`.
+  - `prisma db verify` → marker and schema match the contract (`32773253…`).
+  - `prisma migration status` → `20261026T1926_freight_core_schema` applied. `20261026T1925_baseline` has no status on this DB, which is expected (the DB already existed at its end state).
+  - `prisma migration check` → pass. `prisma db migrate --show` → nothing to run.
+  - Checked `node_modules` for validation and auth packages: none installed, except `arktype` 2.2.3 as a sub-dependency.
+  - Read the installed Prisma 8 query docs: transactions, ORM writes, `SqlQueryError.sqlState`.
+- **Failed attempts (shell only, no effect):**
+  - The first Prisma check loop passed each command as one string and got "unknown command".
+  - The second used a helper function named `R`, which is PowerShell's alias for `Invoke-History`.
+  - Re-run as plain commands.
+- Findings and the proposed plan were reported to the owner in the session (summary in §14). Nothing implemented.
+- Database/schema changes: none · Dependency changes: none · Files edited: `CLAUDE.md` (this entry, §14). Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified; nothing else.
+
+### LOG-20261103-2141-backend-decisions — Backend decisions recorded; implementation plan written (not started)
+- Time: 2026-11-03 21:41:53 +03:00 (Africa/Nairobi), taken before these edits — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5).
+- Instructions received:
+  - Use fictional data throughout development; keep the client-data import as a separate phase before production launch.
+  - Make reference formats configurable, with the existing frontend formats as defaults, so an authorized administrator can change prefixes and numbering without code changes. Previously generated references stay unchanged, and references must be unique.
+  - Validation: `class-validator` and `class-transformer` with `ValidationPipe`, globally, with DTOs.
+  - Login approved for Phase 0: `@nestjs/jwt` and built-in `crypto`, with guards and role-based authorization enforced on the backend.
+  - Customer ids: numeric database ids in API URLs; no schema migration for this decision.
+  - Document these decisions here and include them in the implementation plan.
+- **Read-only checks:**
+  - `git fetch origin` → nothing new; `main` = `origin/main` = `293a951`.
+  - Node 24.20.0: `crypto.scrypt` and `crypto.argon2` are both available (OpenSSL 3.5.7).
+  - `npm view`: `@nestjs/jwt` 12.0.3 (peer range includes NestJS 12), `class-validator` 0.15.1 and `class-transformer` 0.5.1 (within `@nestjs/common`'s optional peer ranges). **Nothing installed.**
+  - Read the frontend's numbering rules (`app/settings/page.tsx`) and demo references. The running number continues across modes and months, which is why the design has an explicit reset policy instead of one counter per rendered prefix.
+- What changed:
+  - Created `docs/backend-implementation-plan.md`: decisions, API conventions, reference-number design, auth design, development data, phases 0–5, open items.
+  - `docs/database-design.md` §1: the References row now records the change and says it is not implemented yet.
+  - `CLAUDE.md`: §4, §9, this entry, §14.
+- **Proposed schema change (not made, needs approval):** one additive `ReferenceFormat` table. `NumberSequence` is reused unchanged.
+- Files outside the repository: none created for this step.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged · Migrations: none.
+- Commit: not committed · Pushed: no. The uncommitted log entries from 2026-10-29 are also still pending.
+- Working-tree status after: `CLAUDE.md` and `docs/database-design.md` modified; `docs/backend-implementation-plan.md` new; nothing staged.
+
+### LOG-20261103-2154-plan-approved — Backend plan approved; documentation committed to `main`
+- Time: 2026-11-03 21:54:24 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: "follow your recommendations for the decisions" (the seven items in the session, now in `docs/backend-implementation-plan.md` §7).
+- Pre-commit checks: `git fetch origin` → nothing new; `main` = `origin/main` = `293a951`. Changed: `CLAUDE.md`, `docs/database-design.md`, new `docs/backend-implementation-plan.md`.
+- What is committed: those three files only, including the uncommitted entries since LOG-20261029-2128-pr-prep, directly to `main` (decision 7). Commit message: "docs: record merges, backend audit and approved implementation plan", parent `293a951`.
+- Push: a normal `git push origin main`, only if `origin/main` is still `293a951`. Verify with `git ls-remote origin`. If it failed, the next entry must say so.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Working-tree status after: expected clean, then `feature/backend-foundation` is created from this commit for Phase 0.
+
 ## 14. Current handover state
+
+- **Latest (2026-11-03, LOG-20261103-2154-plan-approved):** backend plan approved (`docs/backend-implementation-plan.md`); Phase 0 runs on `feature/backend-foundation`. The repository owner decided: fictional data during development, client-data import as a separate pre-launch phase, configurable reference formats, `class-validator` validation, JWT login in Phase 0, numeric customer ids (§9).
+
+- **Latest (2026-10-29 21:38 +03:00, LOG-20261029-2138-merged):** `main` (`293a951`) now contains the whole frontend (PR #1) and the database schema with Node 24.20.0 pin (PR #2). Work from `main` from now on. Collaborator: fetch, switch to `main`, pull, then follow `docs/database-design.md` §8. Next decision: authorize the next backend phase (sign-in and roles with seeded permissions, the credit-override guard, then API endpoints; first remove or protect `GET /`). The bullets below describe earlier states.
 
 - **Latest (2026-10-26 22:32 +03:00, LOG-20261026-2215-database-schema):**
   - The repository owner approved and the database schema was built on the new branch **`feature/database-schema`** (from `feature/frontend-foundation` at `9c5bdf3`): 33 tables, two migration packages, `docs/database-design.md`.

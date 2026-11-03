@@ -21,7 +21,7 @@ The activity log in the root `CLAUDE.md` (LOG-20261026-2215-database-schema) rec
 | Credit limit | Staff get a warning and choose to proceed or block. Only **finance, management and admin** may proceed past the limit; sales and operations see the warning only. Every decision records the user, time and reason (`CreditCheck`). The permission must be enforced by the backend, not only the UI. |
 | Access | Permissions are data (`Permission`, `RolePermission`), so they can change without code changes. Starting matrix: §6. |
 | Retention | 5 years from the end of the reporting period, longer where an amended assessment or ongoing proceedings require it (legal hold). Stored in `RetentionPolicy`, so the period can be changed later. Nothing is deleted automatically. |
-| References | `PREFIX-YYYY-NNNNN`, restarting each year (e.g. `SHP-2026-00042`), from `NumberSequence`. |
+| References | **Changed 2026-11-03 (repository owner); not implemented yet.** Formats will be configurable by an authorized administrator, starting from the existing frontend formats (`FMS-…`, `QT-…`, `INV-…`). Issued references never change and must be unique. Design: `docs/backend-implementation-plan.md` §3. (Previously: `PREFIX-YYYY-NNNNN`, restarting each year.) |
 
 ## 2. Conventions
 
