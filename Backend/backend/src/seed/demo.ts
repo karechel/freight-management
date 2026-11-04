@@ -13,6 +13,8 @@ const DEMO_PARTIES: {
   country: string;
   contactName: string;
   email: string;
+  address?: string;
+  paymentTermsDays?: number;
 }[] = [
   {
     name: 'Baobab Crest Traders Ltd',
@@ -21,6 +23,8 @@ const DEMO_PARTIES: {
     country: 'KE',
     contactName: 'J. Kamau',
     email: 'imports@baobabcrest.example',
+    address: 'Demo address: Industrial Area',
+    paymentTermsDays: 14,
   },
   {
     name: 'Mlima Fresh Exports Ltd',
@@ -29,6 +33,8 @@ const DEMO_PARTIES: {
     country: 'KE',
     contactName: 'R. Chebet',
     email: 'logistics@mlimafresh.example',
+    address: 'Demo address: Moi South Lake Road',
+    paymentTermsDays: 14,
   },
   {
     name: 'Kijani Build Supplies Ltd',
@@ -37,6 +43,8 @@ const DEMO_PARTIES: {
     country: 'KE',
     contactName: 'S. Mwangi',
     email: 'procurement@kijanibuild.example',
+    address: 'Demo address: Shimanzi',
+    paymentTermsDays: 14,
   },
   {
     name: 'Ziwa Pharma Distributors Ltd',
@@ -45,6 +53,8 @@ const DEMO_PARTIES: {
     country: 'KE',
     contactName: 'L. Odhiambo',
     email: 'supply@ziwapharma.example',
+    address: 'Demo address: Kisumu CBD',
+    paymentTermsDays: 14,
   },
   {
     name: 'Upeo Electronics Ltd',
@@ -53,6 +63,8 @@ const DEMO_PARTIES: {
     country: 'KE',
     contactName: 'P. Njeri',
     email: 'ops@upeoelectronics.example',
+    address: 'Demo address: Westlands',
+    paymentTermsDays: 14,
   },
   {
     name: 'Simba Line Textiles Ltd',
@@ -61,6 +73,8 @@ const DEMO_PARTIES: {
     country: 'KE',
     contactName: 'K. Rotich',
     email: 'shipping@simbaline.example',
+    address: 'Demo address: Eldoret town',
+    paymentTermsDays: 14,
   },
   {
     name: 'Eastgate Forwarding (Shanghai)',
@@ -163,12 +177,12 @@ export async function seedDemo(db: Db, password: string): Promise<DemoSummary> {
       }).first();
       if (existing) continue;
       const party = await orm.public.Party.create({
+        address: null,
+        paymentTermsDays: null,
         ...details,
         legalName: null,
         kraPin: null,
         phone: null,
-        address: null,
-        paymentTermsDays: null,
         creditLimit: null,
         accountStatus: 'active',
         notes: null,

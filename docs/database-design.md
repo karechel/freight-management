@@ -134,6 +134,8 @@ erDiagram
 
 Credit-limit override (`credit.override`): finance, management, admin.
 
+Customer account status (`parties.status.manage`): management, admin. Payment terms and credit limits (`parties.billing.manage`): finance, management, admin.
+
 ## 7. Differences from the current frontend demo types (`Frontend/frontend/lib/types.ts`)
 
 The frontend has not been changed. The API layer will need to map these, or the frontend will need updating:

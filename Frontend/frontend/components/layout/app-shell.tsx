@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { CloseIcon, MenuIcon } from '@/components/ui/icons';
+import { isLivePage } from '@/lib/customers';
 import { ApiStatusPill } from './api-status';
 import { findNavItem } from './nav-items';
 import { Sidebar } from './sidebar';
@@ -86,9 +87,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <p className="min-w-0 truncate text-sm font-semibold text-slate-900">{section}</p>
           <div className="ml-auto flex items-center gap-2">
-            <Badge tone="warning" className="hidden sm:inline-flex">
-              Demo data
-            </Badge>
+            {isLivePage(pathname) ? (
+              <Badge tone="success" className="hidden sm:inline-flex">
+                Live data
+              </Badge>
+            ) : (
+              <Badge tone="warning" className="hidden sm:inline-flex">
+                Demo data
+              </Badge>
+            )}
             <ApiStatusPill />
             <UserMenu />
           </div>

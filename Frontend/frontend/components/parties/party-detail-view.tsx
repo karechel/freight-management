@@ -336,7 +336,7 @@ export function PartyDetailView(props: PartyDetailViewProps) {
   const { party, source } = props;
   return (
     <>
-      <PageHeader title={party.name} description={`${partyTypeLabel[party.type]} · ${party.location}`} back={party.type === 'customer' ? { href: '/parties', label: 'Customers & agents' } : { href: '/agents', label: 'Agents & partners' }}>
+      <PageHeader title={party.name} description={`${partyTypeLabel[party.type]} · ${party.location}`} back={party.type === 'customer' ? { href: '/parties', label: 'Customers' } : { href: '/agents', label: 'Agents & partners' }}>
         <Badge tone="neutral">{partyTypeLabel[party.type]}</Badge>
         {party.type === 'customer' && (
           <ButtonLink href="/quotations/new" variant="secondary" size="sm">
@@ -367,9 +367,9 @@ export function PartyDetailView(props: PartyDetailViewProps) {
       {(party.type === 'supplier' || party.type === 'transporter') && <CarrierSections party={party} />}
 
       <div className="mt-6">
-        <PendingNotice title="Editing customer and agent records is not available yet">
-          Billing profiles, routes and contacts are read-only in this demo. Changing them needs the party API described in
-          docs/api-contracts.md.
+        <PendingNotice title="This is a demo record, and it cannot be edited">
+          Demo shipments and quotations still link here. Live customers are on the Customers page; agent and partner
+          records move to the live system in a later phase.
         </PendingNotice>
       </div>
     </>

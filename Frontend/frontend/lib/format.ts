@@ -34,7 +34,17 @@ const dateTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
   timeZone: TIME_ZONE,
 });
 
+const exactKesFormatter = new Intl.NumberFormat(LOCALE, {
+  style: 'currency',
+  currency: 'KES',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 export const formatKes = (amount: number) => kesFormatter.format(amount);
+/** For the backend's exact decimal text, such as "1250.50". It is not converted to a float. */
+export const formatKesExact = (amount: string) =>
+  exactKesFormatter.format(amount as Intl.StringNumericLiteral);
 export const formatNumber = (value: number) => numberFormatter.format(value);
 export const formatDate = (iso: string) => dateFormatter.format(new Date(iso));
 export const formatShortDate = (iso: string) =>

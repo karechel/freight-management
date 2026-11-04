@@ -112,7 +112,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </nav>
       <p className="shrink-0 border-t border-white/10 px-5 py-3 text-xs text-blue-200/70">
-        Demo build: no sign-in or access control yet.
+        In development: Customers is live. Other pages show demo data.
       </p>
     </div>
   );
