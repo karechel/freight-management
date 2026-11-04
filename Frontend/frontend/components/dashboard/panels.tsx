@@ -93,10 +93,10 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
 
 export function IntegrationSummary() {
   const rows = [
-    { name: 'Backend API', state: 'Health check only', tone: 'info' as const, note: 'GET /health is live. No freight endpoints exist yet.' },
+    { name: 'Backend API', state: 'Partly live', tone: 'info' as const, note: 'Sign-in, numbering and customers are live. Other records are demo data.' },
     { name: 'KRA iCMS', state: 'Pending', tone: 'neutral' as const, note: 'Not integrated. Access and onboarding status unknown.' },
     { name: 'M-Pesa', state: 'Pending', tone: 'neutral' as const, note: 'Not integrated. Payments shown are demo records.' },
-    { name: 'Sign-in & roles', state: 'Not built', tone: 'warning' as const, note: 'No authentication or access control yet.' },
+    { name: 'Sign-in & roles', state: 'Partly live', tone: 'info' as const, note: 'Live pages need sign-in and check permissions. Demo pages stay open.' },
   ];
   return (
     <Card>

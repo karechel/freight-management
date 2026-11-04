@@ -70,6 +70,8 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/src/auth/` | Sign-in, scrypt password hashing, JWT, global guard, `@Public()` and `@RequirePermission()` |
 | `Backend/backend/src/references/` | Configurable reference formats: template rules, generation, admin API |
 | `Backend/backend/src/common/`, `src/audit/`, `src/app.setup.ts` | Error format and database-error mapping, pagination DTO, audit log service, global HTTP setup |
+| `Backend/backend/src/parties/` | Customers and contacts API (reused by agents and partners later): rules, DTOs, service, controller. `src/common/parse-id.pipe.ts` reads ids from URLs |
+| `Frontend/frontend/app/parties/`, `components/customers/`, `lib/customers.ts`, `lib/customer-form.ts`, `lib/api/server.ts` | Live Customers pages, their rules and types, and backend reads made while rendering on the server |
 | `Backend/backend/src/seed/` | `db:seed` (setup data, first admin) and `db:seed:demo` (fictional data, refuses production) |
 | `Backend/backend/test/` | End-to-end tests; `test/support/` creates and migrates the separate `*_test` database |
 | `Frontend/frontend/app/api/`, `lib/api/session.ts`, `lib/api/browser.ts` | Same-origin login, logout and backend-forwarding routes (token in an HttpOnly cookie); browser API client |
@@ -97,7 +99,8 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Feature | Status | Evidence / notes |
 |---|---|---|
 | Backend `GET /health` | **Verified** 2026-11-03 | Unit and end-to-end tests |
-| Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03 (branch `feature/backend-foundation`, not merged) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
+| Customers (Phase 1): list, search, filters, paging, create, edit, archive, restore, contacts, calculated figures, per-role billing access | **Verified** 2026-11-04 (branch `feature/customers-phase1`, not committed yet) | LOG-20261104-1056-phase1 and LOG-20261104-1120-phase1-decisions: 70 unit tests, 112 end-to-end tests, 91 browser checks. Live pages need sign-in |
+| Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03; merged to `main` (PR #3) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
 | Configurable reference formats | **Verified** 2026-11-03 (branch, not merged) | Includes concurrency, rollback and "issued references never change" tests. No record type uses them yet; quotations are first, in Phase 2 |
 | Frontend sign-in, sign-out, Numbering editor | **Verified** in headless Chrome 2026-11-03 (branch, not merged) | Demo pages remain open without signing in |
 | Frontend → backend health check | Implemented, unverified | Originally `Frontend/frontend/app/page.tsx`; moved (2026-10-19) to `lib/api/client.ts` + `components/layout/api-status.tsx` (top bar, System status page). Backend `/health` returned HTTP 200 to curl on the collaborator's machine; the browser path was not exercised |
@@ -184,6 +187,10 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 | Request validation: `class-validator` and `class-transformer` with NestJS's `ValidationPipe` configured globally, and DTOs for incoming requests (2026-11-03) | Repository owner, 2026-11-03 |
 | Login in Phase 0: `@nestjs/jwt` and Node's built-in `crypto` with a secure password-hashing algorithm; guards and role-based authorization, with permissions enforced on the backend (2026-11-03) | Repository owner, 2026-11-03 |
 | Customers use numeric database ids in API URLs; any customer reference code stays separate; no migration for this decision (2026-11-03) | Repository owner, 2026-11-03 |
+| Customer account status can be changed only by management and admin (`parties.status.manage`); finance changes terms and limits but not status (2026-11-04) | Session operator, identity not confirmed, 2026-11-04 (LOG-20261104-1120-phase1-decisions) |
+| A customer cannot be archived while they have a shipment not yet delivered (2026-11-04) | Session operator, 2026-11-04 |
+| When two people edit one customer, the last save wins; changes are audited, with no warning (2026-11-04) | Session operator, 2026-11-04 |
+| The KRA PIN has no fixed format for now: up to 20 characters, unique, upper case. Revisit once the client's records are seen (2026-11-04) | Session operator: "leave the format editable for now", then confirmed as "any format for now", 2026-11-04 |
 | Backend plan approved: additive `ReferenceFormat` table; separate local test database; seed scripts on the owner's local DB; converting a quotation auto-creates the booking, with minimal booking pages; credit-limit checks at booking and at invoicing (2026-11-03) | Repository owner, 2026-11-03 (`docs/backend-implementation-plan.md` §7) |
 
 ## 10. Setup and safe development commands
@@ -218,7 +225,12 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
-- **Latest results (2026-11-03, repository owner's machine, Node 24.20.0, LOG-20261103-2218-phase0):**
+- **Latest results (2026-11-04, local clone with Git identity PPSOne-02, Node 24.20.0, PostgreSQL 17.11, LOG-20261104-1056-phase1):**
+  - Backend: `tsc`, lint, Prettier on the changed files and build → pass; `npm test` → 70 tests pass; `npm run test:e2e` → 5 files, 112 tests pass. (Earlier the same day: 77 and 107. The unit count fell because the KRA PIN format tests were removed.)
+  - Prisma: `migration check` → pass; `db verify` → pass; migrating an empty development database → 3 migrations, 260 operations.
+  - Frontend: `tsc`, lint and build → pass; 91/91 headless Chrome checks against production builds and the test database, covering every staff role and 390 px width. Screenshots reviewed by eye.
+  - Not run: `npm audit`, Safari/Firefox, screen readers.
+- **Earlier results (2026-11-03, repository owner's machine, Node 24.20.0, LOG-20261103-2218-phase0):**
   - Backend: `tsc` → pass (no errors; the old `supertest/types` error is gone); lint → pass; `npm test` → 6 files, 37 tests pass; `npm run test:e2e` → 4 files, 34 tests pass; build → pass.
   - Prisma: `migration check` → pass; `db verify` → pass; migrating an empty database from nothing → pass.
   - Frontend: `tsc`, lint, build → pass; 27/27 headless Chrome checks against the running backend (test database).
@@ -1362,9 +1374,70 @@ Entry template:
 - Database/schema changes: none in this step · Dependency changes: none in this step.
 - Working-tree status after: expected clean; verify with `git status`.
 
+### LOG-20261104-1056-phase1 — Phase 1 (customers) built and verified on `feature/customers-phase1`
+- Time: work started about 2026-11-04 10:05 +03:00; this entry written after the final checks at 10:54:37 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: local clone with Git identity PPSOne-02; operator not confirmed / Claude Code (Opus 5.5). Instructions: pull `main`, read this file, start Phase 1; then, when asked which database to use, "Install PostgreSQL". That answer also authorized the migrations and fictional seed data on that database only.
+- **Git:** `main` fast-forwarded from `56946bf` to `ff7d6fb`, so PR #3 (Phase 0) is merged. `feature/customers-phase1` was created from it.
+- **Machine setup (this clone had no database, `.env` or `node_modules`):**
+  - `npm ci` in both apps. Lockfiles unchanged.
+  - Installed PostgreSQL 17.11 with `winget` (`PostgreSQL.PostgreSQL.17`), including pgAdmin; it runs as a Windows service.
+  - Created a role that is not a superuser and can create databases, and a development database. `Backend/backend/.env` and `Frontend/frontend/.env.local` are git-ignored; secrets were generated randomly and never printed.
+  - **Incident:** `winget` wrote the superuser password in plain text to its diagnostic log. The password was changed immediately, so the logged value no longer works. The current one is in a private file in the user's profile, outside the repository.
+  - **Network:** the installer's server listens on all interfaces. Access rules allow only localhost with SCRAM passwords, and no firewall rule was found for it. `listen_addresses = 'localhost'` is set but needs a service restart, which was refused without elevation, so it applies at the next reboot.
+- **Database:** on this machine's development DB, 3 migrations (260 operations) applied with `db migrate --advance-ref db`; `db verify` passed; `db:seed` and `db:seed:demo` ran (12 fictional companies, 12 contacts, 4 staff). The test database was created by the end-to-end setup. **No schema change and no new migration.** `migrations/app/refs/db.json` shows as modified only because of line endings; its content is unchanged.
+- **Backend:** `/api/parties` (see `Frontend/frontend/docs/api-contracts.md`), `ParseIdPipe`. Billing is left out of responses for callers without `parties.billing.view`. A request containing any field the caller may not change is refused whole. All changes are audited. Balances are calculated in SQL. The demo seed gained address and payment terms for customers; existing databases keep their rows.
+- **Frontend:**
+  - `/parties` is now a live, customers-only list. New pages: `/parties/new` and `/parties/[id]/edit`.
+  - `/parties/[id]` is live for numeric ids; `c-001` style ids still open demo records.
+  - Corrected text that had become wrong: the top bar now says "Live data" on these pages, and the sidebar footer, dashboard integrations panel and Settings status no longer say sign-in or endpoints do not exist.
+- **Dependencies:** none added.
+- **Checks:** see §11. After them, a one-line Settings text change; frontend `tsc`, lint and build were re-run and passed. The browser checks were not repeated for that one line.
+- **Failed attempts:**
+  - Raw SQL parameters cannot be null in this Prisma version, and booleans cannot be sorted in the ORM. `tsc` caught both; fixed.
+  - The first seed edit script failed harmlessly because this checkout uses CRLF; redone with an editor tool.
+  - Two test mistakes fixed: a phone pattern that refused `(020) 123456`, and test data for a delivered shipment with no delivery time.
+  - `Restart-Service` on PostgreSQL refused without elevation (above).
+- **Processes:** both servers were started for the browser runs and stopped by port; ports 3000 and 3001 were confirmed free. PostgreSQL keeps running as a service.
+- **Files outside the repository:** session scratchpad: `browser-test.mjs`, `run-browser.ps1`, screenshots, logs. User profile: the private PostgreSQL password file and the install output.
+- **Needs the repository owner's confirmation:** see §14.
+- Commit: not committed · Pushed: no (awaiting approval).
+- Working-tree status after: on `feature/customers-phase1`, all of this uncommitted; nothing staged.
+
+### LOG-20261104-1120-phase1-decisions — Phase 1 decisions applied
+- Time: changes from about 2026-11-04 11:05 +03:00; final browser run 11:18:09 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: local clone with Git identity PPSOne-02; operator not confirmed / Claude Code (Opus 5.5).
+- Instructions received, answering the session's questions: account status "not finance just management and admin"; block archiving with active shipments, "yes"; last save wins, "yes"; KRA PIN "leave the format editable for now". The question about committing was not answered, so nothing is committed.
+- **What changed:**
+  - New permission `parties.status.manage`, granted to management and admin. Terms and limits stay with finance, management and admin. The edit form shows each user only what they can change.
+  - Archiving returns 409 while the customer has a shipment not yet delivered.
+  - KRA PIN format check removed: up to 20 characters, unique, upper case.
+- **Interpretation to confirm:** "editable" was taken to mean the field accepts any format for now. It was not built as an administrator setting that defines a format. That would be new work.
+- **Correction to LOG-20261104-1056-phase1 and the earlier §14 note:** an existing setup now does need a step after merging: `npm run db:seed`, which adds the new permission. Its grants go to admin and management; removed grants stay removed.
+- **Database:** `npm run db:seed` on this machine's development DB added 1 permission and 2 grants. `db verify` passed. No schema change and no migration. Dependency changes: none.
+- **Checks:** see §11.
+- **Failed attempt:** one browser check, `/finance still renders`, failed on the first run. The page was fine: the check looked for the word "Finance" anywhere, and had earlier passed only because the signed-in user's role label said Finance. So the "still renders" checks in LOG-20261104-1056-phase1 were weaker than they looked for `/finance`. They now match each page's `<h1>`; all pass.
+- **Processes:** both servers were started for the browser runs and stopped; ports 3000 and 3001 were confirmed free.
+- Commit: not committed · Pushed: no (awaiting approval).
+- Working-tree status after: on `feature/customers-phase1`, all of this uncommitted; nothing staged.
+
+### LOG-20261104-1135-phase1-commit — Commit, push and PR for Phase 1
+- Time: 2026-11-04, about 11:35 +03:00 (Africa/Nairobi); exact time is in the commit — source: `git log`.
+- Contributor/session: local clone with Git identity PPSOne-02; operator not confirmed / Claude Code (Opus 5.5). Instructions: "any format for now", which confirms the KRA PIN interpretation in LOG-20261104-1120-phase1-decisions; and "yes" to committing, pushing and opening a PR.
+- What is committed: everything in LOG-20261104-1056-phase1, LOG-20261104-1120-phase1-decisions and this entry. A file cannot record its own hash; see `git log -1 feature/customers-phase1`.
+- Push: a normal `git push -u origin feature/customers-phase1`. Nothing is merged. Verify with `git ls-remote origin`. If the push failed, the next entry must say so.
+- PR: `gh` is not installed on this machine, so the PR into `main` is opened on GitHub by a contributor, using the description given in the session. Check GitHub for whether it is open.
+- Database/schema changes: none in this step · Dependency changes: none. No checks were re-run for this entry: only `CLAUDE.md` changed after the final checks.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
-- **Latest (2026-11-03 22:43 +03:00, LOG-20261103-2243-phase0-commit):** backend Phase 0 is built and verified on `feature/backend-foundation`, committed and pushed (verify with `git ls-remote origin`), **not merged**. `main` (`56946bf`) still has the old `GET /`. Next: PR this branch into `main`, then Phase 1 (customers). Collaborator setup after it merges: §10 "Backend".
+- **Latest (2026-11-04 11:35 +03:00, LOG-20261104-1135-phase1-commit):** Phase 1 is committed and pushed on `feature/customers-phase1` (verify with `git ls-remote origin`), **not merged**. A contributor opens the PR on GitHub. Merging requires the `npm run db:seed` step in the note below.
+- **Earlier (2026-11-04 11:20 +03:00, LOG-20261104-1120-phase1-decisions):** Phase 0 is merged to `main` (`ff7d6fb`). Phase 1 (customers) is built and verified on `feature/customers-phase1`, **not committed**. It adds no migration and no dependency. **After merging, each developer must run `npm run db:seed`** in `Backend/backend` to add the new account-status permission.
+  - **Next:** open, review and merge the PR into `main` (LOG-20261104-1135-phase1-commit), then start Phase 2.
+  - **For the repository owner to review:** the four decisions dated 2026-11-04 in §9 came from a session whose operator's identity was not confirmed.
+  - **Still open:** whether the KRA PIN should later get a format check, or an administrator-configured one, once the client's records are seen. For now it accepts any format, as confirmed in the session.
+- **Earlier (2026-11-04 10:56 +03:00, LOG-20261104-1056-phase1):** first build of Phase 1. Its note that an existing setup needs nothing after merging is no longer true.
+- **Earlier (2026-11-03 22:43 +03:00, LOG-20261103-2243-phase0-commit):** backend Phase 0 is built and verified on `feature/backend-foundation`, committed and pushed (verify with `git ls-remote origin`), **not merged**. `main` (`56946bf`) still has the old `GET /`. Next: PR this branch into `main`, then Phase 1 (customers). Collaborator setup after it merges: §10 "Backend".
 - **Earlier (2026-11-03, LOG-20261103-2154-plan-approved):** backend plan approved (`docs/backend-implementation-plan.md`); Phase 0 runs on `feature/backend-foundation`. The repository owner decided: fictional data during development, client-data import as a separate pre-launch phase, configurable reference formats, `class-validator` validation, JWT login in Phase 0, numeric customer ids (§9).
 
 - **Latest (2026-10-29 21:38 +03:00, LOG-20261029-2138-merged):** `main` (`293a951`) now contains the whole frontend (PR #1) and the database schema with Node 24.20.0 pin (PR #2). Work from `main` from now on. Collaborator: fetch, switch to `main`, pull, then follow `docs/database-design.md` §8. Next decision: authorize the next backend phase (sign-in and roles with seeded permissions, the credit-override guard, then API endpoints; first remove or protect `GET /`). The bullets below describe earlier states.

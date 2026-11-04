@@ -30,6 +30,33 @@ Same-origin routes in this app: `POST /api/auth/login` (sets the cookie, returns
 
 The old unauthenticated `GET /` has been removed.
 
+## Implemented (Phase 1: customers, covered by the backend's end-to-end tests)
+
+Pages read these on the server with `lib/api/server.ts` and change them through `lib/api/browser.ts`.
+
+| Method | Path | Permission | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/parties` | `parties.view` | Query: `role`, `q`, `status`, `archived` (`exclude`, `only` or `include`; default `exclude`), `limit`, `offset` | `{ items, total }`. Each item also has `primaryContact` |
+| GET | `/api/parties/:id` | `parties.view` | | The party with `contacts`, primary first. 404 if unknown or not a valid id |
+| POST | `/api/parties` | `parties.manage` | `{ name, roles[], ...details }`. Terms and limit also need `parties.billing.manage`; `accountStatus` also needs `parties.status.manage` | 201 with the party |
+| PATCH | `/api/parties/:id` | Details: `parties.manage`. Terms and limit: `parties.billing.manage`. `accountStatus`: `parties.status.manage` | Any fields; blank or `null` clears an optional one | The party. 403 if any field sent is not allowed, and nothing is saved. 409 if archived |
+| POST | `/api/parties/:id/archive`, `/restore` | `parties.manage` | | The party. 409 if already in that state. Archiving also returns 409 while the customer has a shipment not yet delivered |
+| POST | `/api/parties/:id/contacts` | `parties.manage` | `{ name, title?, email?, phone?, isPrimary? }` | 201 with the contact. A party's first contact is always primary |
+| PATCH | `/api/parties/:id/contacts/:contactId` | `parties.manage` | Any contact fields | The contact. 400 if it would leave the party with no primary contact |
+| DELETE | `/api/parties/:id/contacts/:contactId` | `parties.manage` | | 204. If it was primary, the longest-standing remaining contact takes over |
+
+**Party fields:** `id`, `name`, `legalName`, `kraPin`, `email`, `phone`, `address`, `city`, `country`, `notes`, `accountStatus`, `archivedAt`, `createdAt`, `updatedAt`, `roles[]`, `shipments: { active, total }`, `quotations: { open, total }`.
+
+**`billing`** appears only for callers with `parties.billing.view`: `{ paymentTermsDays, creditLimit, account: { invoiced, credited, paid, outstanding, overdue, overdueInvoices, availableCredit } }`. Amounts are exact decimal strings calculated in SQL. They count issued invoices and issued credit notes; bounced and cancelled payments do not count. `availableCredit` is `null` with no limit, and negative when the customer is over it.
+
+**Rules:**
+- `name` is required.
+- `kraPin` has no fixed format for now: up to 20 characters, unique, stored in upper case. A duplicate returns 409 with `details` on `kraPin`.
+- `paymentTermsDays` is a whole number from 0 to 365.
+- `creditLimit` is a decimal string of zero or more with up to two decimal places.
+- `accountStatus` is `active`, `on_hold` or `closed`. Only management and admin can change it.
+- An archived party cannot be changed until it is restored. Parties are never deleted.
+
 ## Needed (not implemented)
 
 | Data-access function | Proposed endpoint | Returns (`lib/types.ts`) |
@@ -38,7 +65,7 @@ The old unauthenticated `GET /` has been removed.
 | `getShipment(ref)` | `GET /shipments/:reference` | `Shipment` (404 if unknown) |
 | `getDocuments(ref?)` | `GET /documents?shipment=` | `ShipmentDocument[]` (metadata only) |
 | `getQuotations()` | `GET /quotations` | `Quotation[]` |
-| `getParties(type?)` | `GET /parties?type=` | `Party[]` |
+| `getParties(type?)` | `GET /api/parties?role=` (implemented; agents, carriers and demo forms still use demo data here) | `Party[]` |
 | `getInvoices(ref?)` | `GET /invoices?shipment=` | `Invoice[]` |
 | `getPayments()` | `GET /payments` | `Payment[]` |
 | `getExpenses(ref?)` | `GET /expenses?shipment=` | `Expense[]` |

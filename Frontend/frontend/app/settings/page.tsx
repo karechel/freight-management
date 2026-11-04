@@ -27,7 +27,7 @@ const sections = [
 
 const integrations = [
   { name: 'Authentication & roles', status: 'Partly built', tone: 'warning', note: 'Sign-in and backend permission checks work for the backend API. Pages still on demo data are not protected yet; they move behind sign-in as each goes live.' },
-  { name: 'Freight data API', status: 'Not built', tone: 'warning', note: 'No backend endpoints yet for shipments, documents, quotations, parties or finance. All pages use demo data; edits made in the forms are kept in the browser tab only and are lost on reload.' },
+  { name: 'Freight data API', status: 'Partly live', tone: 'info', note: 'Customers are live. Shipments, documents, quotations, agents and finance have no backend endpoints yet: those pages use demo data, and edits made in their forms are kept in the browser tab only and are lost on reload.' },
   { name: 'Document storage', status: 'Not built', tone: 'warning', note: 'Requires private, access-controlled storage. Files chosen on the upload page stay in the browser tab’s memory; none are uploaded or stored.' },
   { name: 'KRA iCMS', status: 'Pending', tone: 'neutral', note: 'Not integrated. Access and onboarding status unknown.' },
   { name: 'M-Pesa (Daraja)', status: 'Pending', tone: 'neutral', note: 'Not integrated. Sandbox access status unknown.' },

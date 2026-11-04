@@ -9,7 +9,6 @@ import type { PartyType } from '@/lib/types';
 
 export const metadata: Metadata = { title: 'Agents & partners' };
 
-// The same records also appear on the Customers & agents page, which stays a single page.
 const sections: { type: PartyType; title: string; description: string }[] = [
   { type: 'agent', title: 'Freight agents', description: 'Overseas and regional partner agents' },
   { type: 'supplier', title: 'Carriers and suppliers', description: 'Shipping lines, airlines and service providers' },

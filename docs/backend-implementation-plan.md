@@ -1,6 +1,6 @@
 # Backend implementation plan
 
-Status: **approved by the repository owner on 2026-11-03. Phase 0 is built and verified** on `feature/backend-foundation` (see the "As built" notes in §6). Phase 1 has not started. Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
+Status: **approved by the repository owner on 2026-11-03. Phase 0 is merged to `main`. Phase 1 is built and verified** on `feature/customers-phase1`, not yet merged (see the "As built" notes in §6). Phase 2 has not started. Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
 
 ## 1. Decisions
 
@@ -129,6 +129,17 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
 - `/api/parties?role=customer`: search, status filter, paging; `GET /:id` with contacts and calculated figures; create, update, archive, restore; contacts add, edit, remove.
 - Rules: required name, valid email, KRA PIN format and uniqueness, payment terms 0–365, credit limit ≥ 0. Only finance, management and admin change terms or limits. Customers are archived, never deleted.
 - Frontend: Customers list and detail go live; new create and edit forms from the existing form components.
+- **As built, differences and additions:**
+  - No schema change and no migration. `Party` has no relation fields back to its roles and contacts, so the list and the calculated figures use SQL.
+  - Account status has its own permission, `parties.status.manage`, for management and admin only (decided 2026-11-04). Finance changes terms and limits but not status. Existing databases get it by re-running `npm run db:seed`.
+  - The KRA PIN has no fixed format for now (decided 2026-11-04): up to 20 characters, unique, stored in upper case. This replaces the format rule above. It is an open field, not an administrator-configured format.
+  - Archiving is refused while the customer has a shipment not yet delivered (decided 2026-11-04).
+  - `/parties` now lists customers only. Agents and partners stay on `/agents`, on demo data, until Phase 4.
+  - Numeric ids open live customers. Ids such as `c-001` still open the demo records, because demo shipments and quotations link to them until Phases 2 and 3.
+  - Live and demo records are not connected, so a live customer's shipment and invoice figures stay at zero until those phases.
+  - The Customers pages require sign-in. Other demo pages stay open.
+  - Two people editing the same customer: the last save wins (accepted 2026-11-04). Every change is in `AuditLog`, but there is no warning.
+- **For later phases:** nothing yet stops new work for an archived customer. Phases 2 and 3 must check `archivedAt` when creating quotations, bookings and shipments. The archive check looks only at shipments where the party is the customer; Phase 4 should decide the same for agents and carriers.
 
 **Phase 2: Quotations and bookings**
 - Quotations: CRUD with lines saved in one transaction, server-calculated totals, editable only while draft or sent, status endpoints, expiry from the valid-until date, duplicate.
