@@ -48,15 +48,15 @@ export default async function UsersPage() {
       </DataSourceNotice>
       <div className="mb-6">
         <PendingNotice title="Prototype: permissions are not enforced">
-          There is no sign-in and no backend authorization yet, so anyone who can open this app can see and change everything
-          in it. This page shows the intended structure only. Access control must be enforced by the backend before any real
-          customer or financial data is stored.
+          Sign-in and permission checks now work on the backend API, but the pages still using demo data are not protected
+          yet, and this page shows the intended structure only, not live accounts. Every page must be behind backend access
+          control before any real customer or financial data is stored.
         </PendingNotice>
       </div>
 
       <div className="flex flex-col gap-6">
         <Card>
-          <CardHeader title="Staff accounts" description={`${accounts.data.length} demo accounts; none can sign in`} />
+          <CardHeader title="Staff accounts" description={`${accounts.data.length} demo records, not live accounts`} />
           <Table caption="Staff accounts">
             <thead>
               <tr>
@@ -79,7 +79,7 @@ export default async function UsersPage() {
                       {accountStatus[a.status].label}
                     </Badge>
                   </Td>
-                  <Td className="text-slate-500">Never (no sign-in exists)</Td>
+                  <Td className="text-slate-500">Not recorded (demo record)</Td>
                 </tr>
               ))}
             </tbody>

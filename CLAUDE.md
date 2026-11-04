@@ -50,7 +50,8 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
   - Since 2026-10-21 (uncommitted): `lib/data/session-store.tsx` holds in-browser edits and uploaded files for the tab session, seeded from `lib/data` in `app/layout.tsx`. Validation and change rules are pure modules in `lib/` (`*-form.ts`, `*-changes.ts`).
   - Since 2026-10-21 evening (uncommitted, LOG-20261021-2240-sidebar-pages): the sidebar is grouped (Overview, Operations, Contacts, Finance, Insights, Administration; `components/layout/nav-items.ts`). New routes: `/agents` (+ `/agents/[id]`), `/expenses` (+ `/expenses/new`), `/reports`, `/users`, and `/notifications` (+ task pages; LOG-20261021-2338-notifications-tasks). `/settings` is now "Settings & audit log" and keeps the System status content as one section. Expenses live in the session store; costing, report and access rules are pure modules (`lib/profitability.ts`, `lib/reports.ts`, `lib/access.ts`, `lib/expense-form.ts`).
   - Pitfall: never import a non-component value (constant, function) from a `'use client'` module into a Server Component. It arrives as a client reference (LOG-20261021-0111-frontend-phase3). See LOG-20261019-1503-frontend-decisions and `Frontend/frontend/docs/api-contracts.md`. No new dependencies. Before writing Next.js code, read `Frontend/frontend/node_modules/next/dist/docs/` (this Next.js version has breaking changes — see `Frontend/frontend/AGENTS.md`).
-- **Not present:** auth, validation pipe, exception filters, logging config, file storage, integrations, CI, Docker, deployment config.
+- **Backend foundation (2026-11-03, on `feature/backend-foundation`, LOG-20261103-2218-phase0):** routes under `/api` (except `/health`); global `ValidationPipe` (`class-validator`, `class-transformer`); one error format; JWT sign-in with a guard that protects every route by default; permissions read from the database on each request. Details: `docs/backend-implementation-plan.md`.
+- **Not present:** logging config, file storage, integrations, CI, Docker, deployment config, API endpoints for business records.
 
 ## 4. Repository structure and important files
 
@@ -58,14 +59,20 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 |---|---|
 | `.gitignore` | Root ignores: `.env`, `.env.*` (except `.env.example`), `dist/`, `.next/`, `node_modules/` |
 | `Backend/backend/src/main.ts` | Bootstrap: dotenv, env validation, CORS, listen |
-| `Backend/backend/src/app.controller.ts`, `app.service.ts` | `GET /` (returns all User rows), `GET /health` |
+| `Backend/backend/src/app.controller.ts`, `app.service.ts` | `GET /health` (the old `GET /` was removed 2026-11-03) |
 | `Backend/backend/src/config/env.validation.ts` (+ `.spec.ts`) | Fail-fast check for `DATABASE_URL` |
 | `Backend/backend/src/prisma/` | `contract.prisma` (source schema), generated contract files, `db.ts`, Nest module/service |
 | `Backend/backend/prisma.config.ts` | Prisma 8 config |
 | `Backend/backend/migrations/` | Prisma 8 migrations: `app/<timestamp>_<name>/` packages (`migration.ts` framework-rendered, `ops.json`, `migration.json`), `app/refs/db.json` (dev-DB ref), `snapshots/<hash>/` (contract snapshots). Never hand-edit `ops.json`/`migration.json` |
 | `.nvmrc` | Node.js version for the repository (24.20.0) |
 | `docs/database-design.md` | Approved database design: business rules, conventions, tables, relationships, setup and migration commands, pgAdmin inspection |
-| `docs/backend-implementation-plan.md` | Proposed backend plan: decisions, API conventions, reference-number and auth design, phases, open items (implementation not started) |
+| `docs/backend-implementation-plan.md` | Approved backend plan: decisions, API conventions, reference-number and auth design, phases; Phase 0 "as built" notes |
+| `Backend/backend/src/auth/` | Sign-in, scrypt password hashing, JWT, global guard, `@Public()` and `@RequirePermission()` |
+| `Backend/backend/src/references/` | Configurable reference formats: template rules, generation, admin API |
+| `Backend/backend/src/common/`, `src/audit/`, `src/app.setup.ts` | Error format and database-error mapping, pagination DTO, audit log service, global HTTP setup |
+| `Backend/backend/src/seed/` | `db:seed` (setup data, first admin) and `db:seed:demo` (fictional data, refuses production) |
+| `Backend/backend/test/` | End-to-end tests; `test/support/` creates and migrates the separate `*_test` database |
+| `Frontend/frontend/app/api/`, `lib/api/session.ts`, `lib/api/browser.ts` | Same-origin login, logout and backend-forwarding routes (token in an HttpOnly cookie); browser API client |
 | `Backend/backend/test/app.e2e-spec.ts` | e2e test (connects to the real DB in `.env`) |
 | `Backend/backend/.env.example`, `Frontend/frontend/.env.example` | Documented env variables (committed) |
 | `Frontend/frontend/app/` | Routes: `layout.tsx` (metadata, app shell, session-store provider), `page.tsx` (dashboard), `shipments/`, `quotations/`, `documents/`, `parties/`, `customs/`, `finance/`, `settings/`, `globals.css` (updated 2026-10-21; it previously described the original health-check page). Added 2026-10-21 evening: `agents/`, `expenses/`, `reports/`, `users/` |
@@ -89,7 +96,10 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 
 | Feature | Status | Evidence / notes |
 |---|---|---|
-| Backend `GET /health` | Implemented, unverified | `app.controller.ts`; unit test exists, not run in audit |
+| Backend `GET /health` | **Verified** 2026-11-03 | Unit and end-to-end tests |
+| Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03 (branch `feature/backend-foundation`, not merged) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
+| Configurable reference formats | **Verified** 2026-11-03 (branch, not merged) | Includes concurrency, rollback and "issued references never change" tests. No record type uses them yet; quotations are first, in Phase 2 |
+| Frontend sign-in, sign-out, Numbering editor | **Verified** in headless Chrome 2026-11-03 (branch, not merged) | Demo pages remain open without signing in |
 | Frontend → backend health check | Implemented, unverified | Originally `Frontend/frontend/app/page.tsx`; moved (2026-10-19) to `lib/api/client.ts` + `components/layout/api-status.tsx` (top bar, System status page). Backend `/health` returned HTTP 200 to curl on the collaborator's machine; the browser path was not exercised |
 | Frontend shell, dashboard and core screens (demo data) | Implemented; build and link crawl verified, not visually reviewed (branch `feature/frontend-foundation`, committed and pushed per LOG-20261019-1553-frontend-review; merged to `main` via PR #1 on 2026-10-29, LOG-20261029-2138-merged) | Routes `/`, `/shipments`, `/shipments/[reference]`, `/quotations`, `/documents`, `/customs`, `/parties`, `/finance`, `/settings`. All data is fictional demo data, labelled in the UI. See LOG-20261019-1503-frontend-decisions |
 | Frontend shipment create/edit/status, actual dates, milestones, delays (demo, session only) | Implemented; committed in `5e2910f`; **browser-tested 2026-10-21** (LOG-20261021-2304-browser-review) | LOG-20261021-0111-frontend-phase1. Saved only in the browser tab (session store) |
@@ -103,7 +113,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | `DATABASE_URL` env validation | Implemented, unverified | `src/config/env.validation.ts` + spec, not run in audit |
 | `User` model (id, email, name?, createdAt) | In progress (minimal) | `contract.prisma`; no roles/passwords/CRUD. Superseded 2026-10-26 by the row below (User gained status, passwordHash, lastLoginAt, partyId, updatedAt) |
 | Database schema (33 tables) and migration | Implemented; **verified on the repository owner's local DB** (LOG-20261026-2215-database-schema): `migration check` pass, applied with `db migrate`, `db verify` pass. Committed as `a4239fc`; merged to `main` via PR #2 on 2026-10-29 (LOG-20261029-2138-merged) | `contract.prisma`, `migrations/app/20261026T1925_baseline`, `20261026T1926_freight_core_schema`, `docs/database-design.md`. No API endpoints, no seed data (roles, permissions, retention, charge types), no auth yet |
-| `GET /` list all users | Implemented, unverified — **security concern** (see §12) | `app.service.ts` |
+| `GET /` list all users | **Removed** on `feature/backend-foundation` 2026-11-03; still on `main` until that branch merges | End-to-end test confirms 404 |
 | Modules 1 and 3–16 (§2) | Planned | No code, models or config found |
 | Module 2 (users/staff) | In progress (minimal) | Only the `User` model above; no roles, auth or management features |
 | KRA iCMS integration | Planned; possibly **Blocked** on KRA onboarding/accreditation (assumption from general domain knowledge; not established by repository evidence; status of any application unknown) | No code |
@@ -128,6 +138,7 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 - **Each developer uses their own local PostgreSQL database and their own `Backend/backend/.env`.** There is no shared development database (collaborator instruction, 2026-10-15; the repo contains no DB configuration other than the `.env.example` placeholder, and the owner's local setup is not verifiable from the repo). Do not assume another contributor's DB exists or matches yours. (A shared dev DB may be configured later only by explicit decision — record it in §9 if so.)
 - Never write real connection strings, credentials or database names tied to a person's machine into this file or any committed file. Copy `.env.example` → `.env` and fill in your own values.
 - Database state (whether the `User` table exists, how it was created) is not recorded in the repo. Verify against your own local DB only.
+  - **2026-11-03:** the repository owner's local DB has all migrations (marker `9e752599…`) and the seed data: setup data, the first admin, 12 fictional companies and 4 fictional staff accounts.
   - **2026-10-26:** the repository owner's local DB was at the original `User` contract (marker `a9d7a849…`, matching the committed `db` ref) and now has the full schema (marker `32773253…`). The collaborator's DB state is unknown. Check it with `npx prisma db verify` and `npx prisma db migrate --show` (both read-only) before applying anything.
 - **Migration workflow (decided 2026-10-26):** `prisma migration plan` + `prisma db migrate`, with migration folders, snapshots and `refs/db.json` committed. `db update` only on throwaway databases. Full steps: `docs/database-design.md` §8. A database-writing command still needs explicit authorization in the session.
 - **Do not run** Prisma migration/push/reset/seed commands, or anything that writes to a database, without explicit authorization for that session.
@@ -195,12 +206,24 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Read-only Prisma commands (from `Backend/backend`): `npx prisma --version`, `npx prisma contract emit` (writes only `src/prisma/contract.json`/`.d.ts`), `npx prisma migration check`, `npx prisma migration show <dir>`, `npx prisma db verify`, `npx prisma db schema`, `npx prisma db migrate --show`.
 - Database-writing commands need authorization: `npx prisma db migrate --advance-ref db`, `db update`, `db sign`, `db init`. `migration plan` writes migration folders but does not touch the database.
 
+**Backend (added 2026-11-03), from `Backend/backend`:**
+- Copy the new keys from `.env.example` into your `.env`: `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DEMO_USER_PASSWORD`. Use your own random values.
+- `npx prisma db migrate --advance-ref db` (after checking your DB, §7), then `npm run db:seed` and `npm run db:seed:demo`. Both seeds are safe to re-run: they only add what is missing.
+- `npm run start:dev` starts the API on port 3001; `npm run dev` in `Frontend/frontend` starts the app. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`, or a fictional account such as `f.mwende@freight-demo.example` with `DEMO_USER_PASSWORD`.
+- `npm run test:e2e` creates `<your database>_test` if needed, migrates it and empties it between test files. It refuses any database not named `*_test`, and needs permission to create databases.
+- On a machine using nvm's shim, stopping `node` by the process that `Start-Process` returns leaves the real server running. Stop by the port's owning process instead.
+
 ## 11. Testing and verification procedures
 
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
-- **Latest results on Node 24.20.0 (2026-10-26, repository owner's machine, LOG-20261026-2215-database-schema):**
+- **Latest results (2026-11-03, repository owner's machine, Node 24.20.0, LOG-20261103-2218-phase0):**
+  - Backend: `tsc` → pass (no errors; the old `supertest/types` error is gone); lint → pass; `npm test` → 6 files, 37 tests pass; `npm run test:e2e` → 4 files, 34 tests pass; build → pass.
+  - Prisma: `migration check` → pass; `db verify` → pass; migrating an empty database from nothing → pass.
+  - Frontend: `tsc`, lint, build → pass; 27/27 headless Chrome checks against the running backend (test database).
+  - Not run: `npm audit`, Safari/Firefox, screen readers. The other demo pages were not re-tested in a browser; `tsc` and the build cover them.
+- **Earlier results on Node 24.20.0 (2026-10-26, repository owner's machine, LOG-20261026-2215-database-schema):**
   - Backend: `tsc --noEmit` → only the long-standing TS2307 in `test/app.e2e-spec.ts`; `npm run lint` → pass; `npm test` → 2 files, 4 tests pass; `npm run build` → pass.
   - Prisma: `migration check` → all checks passed; `db migrate` → 1 migration, 253 additive operations; `db verify` → marker and schema match.
   - A read-only query through `src/prisma/db.ts` works without `Temporal`. The tables were empty, so decoding a stored date was **not** exercised.
@@ -217,23 +240,21 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 
 ## 12. Known issues, technical debt and blockers
 
-1. `GET /` returns all users unauthenticated (`Backend/backend/src/app.service.ts`).
-2. No auth, authorization, ValidationPipe, exception filter, helmet, rate limiting, logging.
+1. `GET /` returns all users unauthenticated (`Backend/backend/src/app.service.ts`). **Fixed on `feature/backend-foundation`; still on `main` until it merges.**
+2. No helmet, shared rate limiter or logging config (decide before launch). Auth, authorization, `ValidationPipe` and the exception filter exist on `feature/backend-foundation`. Pages still on demo data are not behind sign-in.
 3. Prisma 8 is a release candidate with caret ranges; unused Prisma 7 `@prisma/client` installed alongside.
 4. No SQL migrations; DB creation process undocumented. (Update 2026-10-26: Prisma 8 migration packages now exist and the process is documented in `docs/database-design.md` §8. Prisma 8 still has no SQL migration files; `migration show` prints the SQL.)
-5. `dotenv` imported (`main.ts`, `db.ts`, `prisma.config.ts`) but not a declared dependency.
+5. `dotenv` imported (`main.ts`, `db.ts`, `prisma.config.ts`) but not a declared dependency. **Fixed on `feature/backend-foundation`.**
 6. `Backend/backend/src/prisma/db.ts` creates the Prisma client at import time using `DATABASE_URL!` (non-null assertion, no validation in that path); the connection itself opens lazily on the first query (`@prisma/orm-postgres/dist/runtime.mjs`, `getRuntime()`). The e2e test imports `AppModule` directly and therefore bypasses `validateEnv()`.
 7. `deploy` script (`nest deploy`) deploys to the cloud via NestJS Mau (verified from `@nestjs/cli` source). Whether this incurs cost is unknown from the repo; treat it as potentially paid and do not run it.
-8. CORS origin hard-coded. (Since 2026-10-19 the frontend shows an "API not configured" state when `NEXT_PUBLIC_API_URL` is unset, instead of failing.)
-9. TS2307 in e2e test; Prettier drift: `--check` flags 10 files on a working copy checked out with CRLF (`core.autocrlf=true`, a per-machine Git setting), while committed files are LF (`git ls-files --eol`). Ignoring line endings (`--end-of-line auto`), 8 files are flagged, including the generated `src/prisma/contract.d.ts`. No `.gitattributes` exists, so line endings depend on each developer's Git config. No CI; boilerplate READMEs/metadata; TS 5.9 (frontend) vs 6.0 (backend).
+8. CORS origin hard-coded (**now `CORS_ORIGINS` on `feature/backend-foundation`**). (Since 2026-10-19 the frontend shows an "API not configured" state when `NEXT_PUBLIC_API_URL` is unset, instead of failing.)
+9. TS2307 in e2e test (**gone on `feature/backend-foundation`**: that test was rewritten; the original cause was never determined); Prettier drift: `--check` flags 10 files on a working copy checked out with CRLF (`core.autocrlf=true`, a per-machine Git setting), while committed files are LF (`git ls-files --eol`). Ignoring line endings (`--end-of-line auto`), 8 files are flagged, including the generated `src/prisma/contract.d.ts`. No `.gitattributes` exists, so line endings depend on each developer's Git config. No CI; boilerplate READMEs/metadata; TS 5.9 (frontend) vs 6.0 (backend).
 10. No requirements document or phase definitions in the repo.
 11. `.env.example` uses placeholder DB name `freight_management`; developers' actual DB names may differ (expected — placeholder only).
-12. (2026-10-26) The schema exists, but nothing uses it yet:
-    - Reference data is not seeded: roles, the permission matrix (incl. `credit.override`), retention policy, charge types.
-    - No service enforces allocation limits, credit-limit permissions or number sequences.
-    - Prisma 8 has no seed command; plan a script or data migration together with the auth module.
+12. (2026-10-26, updated 2026-11-03) No business endpoints use the schema yet. Seeding and reference generation exist on `feature/backend-foundation`; allocation limits and the credit-limit check come with their phases. Tax defaults on the seeded charge types are a starting guess and need the company accountant's review.
 13. (2026-10-26) The frontend demo types differ from the database in places (`USD` currency, `mpesa`, a stored `booked` quotation status, integer-cent prices, a single customs entry per shipment). See `docs/database-design.md` §7. The API layer or the frontend must reconcile these.
-14. (2026-10-26) Applying a migration to a fresh database (baseline + delta) has not been tested; only the delta was applied, on the repository owner's DB.
+14. (2026-10-26) Applying a migration to a fresh database (baseline + delta) has not been tested; only the delta was applied, on the repository owner's DB. **Resolved 2026-11-03: the test database migrates from empty on the first end-to-end run.**
+15. (2026-11-03) Signing out does not revoke a token (no server-side session store): a stolen token works until it expires, up to 8 hours, unless the user is disabled. The login limit is in memory, so it resets on restart and applies per server process.
 
 ## 13. Shared activity log
 
@@ -1293,9 +1314,58 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged.
 - Working-tree status after: expected clean, then `feature/backend-foundation` is created from this commit for Phase 0.
 
+### LOG-20261103-2218-phase0 — Backend Phase 0 built and verified on `feature/backend-foundation`
+- Time: work started about 2026-11-03 21:56 +03:00 (exact start not recorded); migration applied at 21:57:43; this entry written 22:18:14 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: "follow your recommendations for the decisions".
+- **Confirmation for LOG-20261103-2154-plan-approved:** the push succeeded: `git ls-remote origin` showed `main` = `56946bf`. `feature/backend-foundation` was created from it. A later `git fetch origin` still showed `main` = `56946bf`.
+- **Dependencies added (backend only, after checking compatibility):** `class-validator` 0.15.1, `class-transformer` 0.5.1, `@nestjs/jwt` 12.0.3. `dotenv` 17.4.2 is now declared, at the version already installed. The lockfile only gained entries (20 packages), apart from `dotenv` no longer being marked dev-only; no existing versions changed. Frontend: none.
+- **Database:**
+  - Contract: added `ReferenceFormat` and two enums. Migration `20261103T1857_add_reference_format`: 4 additive operations, reviewed, `migration check` passed.
+  - Applied to the repository owner's local DB with `db migrate --advance-ref db`, after `db migrate --show` showed that one migration pending. `db verify` passed; marker `9e752599…`.
+  - Created the separate test database (the development DB's name plus `_test`), migrated from empty. Its name is not recorded here; the rule is in `test/support/test-database.ts`.
+  - Seeded the owner's local DB: `db:seed` added 6 roles, 21 permissions, 60 grants, 14 charge types, 1 retention policy, 7 reference formats and the first admin; `db:seed:demo` added 12 fictional companies, 12 contacts and 4 fictional staff accounts.
+  - Row counts confirmed the development DB was still empty after the first end-to-end run, so the tests are isolated.
+- **Backend:**
+  - Removed `GET /`. Added `configureApp` (`/api` prefix, `ValidationPipe`, exception filter, CORS from `CORS_ORIGINS`, shutdown hooks), `JWT_SECRET` validation, and Prisma closing on shutdown.
+  - Auth: `POST /api/auth/login`, `GET /api/auth/me`; scrypt (N=2^17, r=8, p=1); HS256 JWT for 8 hours; a global guard, protected by default, which reloads the user and permissions on each request; a login limit of 10 failures in 15 minutes.
+  - Reference formats: `GET`, `PATCH` and `POST preview`; generation inside the caller's transaction using an atomic upsert; template rules; audit log entries.
+  - Pagination DTO and audit service are in place for Phase 1.
+- **Frontend:** `/login`, a top-bar user menu, a Numbering editor in Settings for permitted users, same-origin `/api/auth/*` and `/api/backend/*` routes with the token in an HttpOnly cookie, a browser API client with field errors, and corrected wording where pages said no sign-in exists. `docs/api-contracts.md` lists the implemented endpoints.
+- **Secrets:** `Backend/backend/.env` (git-ignored) gained `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `DEMO_USER_PASSWORD`, generated randomly and never printed. Scans found none of these in committed files.
+- **Checks (final code, Node 24.20.0):** see §11. Also: a real sign-in with the seeded admin and a fictional finance user against the development DB returned 200; an anonymous format list returned 401; 45 new or changed backend files were formatted with Prettier, excluding generated files.
+- **Failed attempts and incidents:**
+  - A large Bash heredoc failed on shell quoting before finishing; files were then written from a bundle by a scratch script, overwriting anything partial.
+  - `plan-summary.cjs` failed on a byte-order mark in a saved file; the plan had printed correctly and was read directly.
+  - `tsc` first flagged `tx.raw` (not available on the transaction context), JSON and Numeric types, and a `CardHeader` action prop; all fixed.
+  - Review found `Origin: null` would crash the cross-site check; fixed to refuse the request.
+  - **Leftover servers:** `Stop-Process` on the `Start-Process` result only stopped nvm's shim, leaving servers on ports 3001, 3002 and 3100. So the second browser run may have tested old servers, and that result was discarded. The processes were stopped after checking their command lines, and a clean run on the final build passed 27/27. A path typo in the runner's cleanup left servers once more; they were stopped the same way. All ports were free afterwards, with no test Chrome left.
+- **Files outside the repository:** session scratchpad: bundles and patch scripts, `browser-test.mjs`, `run-browser.ps1`, `stop-servers.ps1`, `dev-login.cjs`, `db-counts.mts`, server logs. `%TEMP%`: command logs, a throwaway Chrome profile (`fm-chrome-*`).
+- Commit: not committed · Pushed: no (awaiting the repository owner's approval).
+- Working-tree status after: branch `feature/backend-foundation` at `56946bf`, with all of this uncommitted; nothing staged.
+
+### LOG-20261103-2226-local-run — Servers started for the repository owner
+- Time: 2026-11-03 22:26:28 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: "start the front and backend".
+- Started from the existing final builds, against the owner's local development DB: `node dist/main.js` (port 3001) and `next start -p 3000`. `next dev` was not used, because it rewrites the block in `Frontend/frontend/AGENTS.md`.
+- Checks: `/health`, `/login`, `/` and `/settings` → 200; signed-out `/api/backend/auth/me` → 401.
+- The servers keep running until stopped; record that in a later entry.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- Files edited: `CLAUDE.md` (this entry). Commit: not committed · Pushed: no.
+
+### LOG-20261103-2243-phase0-commit — Commit and push of backend Phase 0
+- Time: 2026-11-03 22:43:44 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: repository owner / Claude Code (Opus 5.5). Instruction: "push the current work before phase 1 starts".
+- Pre-commit checks: `git fetch origin` → nothing new; HEAD = `origin/main` = `56946bf`; `feature/backend-foundation` not yet on `origin`; no stashes or lock; no `.env`, `node_modules`, build output or build-cache files among the 79 changed paths. The staged diff is re-checked before committing.
+- What is committed: everything in LOG-20261103-2218-phase0, LOG-20261103-2226-local-run and this entry. Commit message: "feat(backend): Phase 0 foundation, sign-in, permissions and configurable references", parent `56946bf`. A file cannot record its own hash; see `git log -1 feature/backend-foundation`.
+- Push: a normal `git push -u origin feature/backend-foundation`, run only if the commit succeeds. `main` is not changed and nothing is merged; the repository owner merges by PR. Verify with `git ls-remote origin`. If the push failed, the next entry must say so.
+- The local servers from LOG-20261103-2226-local-run are still running; they use git-ignored build output, so they are unaffected.
+- Database/schema changes: none in this step · Dependency changes: none in this step.
+- Working-tree status after: expected clean; verify with `git status`.
+
 ## 14. Current handover state
 
-- **Latest (2026-11-03, LOG-20261103-2154-plan-approved):** backend plan approved (`docs/backend-implementation-plan.md`); Phase 0 runs on `feature/backend-foundation`. The repository owner decided: fictional data during development, client-data import as a separate pre-launch phase, configurable reference formats, `class-validator` validation, JWT login in Phase 0, numeric customer ids (§9).
+- **Latest (2026-11-03 22:43 +03:00, LOG-20261103-2243-phase0-commit):** backend Phase 0 is built and verified on `feature/backend-foundation`, committed and pushed (verify with `git ls-remote origin`), **not merged**. `main` (`56946bf`) still has the old `GET /`. Next: PR this branch into `main`, then Phase 1 (customers). Collaborator setup after it merges: §10 "Backend".
+- **Earlier (2026-11-03, LOG-20261103-2154-plan-approved):** backend plan approved (`docs/backend-implementation-plan.md`); Phase 0 runs on `feature/backend-foundation`. The repository owner decided: fictional data during development, client-data import as a separate pre-launch phase, configurable reference formats, `class-validator` validation, JWT login in Phase 0, numeric customer ids (§9).
 
 - **Latest (2026-10-29 21:38 +03:00, LOG-20261029-2138-merged):** `main` (`293a951`) now contains the whole frontend (PR #1) and the database schema with Node 24.20.0 pin (PR #2). Work from `main` from now on. Collaborator: fetch, switch to `main`, pull, then follow `docs/database-design.md` §8. Next decision: authorize the next backend phase (sign-in and roles with seeded permissions, the credit-override guard, then API endpoints; first remove or protect `GET /`). The bullets below describe earlier states.
 

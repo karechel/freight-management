@@ -386,7 +386,7 @@ export interface CostEstimate {
 
 export type StaffRole = 'administrator' | 'operations' | 'documentation' | 'finance' | 'management';
 
-/** A staff account in the users and permissions prototype. No sign-in exists. */
+/** A staff account in the users and permissions prototype. A demo record, not a live login. */
 export interface StaffAccount {
   id: string;
   name: string;

@@ -20,7 +20,7 @@ import type {
   TransportMode,
 } from '@/lib/types';
 
-/** Shown as the author of changes, because there is no sign-in yet. */
+/** Shown as the author of changes, because these pages are not connected to sign-in yet. */
 export const SESSION_ACTOR = 'You (demo session)';
 
 export interface ChangeContext {

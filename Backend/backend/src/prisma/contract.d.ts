@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'3277325397aec2a66c498a80377ddeeeee51528527b3b4c6864dd3167eb01cdc'>;
+  StorageHashBase<'9e7525994cc714cbd7e14206800c9edfb1fa22728f0ca2b813dd94de450da3db'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -632,6 +632,22 @@ export type FieldOutputTypes = {
       readonly taxRate: Numeric<5, 2>;
       readonly unitPrice: Numeric<14, 2>;
     };
+    readonly ReferenceFormat: {
+      readonly createdAt: Date;
+      readonly documentType:
+        | 'shipment'
+        | 'quotation'
+        | 'invoice'
+        | 'booking'
+        | 'credit_note'
+        | 'payment'
+        | 'customs_entry';
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly resetPolicy: 'never' | 'yearly' | 'monthly';
+      readonly template: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: Date;
+      readonly updatedById: CodecTypes['pg/int4@1']['output'] | null;
+    };
     readonly RetentionPolicy: {
       readonly basis: CodecTypes['pg/text@1']['output'];
       readonly description: CodecTypes['pg/text@1']['output'] | null;
@@ -1178,6 +1194,22 @@ export type FieldInputTypes = {
       readonly taxCategory: 'standard' | 'zero_rated' | 'exempt' | 'outside_vat';
       readonly taxRate: CodecTypes['pg/numeric@1']['input'];
       readonly unitPrice: CodecTypes['pg/numeric@1']['input'];
+    };
+    readonly ReferenceFormat: {
+      readonly createdAt: CodecTypes['pg/timestamptz-date@1']['input'];
+      readonly documentType:
+        | 'shipment'
+        | 'quotation'
+        | 'invoice'
+        | 'booking'
+        | 'credit_note'
+        | 'payment'
+        | 'customs_entry';
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly resetPolicy: 'never' | 'yearly' | 'monthly';
+      readonly template: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-date@1']['input'];
+      readonly updatedById: CodecTypes['pg/int4@1']['input'] | null;
     };
     readonly RetentionPolicy: {
       readonly basis: CodecTypes['pg/text@1']['input'];
@@ -1726,6 +1758,22 @@ export type StorageColumnTypes = {
       readonly taxRate: Numeric<5, 2>;
       readonly unitPrice: Numeric<14, 2>;
     };
+    readonly ReferenceFormat: {
+      readonly createdAt: Date;
+      readonly documentType:
+        | 'shipment'
+        | 'quotation'
+        | 'invoice'
+        | 'booking'
+        | 'credit_note'
+        | 'payment'
+        | 'customs_entry';
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly resetPolicy: 'never' | 'yearly' | 'monthly';
+      readonly template: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: Date;
+      readonly updatedById: CodecTypes['pg/int4@1']['output'] | null;
+    };
     readonly RetentionPolicy: {
       readonly basis: CodecTypes['pg/text@1']['output'];
       readonly description: CodecTypes['pg/text@1']['output'] | null;
@@ -2272,6 +2320,22 @@ export type StorageColumnInputTypes = {
       readonly taxCategory: 'standard' | 'zero_rated' | 'exempt' | 'outside_vat';
       readonly taxRate: CodecTypes['pg/numeric@1']['input'];
       readonly unitPrice: CodecTypes['pg/numeric@1']['input'];
+    };
+    readonly ReferenceFormat: {
+      readonly createdAt: CodecTypes['pg/timestamptz-date@1']['input'];
+      readonly documentType:
+        | 'shipment'
+        | 'quotation'
+        | 'invoice'
+        | 'booking'
+        | 'credit_note'
+        | 'payment'
+        | 'customs_entry';
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly resetPolicy: 'never' | 'yearly' | 'monthly';
+      readonly template: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-date@1']['input'];
+      readonly updatedById: CodecTypes['pg/int4@1']['input'] | null;
     };
     readonly RetentionPolicy: {
       readonly basis: CodecTypes['pg/text@1']['input'];
@@ -2918,6 +2982,24 @@ export namespace Models {
     quotation: public_Quotation;
     readonly [RelationKeys]?: 'chargeType' | 'quotation';
   };
+  export type public_ReferenceFormat = {
+    createdAt: Date;
+    documentType:
+      | 'shipment'
+      | 'quotation'
+      | 'invoice'
+      | 'booking'
+      | 'credit_note'
+      | 'payment'
+      | 'customs_entry';
+    id: CodecTypes['pg/int4@1']['output'];
+    resetPolicy: 'never' | 'yearly' | 'monthly';
+    template: CodecTypes['pg/text@1']['output'];
+    updatedAt: Date;
+    updatedById: CodecTypes['pg/int4@1']['output'] | null;
+    updatedBy: public_User | null;
+    readonly [RelationKeys]?: 'updatedBy';
+  };
   export type public_RetentionPolicy = {
     basis: CodecTypes['pg/text@1']['output'];
     description: CodecTypes['pg/text@1']['output'] | null;
@@ -3144,6 +3226,7 @@ export declare const models: {
     Permission: Models.public_Permission;
     Quotation: Models.public_Quotation;
     QuotationLine: Models.public_QuotationLine;
+    ReferenceFormat: Models.public_ReferenceFormat;
     RetentionPolicy: Models.public_RetentionPolicy;
     Role: Models.public_Role;
     RolePermission: Models.public_RolePermission;
@@ -6410,6 +6493,81 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly ReferenceFormat: {
+              columns: {
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeRef: 'Instant';
+                };
+                readonly documentType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly id: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                };
+                readonly resetPolicy: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'never'>;
+                  };
+                };
+                readonly template: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly updatedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeRef: 'Instant';
+                };
+                readonly updatedById: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['documentType'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'ReferenceFormat_updatedById_idx_d0517c24';
+                  readonly prefix: 'ReferenceFormat_updatedById_idx';
+                  readonly columns: readonly ['updatedById'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ReferenceFormat';
+                    readonly columns: readonly ['updatedById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly RetentionPolicy: {
               columns: {
                 readonly basis: {
@@ -7897,6 +8055,22 @@ type ContractBase = Omit<
               readonly kind: 'valueSet';
               readonly values: readonly ['draft', 'sent', 'accepted', 'declined', 'expired'];
             };
+            readonly ReferenceDocumentType: {
+              readonly kind: 'valueSet';
+              readonly values: readonly [
+                'shipment',
+                'quotation',
+                'invoice',
+                'booking',
+                'credit_note',
+                'payment',
+                'customs_entry',
+              ];
+            };
+            readonly ReferenceResetPolicy: {
+              readonly kind: 'valueSet';
+              readonly values: readonly ['never', 'yearly', 'monthly'];
+            };
             readonly Severity: {
               readonly kind: 'valueSet';
               readonly values: readonly ['low', 'medium', 'high'];
@@ -8036,6 +8210,10 @@ type ContractBase = Omit<
     readonly QuotationLine: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'QuotationLine';
+    };
+    readonly ReferenceFormat: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ReferenceFormat';
     };
     readonly RetentionPolicy: {
       readonly namespace: 'public' & NamespaceId;
@@ -10675,6 +10853,68 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly ReferenceFormat: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                };
+              };
+              readonly documentType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly resetPolicy: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly template: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                };
+              };
+              readonly updatedById: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: {
+              readonly updatedBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['updatedById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'ReferenceFormat';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly documentType: { readonly column: 'documentType' };
+                readonly id: { readonly column: 'id' };
+                readonly resetPolicy: { readonly column: 'resetPolicy' };
+                readonly template: { readonly column: 'template' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly updatedById: { readonly column: 'updatedById' };
+              };
+            };
+          };
           readonly RetentionPolicy: {
             readonly fields: {
               readonly basis: {
@@ -12019,6 +12259,26 @@ type ContractBase = Omit<
               { readonly name: 'accepted'; readonly value: 'accepted' },
               { readonly name: 'declined'; readonly value: 'declined' },
               { readonly name: 'expired'; readonly value: 'expired' },
+            ];
+          };
+          readonly ReferenceDocumentType: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'shipment'; readonly value: 'shipment' },
+              { readonly name: 'quotation'; readonly value: 'quotation' },
+              { readonly name: 'invoice'; readonly value: 'invoice' },
+              { readonly name: 'booking'; readonly value: 'booking' },
+              { readonly name: 'credit_note'; readonly value: 'credit_note' },
+              { readonly name: 'payment'; readonly value: 'payment' },
+              { readonly name: 'customs_entry'; readonly value: 'customs_entry' },
+            ];
+          };
+          readonly ReferenceResetPolicy: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'never'; readonly value: 'never' },
+              { readonly name: 'yearly'; readonly value: 'yearly' },
+              { readonly name: 'monthly'; readonly value: 'monthly' },
             ];
           };
           readonly Severity: {

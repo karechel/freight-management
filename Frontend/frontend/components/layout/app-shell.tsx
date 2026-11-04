@@ -7,6 +7,7 @@ import { CloseIcon, MenuIcon } from '@/components/ui/icons';
 import { ApiStatusPill } from './api-status';
 import { findNavItem } from './nav-items';
 import { Sidebar } from './sidebar';
+import { UserMenu } from './user-menu';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -89,6 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Demo data
             </Badge>
             <ApiStatusPill />
+            <UserMenu />
           </div>
         </header>
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8 print:max-w-none print:p-0">

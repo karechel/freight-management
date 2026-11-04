@@ -1,28 +1,20 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import type { Server } from 'node:http';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module.js';
+import { createTestApp } from './support/app.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App (e2e)', () => {
+  let app: INestApplication<Server>;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createTestApp();
   });
 
-  it('/ (GET)', async () => {
-    const response = await request(app.getHttpServer()).get('/');
-    expect(response.status).toBe(200);
-    expect(Array.isArray(response.body)).toBe(true);
+  afterAll(async () => {
+    await app.close();
   });
 
-  it('/health (GET)', async () => {
+  it('GET /health is public', async () => {
     const response = await request(app.getHttpServer()).get('/health');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -31,7 +23,19 @@ describe('AppController (e2e)', () => {
     });
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('GET / no longer exposes users', async () => {
+    const response = await request(app.getHttpServer()).get('/');
+    expect(response.status).toBe(404);
+    expect(JSON.stringify(response.body)).not.toContain('email');
+  });
+
+  it('unknown routes use the standard error format', async () => {
+    const response = await request(app.getHttpServer()).get('/api/nowhere');
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({
+      statusCode: 404,
+      error: 'Not Found',
+      details: [],
+    });
   });
 });

@@ -1,7 +1,7 @@
 # Frontend ↔ backend API contracts (proposed)
 
-Status: **proposal for future backend work.** None of the endpoints below exist yet.
-The only backend endpoint the frontend calls today is `GET /health`.
+Status: **mostly a proposal for future backend work.** Only the endpoints under "Implemented" exist.
+Conventions (routes under `/api`, error format, money and dates): root `docs/backend-implementation-plan.md` §2.
 
 The frontend reads data only through `lib/data/index.ts`. Each function currently
 returns demo data from `lib/data/demo-data.ts` tagged `source: 'demo'`, which makes
@@ -9,12 +9,26 @@ every page show a "Demonstration data" banner. To connect a real endpoint, repla
 function body with a call through `lib/api/client.ts` (`apiGet`) and return
 `source: 'live'`. Response shapes should match the types in `lib/types.ts`.
 
-## Existing (verified in backend source)
+## Implemented (Phase 0, covered by the backend's end-to-end tests)
 
-| Method | Path | Used by | Notes |
-|---|---|---|---|
-| GET | `/health` | Top-bar API status, System status page | Returns `{ status, message }`. No auth. |
-| GET | `/` | **Not used** | Returns every `User` row unauthenticated. Security issue, see root `CLAUDE.md` §12. |
+All routes need `Authorization: Bearer <token>` unless marked public. The browser never handles the token:
+it stays in an HttpOnly cookie, and client components call `/api/backend/<path>` (`lib/api/browser.ts`), a
+same-origin route that adds it.
+
+Errors always have this shape: `{ statusCode, error, message, details: [{ field, messages }] }`.
+
+| Method | Path | Permission | Request | Response |
+|---|---|---|---|---|
+| GET | `/health` | Public | | `{ status, message }` |
+| POST | `/api/auth/login` | Public | `{ email, password }` | `{ accessToken, expiresIn, user }`; 401 if wrong; 429 after 10 failures in 15 minutes |
+| GET | `/api/auth/me` | Signed in | | `{ id, email, name, roles, permissions }` |
+| GET | `/api/reference-formats` | Signed in | | `[{ documentType, template, resetPolicy, ... }]` |
+| PATCH | `/api/reference-formats/:documentType` | `settings.references.manage` | `{ template, resetPolicy }` | The saved format; 400 with `details` if invalid |
+| POST | `/api/reference-formats/preview` | `settings.references.manage` | `{ documentType, template, resetPolicy, mode? }` | `{ reference }`; takes no number |
+
+Same-origin routes in this app: `POST /api/auth/login` (sets the cookie, returns `{ user }`), `POST /api/auth/logout`, `/api/backend/<path>` (forwards to the backend's `/api/<path>`).
+
+The old unauthenticated `GET /` has been removed.
 
 ## Needed (not implemented)
 

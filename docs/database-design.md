@@ -1,6 +1,6 @@
 # Database design — freight management
 
-Status: **implemented** in `Backend/backend/src/prisma/contract.prisma` and the migration `Backend/backend/migrations/app/20261026T1926_freight_core_schema/` (branch `feature/database-schema`). Approved by the repository owner on 2026-10-26. Applied to the repository owner's local database only. The backend has **no API endpoints** for these tables yet, and reference data (roles, permissions, retention periods, charge types) is **not seeded** yet.
+Status: **implemented** in `Backend/backend/src/prisma/contract.prisma` and the migration `Backend/backend/migrations/app/20261026T1926_freight_core_schema/` (branch `feature/database-schema`). Approved by the repository owner on 2026-10-26. Applied to the repository owner's local database only. `20261103T1857_add_reference_format` added the `ReferenceFormat` table on 2026-11-03 (backend Phase 0). Only sign-in and reference formats have API endpoints so far; the business tables get theirs in later phases. Reference data is seeded by `npm run db:seed` (§8).
 
 The activity log in the root `CLAUDE.md` (LOG-20261026-2215-database-schema) records how this was built and checked.
 
@@ -21,7 +21,7 @@ The activity log in the root `CLAUDE.md` (LOG-20261026-2215-database-schema) rec
 | Credit limit | Staff get a warning and choose to proceed or block. Only **finance, management and admin** may proceed past the limit; sales and operations see the warning only. Every decision records the user, time and reason (`CreditCheck`). The permission must be enforced by the backend, not only the UI. |
 | Access | Permissions are data (`Permission`, `RolePermission`), so they can change without code changes. Starting matrix: §6. |
 | Retention | 5 years from the end of the reporting period, longer where an amended assessment or ongoing proceedings require it (legal hold). Stored in `RetentionPolicy`, so the period can be changed later. Nothing is deleted automatically. |
-| References | **Changed 2026-11-03 (repository owner); not implemented yet.** Formats will be configurable by an authorized administrator, starting from the existing frontend formats (`FMS-…`, `QT-…`, `INV-…`). Issued references never change and must be unique. Design: `docs/backend-implementation-plan.md` §3. (Previously: `PREFIX-YYYY-NNNNN`, restarting each year.) |
+| References | **Changed 2026-11-03 (repository owner); implemented in backend Phase 0.** Formats are configurable by an authorized administrator, starting from the existing frontend formats (`FMS-…`, `QT-…`, `INV-…`). Issued references never change and must be unique. Design: `docs/backend-implementation-plan.md` §3. (Previously: `PREFIX-YYYY-NNNNN`, restarting each year.) |
 
 ## 2. Conventions
 
@@ -41,7 +41,7 @@ The activity log in the root `CLAUDE.md` (LOG-20261026-2215-database-schema) rec
 | Timestamps | `createdAt` / `updatedAt` on business tables. `updatedAt` is set by application code (Prisma 8 has no hooks). |
 | Files | Documents store metadata and a private `storageKey` only; file contents go to private object storage (not built). |
 
-## 3. Tables (33)
+## 3. Tables (34, including Prisma's existing `User`)
 
 | Area | Table | Purpose |
 |---|---|---|
@@ -54,7 +54,8 @@ The activity log in the root `CLAUDE.md` (LOG-20261026-2215-database-schema) rec
 | | `PartyRole` | The roles a party holds (one company can be several). |
 | | `Contact` | People at a party. |
 | Shared | `ChargeType` | Catalogue of charges and costs (category, default tax, disbursement flag). |
-| | `NumberSequence` | Gap-free reference numbers per prefix and year. |
+| | `NumberSequence` | Running-number counters: `prefix` holds the document type, `year` the period (0, YYYY or YYYYMM). |
+| | `ReferenceFormat` | Administrator-editable reference format and restart policy per document type. |
 | Sales | `Quotation`, `QuotationLine` | Quotations and their priced lines. |
 | | `Booking` | Confirmed arrangement; optional unique link to one quotation. |
 | Operations | `Shipment` | Cargo movement; optional booking; planned and actual dates. |
@@ -117,8 +118,7 @@ erDiagram
 
 ## 5. Not built yet (deliberately deferred)
 
-- Reference-data seeding: roles, the permission matrix (§6), the retention policy (5 years) and charge types. Prisma 8 has no seed command; plan a script or a data migration with the auth module.
-- Backend enforcement: an auth module, a permission guard (including `credit.override`), number generation, allocation/credit-limit services, audit logging.
+- Backend enforcement still to come: allocation and credit-limit services, and using the `credit.override` permission (Phase 2 onward). Sign-in, the permission guard, number generation and audit logging exist (Phase 0).
 - Deferred tables: quotation revisions, document versions, cost estimates (the frontend's `CostEstimate`), agent routes (`AgentRoute`), portals, notifications, warehouse, eTIMS integration logs.
 
 ## 6. Starting permission matrix (adjustable data, not code)
@@ -158,7 +158,7 @@ npx prisma db migrate --advance-ref db  # apply pending migrations (one transact
 npx prisma db verify                    # confirm
 ```
 
-A fresh, empty database runs both packages: `20261026T1925_baseline` (the original `User` table) and `20261026T1926_freight_core_schema` (everything else). A database already at the original `User` contract runs only the second. A database created some other way, for example with `db update`, may report a marker mismatch. Check `db verify` before applying anything, and never reset a database you have not confirmed is disposable.
+A fresh, empty database runs all three packages: `20261026T1925_baseline` (the original `User` table), `20261026T1926_freight_core_schema` and `20261103T1857_add_reference_format`; the test database proved this path on 2026-11-03. A database already at an earlier contract runs only the later packages. A database created some other way, for example with `db update`, may report a marker mismatch. Check `db verify` before applying anything, and never reset a database you have not confirmed is disposable.
 
 **Changing the schema later:** edit `contract.prisma` → `npx prisma contract emit` → `npx prisma migration plan --name <snake_case_name>` → review it with `npx prisma migration show <dir>` and `npx prisma migration check` → `npx prisma db migrate --advance-ref db` → commit the contract, the generated `contract.json`/`contract.d.ts`, the new migration folders, the new snapshot and `migrations/app/refs/db.json` together. Never edit `contract.json`, `contract.d.ts`, `ops.json` or `migration.json` by hand. If `migration.ts` must be edited (for example to fill a `placeholder`), re-emit it with `node migrations/app/<dir>/migration.ts`. `db update` is only for throwaway experiments because it leaves no migration history.
 

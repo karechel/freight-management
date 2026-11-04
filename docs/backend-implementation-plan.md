@@ -1,6 +1,6 @@
 # Backend implementation plan
 
-Status: **approved by the repository owner on 2026-11-03. Phase 0 is in progress** on `feature/backend-foundation`. Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
+Status: **approved by the repository owner on 2026-11-03. Phase 0 is built and verified** on `feature/backend-foundation` (see the "As built" notes in §6). Phase 1 has not started. Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
 
 ## 1. Decisions
 
@@ -117,7 +117,13 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
 - Shared services: audit log, reference generation and administration (§3), pagination, `updatedAt` handling.
 - `ReferenceFormat` migration (after approval), seed scripts (§5).
 - Frontend: POST, PATCH and DELETE in the API client with field errors, a login page, signed-out handling, the Numbering editor.
-- Done when: unauthenticated and unpermitted requests are refused in end-to-end tests, concurrent reference generation produces no duplicates, and format changes leave issued references unchanged.
+- Done when: unauthenticated and unpermitted requests are refused in end-to-end tests, concurrent reference generation produces no duplicates, and format changes leave issued references unchanged. **All verified 2026-11-03.**
+- **As built, differences from the above:**
+  - Sign-out only clears the cookie in the Next.js app, because tokens are not stored on the server. A stolen token stays valid until it expires (8 hours) unless the user is disabled.
+  - Demo pages stay open without signing in. Each page moves behind sign-in as it goes live, so the app is still only safe with fictional data.
+  - The fictional seed currently covers companies, contacts and staff accounts. Quotations and shipments, with their counters, are added in Phases 2 and 3.
+  - The login limit counts failures per email, because the backend sees the Next.js server as the caller's address.
+  - The `documentation` role shown in the frontend prototype is not seeded, because the repository owner's matrix doesn't list it. It can be added as data.
 
 **Phase 1: Customers**
 - `/api/parties?role=customer`: search, status filter, paging; `GET /:id` with contacts and calculated figures; create, update, archive, restore; contacts add, edit, remove.

@@ -96,6 +96,10 @@
       "model": "QuotationLine",
       "namespace": "public"
     },
+    "ReferenceFormat": {
+      "model": "ReferenceFormat",
+      "namespace": "public"
+    },
     "RetentionPolicy": {
       "model": "RetentionPolicy",
       "namespace": "public"
@@ -689,6 +693,56 @@
               {
                 "name": "expired",
                 "value": "expired"
+              }
+            ]
+          },
+          "ReferenceDocumentType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "shipment",
+                "value": "shipment"
+              },
+              {
+                "name": "quotation",
+                "value": "quotation"
+              },
+              {
+                "name": "invoice",
+                "value": "invoice"
+              },
+              {
+                "name": "booking",
+                "value": "booking"
+              },
+              {
+                "name": "credit_note",
+                "value": "credit_note"
+              },
+              {
+                "name": "payment",
+                "value": "payment"
+              },
+              {
+                "name": "customs_entry",
+                "value": "customs_entry"
+              }
+            ]
+          },
+          "ReferenceResetPolicy": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "never",
+                "value": "never"
+              },
+              {
+                "name": "yearly",
+                "value": "yearly"
+              },
+              {
+                "name": "monthly",
+                "value": "monthly"
               }
             ]
           },
@@ -5291,6 +5345,116 @@
               },
               "namespaceId": "public",
               "table": "QuotationLine"
+            }
+          },
+          "ReferenceFormat": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar"
+                }
+              },
+              "documentType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ReferenceDocumentType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "resetPolicy": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ReferenceResetPolicy",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "template": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "updatedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "documentType": {
+                  "column": "documentType"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "resetPolicy": {
+                  "column": "resetPolicy"
+                },
+                "template": {
+                  "column": "template"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "updatedById": {
+                  "column": "updatedById"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ReferenceFormat"
             }
           },
           "RetentionPolicy": {
@@ -11589,6 +11753,132 @@
               },
               "uniques": []
             },
+            "ReferenceFormat": {
+              "checks": [
+                {
+                  "expression": "\"documentType\" IN ('shipment', 'quotation', 'invoice', 'booking', 'credit_note', 'payment', 'customs_entry')",
+                  "name": "ReferenceFormat_documentType_check_ea19f9ed",
+                  "prefix": "ReferenceFormat_documentType_check"
+                },
+                {
+                  "expression": "\"resetPolicy\" IN ('never', 'yearly', 'monthly')",
+                  "name": "ReferenceFormat_resetPolicy_check_aab625b6",
+                  "prefix": "ReferenceFormat_resetPolicy_check"
+                },
+                {
+                  "expression": "template LIKE '%{SEQ:%}%'",
+                  "name": "reference_format_has_sequence_31975ed0",
+                  "prefix": "reference_format_has_sequence"
+                }
+              ],
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false,
+                  "typeRef": "Instant"
+                },
+                "documentType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ReferenceDocumentType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "resetPolicy": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "never"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ReferenceResetPolicy",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "template": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false,
+                  "typeRef": "Instant"
+                },
+                "updatedById": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "updatedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReferenceFormat"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "updatedById"
+                  ],
+                  "name": "ReferenceFormat_updatedById_idx_d0517c24",
+                  "prefix": "ReferenceFormat_updatedById_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "documentType"
+                  ]
+                }
+              ]
+            },
             "RetentionPolicy": {
               "checks": [
                 {
@@ -13647,6 +13937,26 @@
                 "expired"
               ]
             },
+            "ReferenceDocumentType": {
+              "kind": "valueSet",
+              "values": [
+                "shipment",
+                "quotation",
+                "invoice",
+                "booking",
+                "credit_note",
+                "payment",
+                "customs_entry"
+              ]
+            },
+            "ReferenceResetPolicy": {
+              "kind": "valueSet",
+              "values": [
+                "never",
+                "yearly",
+                "monthly"
+              ]
+            },
             "Severity": {
               "kind": "valueSet",
               "values": [
@@ -13726,7 +14036,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "3277325397aec2a66c498a80377ddeeeee51528527b3b4c6864dd3167eb01cdc",
+    "storageHash": "9e7525994cc714cbd7e14206800c9edfb1fa22728f0ca2b813dd94de450da3db",
     "types": {
       "CalDate": {
         "codecId": "pg/date-string@1",

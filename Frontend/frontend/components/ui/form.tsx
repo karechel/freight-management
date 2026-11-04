@@ -78,8 +78,10 @@ export function TextField({
   maxLength,
   autoComplete = 'off',
   list,
+  type = 'text',
   ...props
 }: BaseFieldProps & {
+  type?: 'text' | 'email' | 'password';
   inputMode?: 'text' | 'numeric' | 'decimal';
   placeholder?: string;
   maxLength?: number;
@@ -91,7 +93,7 @@ export function TextField({
   return (
     <FieldShell id={id} label={label} required={required} hint={hint} error={error} className={className}>
       <input
-        type="text"
+        type={type}
         {...controlProps(id, required, hint, error)}
         value={value}
         onChange={(e) => onChange(e.target.value)}

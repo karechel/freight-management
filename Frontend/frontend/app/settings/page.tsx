@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { AuditLog } from '@/components/settings/audit-log';
 import { BackendHealthCard } from '@/components/settings/backend-health-card';
+import { NumberingEditor } from '@/components/settings/numbering-editor';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DetailList } from '@/components/ui/detail-list';
 import { PageHeader } from '@/components/ui/page-header';
 import { PendingNotice } from '@/components/ui/states';
-import { Table, Td, Th } from '@/components/ui/table';
 import { DEMO_REFERENCE_DATE } from '@/lib/data';
 import { allowedSummary, MAX_FILES_PER_UPLOAD, MAX_SESSION_BYTES, formatBytes } from '@/lib/document-upload';
 import { formatDate } from '@/lib/format';
@@ -26,8 +26,8 @@ const sections = [
 ];
 
 const integrations = [
-  { name: 'Authentication & roles', status: 'Not built', tone: 'warning', note: 'No sign-in, sessions or role-based access control. Anyone who can reach the app sees everything.' },
-  { name: 'Freight data API', status: 'Not built', tone: 'warning', note: 'No backend endpoints for shipments, documents, quotations, parties or finance. All pages use demo data; edits made in the forms are kept in the browser tab only and are lost on reload.' },
+  { name: 'Authentication & roles', status: 'Partly built', tone: 'warning', note: 'Sign-in and backend permission checks work for the backend API. Pages still on demo data are not protected yet; they move behind sign-in as each goes live.' },
+  { name: 'Freight data API', status: 'Not built', tone: 'warning', note: 'No backend endpoints yet for shipments, documents, quotations, parties or finance. All pages use demo data; edits made in the forms are kept in the browser tab only and are lost on reload.' },
   { name: 'Document storage', status: 'Not built', tone: 'warning', note: 'Requires private, access-controlled storage. Files chosen on the upload page stay in the browser tab’s memory; none are uploaded or stored.' },
   { name: 'KRA iCMS', status: 'Pending', tone: 'neutral', note: 'Not integrated. Access and onboarding status unknown.' },
   { name: 'M-Pesa (Daraja)', status: 'Pending', tone: 'neutral', note: 'Not integrated. Sandbox access status unknown.' },
@@ -73,9 +73,9 @@ export default function SettingsPage() {
         <Badge tone="neutral">Read only</Badge>
       </PageHeader>
       <div className="mb-6">
-        <PendingNotice title="Settings cannot be changed yet">
-          These values are what the demo interface currently uses. Saving company settings needs a backend and administrator
-          sign-in; neither exists, so nothing on this page can be edited.
+        <PendingNotice title="Most settings cannot be changed yet">
+          These values are what the demo interface currently uses. Only the numbering formats are live: an administrator can
+          change them after signing in. Everything else on this page is read-only.
         </PendingNotice>
       </div>
 
@@ -143,29 +143,7 @@ export default function SettingsPage() {
         </div>
 
         <div id="numbering">
-          <Card>
-            <CardHeader title="Document and transaction numbering" description="YYMM is the year and month of creation; NNNN is a running number" />
-            <Table caption="Numbering formats">
-              <thead>
-                <tr>
-                  <Th>Record</Th>
-                  <Th>Format</Th>
-                  <Th>Example</Th>
-                  <Th>Notes</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {numbering.map((n) => (
-                  <tr key={n.record}>
-                    <Td className="font-medium text-slate-900">{n.record}</Td>
-                    <Td className="font-mono text-xs">{n.pattern}</Td>
-                    <Td className="font-mono text-xs">{n.example}</Td>
-                    <Td>{n.note}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Card>
+          <NumberingEditor fallback={numbering} />
         </div>
 
         <div id="configuration">
