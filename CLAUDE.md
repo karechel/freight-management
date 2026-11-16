@@ -437,6 +437,19 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Application code: unchanged · Tests: none run (documentation only).
 - **Still open:** approval to start Phase 2; operator identity; the repository owner's review of the four 2026-11-04 decisions; machine setup for backend work (§14).
 
+### LOG-20261116-1658-session-close — Push confirmed; operator identified; session closed
+- Time: 2026-11-16 16:58:25 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: **Sean (collaborator)**, stated by the operator in this session ("Sean worked on this session") / Claude Code (Opus 5.5). This applies to every 2026-11-16 entry above (LOG-20261116-1549-resume-sync to LOG-20261116-1657-push), which said "operator not confirmed". Those entries are not edited. The Claude Code account signed in during the session belongs to a different person than the Git identity; the operator's statement is recorded as given.
+- **Instruction received:** "just make sure everything is committed and pushed for now. Sean worked on this session".
+- **Push result for LOG-20261116-1657-push (verified):** `git push origin main` → `d966e35..3bcc128 main -> main`. Afterwards `git ls-remote origin main` = `git rev-parse main` = `3bcc128186e8cc8f06eb5f40dba88abf5b9b9d0d`; working tree clean.
+- **What changed:** this entry, and §14 "Awaiting decisions" (operator identity removed as resolved). Committed and pushed to `main` with the operator's authorization. The hash of this commit is visible with `git log -1 main`.
+- **Not done (deliberately):** Phase 2 not started; no machine setup; no tests, builds or database commands. Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- **Unfinished items for the next session:**
+  - Approval to start Phase 2.
+  - The repository owner's review of the four 2026-11-04 decisions (§9).
+  - Machine setup for backend work on this clone (§14).
+- Working-tree status after: expected clean, with `main` = `origin/main`. Confirm with `git status` at the start of the next session.
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B.
@@ -447,7 +460,6 @@ Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `doc
 - **Machine setup:** the collaborator's clone (Git identity Sean Macharia) has not been set up for backend work since the merges: Node 24.20.0, `npm ci` in both apps, the new `.env` keys, a local PostgreSQL with migrations and seeds (§10). Its database state is unknown. Any database that already had Phase 0 needs `npm run db:seed` after pulling Phase 1.
 - **Awaiting decisions:**
   - Approval to start Phase 2.
-  - Operator identity for the 2026-11-16 session.
   - The repository owner's review of the four 2026-11-04 decisions (§9).
   - The KRA PIN format, later.
   - Phase 4 scope.
