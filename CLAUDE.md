@@ -418,6 +418,25 @@ Entry template:
 - **Outside the repository** (session scratchpad): `split-claude.mjs`, `new-sections.md`.
 - Database/schema changes: none · Dependency changes: none · Application code and configuration: unchanged · Tests: none run (documentation only).
 
+### LOG-20261116-1555-commit-confirmed — Result of the LOG-20261116-1554-docs-restructure commit (not pushed)
+- Time: 2026-11-16 15:55:08 +03:00 (commit), 15:55:09 (check) (Africa/Nairobi) — source: `git log`, PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- Commit: `773db22` (`773db22c83cc3a11248b4ec60f271a5966b5b136`), parent `d966e35`, on `main`, authored under this clone's Git identity (Sean Macharia; unchanged). 3 files: 1,777 insertions, 1,450 deletions; two files created. `git commit` exit 0.
+- Committed `CLAUDE.md`: 62,568 characters.
+- **Not pushed:** `main` is 1 commit ahead of `origin/main` (`d966e35`). Pushing needs the operator's approval.
+- **This entry is uncommitted.** It goes into the next approved commit.
+- Working-tree status after: `CLAUDE.md` modified (this entry only); nothing staged.
+
+### LOG-20261116-1657-push — Commit the follow-up entry and push `main`
+- Time: 2026-11-16 16:57:08 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "commit the log entry and push to main". This authorizes pushing `773db22` and this commit.
+- **Starting state:** `main` = `773db22`; `git fetch origin` → `origin/main` still `d966e35` (1 ahead, 0 behind), so the push is a fast-forward. Only `CLAUDE.md` modified (LOG-20261116-1555-commit-confirmed).
+- **What changed:** this entry and LOG-20261116-1555-commit-confirmed committed (`CLAUDE.md` only), then `git push origin main` (no force).
+- **Push result:** a commit cannot record its own hash or the push that follows it. Verify with `git ls-remote origin main`, which should match `git rev-parse main`. If the push had failed, the next session must record that here as a new entry.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged · Tests: none run (documentation only).
+- **Still open:** approval to start Phase 2; operator identity; the repository owner's review of the four 2026-11-04 decisions; machine setup for backend work (§14).
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B.
