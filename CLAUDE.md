@@ -115,7 +115,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 |---|---|---|
 | Backend `GET /health` | **Verified** 2026-11-03 | Unit and end-to-end tests |
 | Customers (Phase 1): list, search, filters, paging, create, edit, archive, restore, contacts, calculated figures, per-role billing access | **Verified** 2026-11-04; merged to `main` (PR #4, `d966e35`, 2026-11-04; recorded in LOG-20261116-1549-resume-sync) | LOG-20261104-1056-phase1 and LOG-20261104-1120-phase1-decisions: 70 unit tests, 112 end-to-end tests, 91 browser checks. Live pages need sign-in |
-| Quotations and bookings (Phase 2): quotations API, server totals, status flow, expiry, duplicate, conversion to a booking, standalone bookings, confirm and cancel, credit-limit check with override, archived-customer refusal; live quotation pages and minimal booking pages | **Verified** 2026-11-20 (re-run on the branch the same day); committed on `feature/quotations-phase2` (`ec5c760`) and pushed; **awaiting PR review and merge**, not on `main` | LOG-20261120-1343-phase2-backend, LOG-20261120-1412-phase2-done, LOG-20261120-1425-phase2-reconcile: 104 unit tests, 142 end-to-end tests, 14 browser checks. Remediation batch 1 (LOG-20261120-1501-phase2-batch1, **not committed**): 108 unit, 145 end-to-end, 18/18 browser. Credit-approval step (LOG-20261120-1514-credit-approval, **not committed**): 112 unit, 152 end-to-end, 21/21 browser |
+| Quotations and bookings (Phase 2): quotations API, server totals, status flow, expiry, duplicate, conversion to a booking, standalone bookings, confirm and cancel, credit-limit check with override, archived-customer refusal; live quotation pages and minimal booking pages | **Verified** 2026-11-20 (re-run on the branch the same day); committed on `feature/quotations-phase2` (`ec5c760`) and pushed; **awaiting PR review and merge**, not on `main` | LOG-20261120-1343-phase2-backend, LOG-20261120-1412-phase2-done, LOG-20261120-1425-phase2-reconcile: 104 unit tests, 142 end-to-end tests, 14 browser checks. Remediation batch 1 (LOG-20261120-1501-phase2-batch1, **not committed**): 108 unit, 145 end-to-end, 18/18 browser. Credit-approval step (LOG-20261120-1514-credit-approval): 112 unit, 152 end-to-end, 21/21 browser. Batch 1 and the approval step committed as `7112b59` and pushed. Final Phase 2 items (LOG-20261120-1543-phase2-complete): New booking page and 6 more e2e tests; 112 unit, 158 end-to-end, 22/22 browser |
 | Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03; merged to `main` (PR #3) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
 | Configurable reference formats | **Verified** 2026-11-03; merged to `main` (PR #3) | Includes concurrency, rollback and "issued references never change" tests. No record type uses them yet; quotations are first, in Phase 2 |
 | Frontend sign-in, sign-out, Numbering editor | **Verified** in headless Chrome 2026-11-03; merged to `main` (PR #3) | Demo pages remain open without signing in |
@@ -241,6 +241,10 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
+- **Final Phase 2 items (2026-11-20 15:30–15:43, LOG-20261120-1543-phase2-complete):**
+  - Backend: `tsc`, lint and build → pass; `npm test` → 10 files, **112 pass**; `npm run test:e2e` → 6 files, **158 pass** (6 new: moving a quotation to an archived customer, clearing the agent, an inactive charge type, search and the agent filter, a wrong agent role on a standalone booking, an unknown booking 404, two approvers deciding at once).
+  - Frontend: `next typegen`, `tsc`, lint and build → pass.
+  - Headless Chrome → **22/22** (new: the New booking page). No server error lines.
 - **Credit-approval step (2026-11-20 15:14–15:27, uncommitted, LOG-20261120-1514-credit-approval):**
   - Backend: `tsc`, lint and build → pass; `npm test` → 10 files, **112 pass** (4 new); `npm run test:e2e` → 6 files, **152 pass** (7 new).
   - Frontend: `tsc`, lint and build → pass.
@@ -305,18 +309,18 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 14. (2026-10-26) Applying a migration to a fresh database (baseline + delta) has not been tested; only the delta was applied, on the repository owner's DB. **Resolved 2026-11-03: the test database migrates from empty on the first end-to-end run.**
 15. (2026-11-03) Signing out does not revoke a token (no server-side session store): a stolen token works until it expires, up to 8 hours, unless the user is disabled. The login limit is in memory, so it resets on restart and applies per server process.
 16. (2026-11-20, Phase 2) The fictional demo seed (`npm run db:seed:demo`) has no quotations or bookings, so a fresh database shows empty Quotations and Bookings lists until someone creates them. **Resolved 2026-11-20 (LOG-20261120-1501-phase2-batch1, not committed):** `db:seed:demo` now adds 8 quotations and 2 bookings.
-17. (2026-11-20, Phase 2) No page creates a standalone booking (a booking without a quotation). `POST /api/bookings` exists and is tested, but bookings can only be made in the UI by converting an accepted quotation.
+17. (2026-11-20, Phase 2) **Resolved 2026-11-20 (LOG-20261120-1543-phase2-complete):** `/bookings/new` creates standalone bookings. Original text: No page creates a standalone booking (a booking without a quotation). `POST /api/bookings` exists and is tested, but bookings can only be made in the UI by converting an accepted quotation.
 18. (2026-11-20, Phase 2) A demo quotation reference (such as `QT-2610-0057`, linked from demo pages) opens the demo record under `/quotations/...`. That page shows the top bar's "Live data" badge together with its own "Demonstration data" banner, which is inconsistent. **Resolved 2026-11-20 (LOG-20261120-1501-phase2-batch1, not committed):** demo fallback pages now show "Demo data". The seeded references now exist live, so links from demo pages open the live records.
 19. (2026-11-20, Phase 2) Owner review pending, not a defect: the credit rule (decided by the operator on 2026-11-20) and the seeded permission matrix, in which only admin holds both `quotations.manage` and `credit.override`. See §14. *(Update, LOG-20261120-1514-credit-approval: an approval step now lets Sales book over the limit and Finance or Management approve; the matrix itself is unchanged. Owner review still pending.)*
 20. (2026-11-20, Phase 2) A quotation whose booking was cancelled now shows "Booking cancelled" (LOG-20261120-1501-phase2-batch1). It cannot be converted again (`Booking.quotationId` is unique). Whether re-conversion should be possible is an owner decision and would need a schema change.
 21. (2026-11-20, Phase 2) Bookings have no edit endpoint. Carrier, carrier booking number and planned dates can only be given when converting or creating (the convert form now offers them). Booking edits are an owner decision.
-22. (2026-11-20, Phase 2) The browser checks exist only as a scratchpad script (`browser-check.mjs`), and the frontend has no test runner. Whether to commit a browser-check tool is the operator's decision.
+22. (2026-11-20, Phase 2) Still open; see §17 question 12. The browser checks exist only as a scratchpad script (`browser-check.mjs`), and the frontend has no test runner. Whether to commit a browser-check tool is the operator's decision.
 
 ## 13. Shared activity log
 
 Append-only, oldest first. Never edit past entries; corrections are new entries referencing the original. Never record secrets.
 
-**Older entries are archived verbatim in `docs/activity-log.md`, Part C** (LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, moved 2026-11-16 by LOG-20261116-1554-docs-restructure; then LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close, moved 2026-11-20 by LOG-20261120-1425-phase2-reconcile; then LOG-20261120-1246-backend-roadmap to LOG-20261120-1309-phase2-prep-audit, moved 2026-11-20 by LOG-20261120-1501-phase2-batch1; then LOG-20261120-1315-phase2-start to LOG-20261120-1412-phase2-done, moved 2026-11-20 by LOG-20261120-1514-credit-approval). Summary of the archived period, for orientation only:
+**Older entries are archived verbatim in `docs/activity-log.md`, Part C** (LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, moved 2026-11-16 by LOG-20261116-1554-docs-restructure; then LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close, moved 2026-11-20 by LOG-20261120-1425-phase2-reconcile; then LOG-20261120-1246-backend-roadmap to LOG-20261120-1309-phase2-prep-audit, moved 2026-11-20 by LOG-20261120-1501-phase2-batch1; then LOG-20261120-1315-phase2-start to LOG-20261120-1412-phase2-done, moved 2026-11-20 by LOG-20261120-1514-credit-approval; then LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit, moved 2026-11-20 by LOG-20261120-1543-phase2-complete). Summary of the archived period, for orientation only:
 - **2026-10-05 – 10-15:** initial scaffold (`b68a0cd`); the commit titled "Phase 0" (`42ae8a8`: test and env fixes, before the backend plan defined its own Phase 0); read-only audit; this handover file; documentation audit (archive Part A) and its corrections.
 - **2026-10-19 – 10-22:** frontend on fictional demo data (`feature/frontend-foundation`), built in three frontend "phases" (shipments and delays; quotations, customers and agents; document uploads), then the grouped sidebar, expenses, reports, users, settings and audit log, notifications and tasks; headless-browser review; fresh-clone check.
 - **2026-10-26 – 10-29:** database schema (33 tables, migrations) and Node 24.20.0 pin (`feature/database-schema`); PRs #1 and #2 merged; read-only backend audit.
@@ -324,6 +328,7 @@ Append-only, oldest first. Never edit past entries; corrections are new entries 
 - **2026-11-16:** resumed on the collaborator's clone; `main` pulled to `d966e35`; this file split below the size limit (history archived, `docs/IMPLEMENTATION_ROADMAP.md` written); committed and pushed to `main` (`773db22`, `3bcc128`, `cbad567`); operator identified as Sean (collaborator).
 - **2026-11-20 (morning):** detailed Phases 0–18 roadmap proposal written (`docs/BACKEND_IMPLEMENTATION_ROADMAP.md`, not approved); approved plan explained; read-only machine readiness check for Phase 2.
 - **2026-11-20 (early afternoon):** Phase 2 authorized; `npm ci`, `.env` keys (random, never shown) and the credit rule "outstanding + booking value" decided by the operator; Phase 2 backend and frontend built; test and development databases migrated and seeded; 104 unit, 142 end-to-end and 14 browser checks passed.
+- **2026-11-20 (mid-afternoon):** Phase 2 committed (`ec5c760`) and pushed on `feature/quotations-phase2`; `CLAUDE.md` reconciled and the branch re-validated; the PR could not be opened here (no `gh`); read-only completion audit (one validation bug, seed and display gaps, owner decisions).
 
 Entry template:
 
@@ -342,150 +347,6 @@ Entry template:
 - Commit: <hash> | not committed · Pushed: yes (confirmed how) | no
 - Working-tree status after:
 ```
-
-### LOG-20261120-1417-phase2-commit — Phase 2 committed on `feature/quotations-phase2` and pushed
-- Time: 2026-11-20 14:17:01 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Instruction received:** "yes, create the branch, commit and push". This authorizes the branch, the commit and the push. **A PR was not mentioned, so none is opened.**
-- **Starting state:** after `git fetch origin`, `main` = `origin/main` = `cbad567` (0 ahead, 0 behind). `git switch -c feature/quotations-phase2` from `cbad567`.
-- **Commit content:**
-  - All Phase 2 changes listed in LOG-20261120-1343-phase2-backend and LOG-20261120-1412-phase2-done.
-  - This session's documentation: `CLAUDE.md` entries LOG-20261120-1246 to this one; `docs/IMPLEMENTATION_ROADMAP.md`; `docs/backend-implementation-plan.md`; `Frontend/frontend/docs/api-contracts.md`.
-  - `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`, the Phases 0–18 proposal, **not approved**; it is committed because `CLAUDE.md` links to it.
-  - Not included: `.env` (git-ignored), `dist/`, `.next/`, scratchpad files.
-- Then `git push -u origin feature/quotations-phase2` (no force). A commit cannot record its own hash; the push result is recorded in the follow-up entry below.
-
-### LOG-20261120-1420-phase2-pushed — Push verified (follow-up to LOG-20261120-1417-phase2-commit)
-- Time: 2026-11-20, about 14:20 +03:00 (Africa/Nairobi). Exact time unavailable; written after the 14:17:01 entry and the push.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Failed attempt:** the first `git commit -F -` with a PowerShell here-string failed. PowerShell split the message into pathspecs ("did not match any file(s)"), so nothing was committed. The chained `git push -u` still ran and created `origin/feature/quotations-phase2` at `cbad567` (identical to `main`, no Phase 2 changes). Nothing else was affected.
-- **Retry:** `git commit -F <scratchpad commit-msg.txt>` from Git Bash → **`ec5c760`** (`ec5c7601a82569b4c8a23a4f937a3fd31c0082fe`), parent `cbad567`, 44 files, 6,796 insertions, 70 deletions. Author: this clone's Git identity (Sean Macharia).
-- **Push:** `git push origin feature/quotations-phase2` → `cbad567..ec5c760`, a fast-forward with no force. Verified: `git ls-remote origin refs/heads/feature/quotations-phase2` = `git rev-parse HEAD` = `ec5c760…`. Working tree clean afterwards.
-- This entry is committed and pushed as a small follow-up commit on the same branch; see `git log -1 feature/quotations-phase2`.
-- **Open:**
-  - No PR opened. GitHub offers `https://github.com/karechel/freight-management/pull/new/feature/quotations-phase2`; opening it needs the operator's approval.
-  - The repository owner's review of the credit rule and the permission matrix.
-  - Fictional quotations in the demo seed.
-  - `CLAUDE.md` is near the 100,000-character archive threshold (§15 rule 7).
-  - Phase 3 not started.
-
-### LOG-20261120-1425-phase2-reconcile — Repository verified; Phase 2 branch re-validated; CLAUDE.md reconciled; history archived
-- Time: 2026-11-20, from 14:22:16 (start) to 14:27:38 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Instruction received:** pasted brief "Phase 2 Documentation Reconciliation and Pull Request":
-  - Verify the repository.
-  - Reconcile §5, §11, §12, §14 and the phase status (§14 still said Phase 2 was uncommitted).
-  - Re-validate the branch.
-  - Open the PR with a given title and contents.
-  - Never merge, delete the branch, start Phase 3, change rules or permissions, or rewrite history.
-- **Repository verification (read-only):**
-  - `origin` = `https://github.com/karechel/freight-management.git`; on branch `feature/quotations-phase2`; working tree clean.
-  - `git fetch origin --prune`: local `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `ab318bb`.
-  - `ec5c7601…` is an ancestor of the branch (`git merge-base --is-ancestor` exit 0).
-  - Against `origin/main` (`cbad567`): 0 behind, 2 ahead.
-  - No PR exists for the branch: the public GitHub API `GET /repos/karechel/freight-management/pulls?state=all&head=karechel:feature/quotations-phase2` returned 0, using a generic User-Agent and no credentials.
-  - `gh` is not installed: not on `PATH`, nor in the usual install folders.
-- **Validation re-run on the branch at `ab318bb` (results from this session):**
-  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, 104 pass; `npm run build` pass; `prisma migration check` → "All checks passed"; `prisma db verify` → "Database marker and schema match contract"; `npm run test:e2e` → 6 files, **142 pass** (72 s; writes only the `*_test` database).
-  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0; build pass (includes `/bookings` and `/bookings/[reference]`).
-  - Headless Chrome: the scratchpad `browser-check.mjs`, run against fresh production builds on ports 3000 and 3001 with a fresh profile → **14/14 pass**. It added a few more fictional records to the development database.
-  - Servers stopped by the ports' owning processes (3000 → 28944, 3001 → 6592).
-  - No failures.
-- **Documentation changes:**
-  - `CLAUDE.md`:
-    - §4 Phase 2 row (branch, awaiting PR review).
-    - §5 Phase 2 row (committed and pushed, awaiting review).
-    - §6 a dated update to the authorized-phases note.
-    - §11 the re-verification results.
-    - §12 new items 16–19: no demo-seed quotations; no standalone-booking page; inconsistent indicators on demo-fallback pages; owner review pending.
-    - **§14 rewritten** to the verified state.
-  - `docs/IMPLEMENTATION_ROADMAP.md` and `docs/backend-implementation-plan.md`: Phase 2 status changed from "not committed" to "committed on `feature/quotations-phase2`, awaiting PR review".
-  - No code, schema, permission or business-rule change.
-- **History archived (§15 rule 7):** `CLAUDE.md` had reached 103,094 characters.
-  - The five oldest §13 entries, LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close (15,487 characters), were moved verbatim and in order to the end of `docs/activity-log.md` Part C.
-  - The §13 summary was updated (pointer and a 2026-11-16 bullet). No archived or remaining entry was edited.
-- **Note on earlier entries:** entries up to LOG-20261120-1412-phase2-done describe Phase 2 as "not committed". That was true when they were written; LOG-20261120-1417 and -1420 record the commit and push. They are not edited.
-
-### LOG-20261120-1430-phase2-pr — Pull request: not created from this machine (`gh` missing); link and text prepared
-- Time: 2026-11-20, about 14:30 +03:00 (Africa/Nairobi). Exact time unavailable; written straight after LOG-20261120-1425-phase2-reconcile.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Outcome:** **no PR was created.**
-  - The GitHub CLI is not installed. Installing it would add software to the machine and is not authorized.
-  - Using the Git credential helper's stored token directly was deliberately not done: it would mean extracting a credential without permission.
-  - The PR must be opened in the browser by a contributor signed in to GitHub.
-- **PR details prepared:**
-  - Base `main`, head `feature/quotations-phase2`.
-  - Commits: `ec5c760` (Phase 2), `ab318bb` (push log), plus the commit that contains this entry.
-  - Title: "Phase 2: Quotations, Bookings and Credit Controls".
-  - Creation link: `https://github.com/karechel/freight-management/compare/main...feature/quotations-phase2?expand=1`.
-  - The description (scope, the credit rule as implemented, the override audit trail, archived-customer restrictions, frontend, tests, owner-review items, known gaps) is in the session scratchpad `pr-body.md` and was given to the operator in the session reply.
-- **Not done:** no merge, no branch deletion, Phase 3 not started.
-- **Commit:** this entry and LOG-20261120-1425-phase2-reconcile are committed together on `feature/quotations-phase2` and pushed. The hash and push are verified in the session reply (`git ls-remote origin refs/heads/feature/quotations-phase2`).
-
-### LOG-20261120-1436-phase2-audit — Read-only Phase 2 completion audit
-- Time: 2026-11-20, audit from 14:36:29 +03:00; this entry written 14:42:52 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Instructions received:**
-  1. Pasted brief: a read-only Phase 2 completion audit.
-     - No file edits, database changes, permission changes, migrations or Git mutations other than `git fetch`.
-     - No Phase 3.
-     - Report existing results separately from new checks.
-     - Wait for approval before implementing.
-  2. Then: "add this audit to the CLAUDE.md log first". This entry is the only change; it is **not committed**, since a commit was not requested.
-- **Git state (verified):**
-  - Branch `feature/quotations-phase2` at `071041a`, working tree clean.
-  - After `git fetch origin --prune`: identical to `origin/feature/quotations-phase2` (0/0).
-  - Against `origin/main` (`cbad567`, unchanged): 0 behind, 3 ahead (`ec5c760`, `ab318bb`, `071041a`).
-- **Pull request:** **none exists.** The public GitHub API, queried for PRs of `karechel:feature/quotations-phase2` with state `all`, returned 0. The PR was never opened, reviewed or merged.
-- **New checks run in this audit (safe, no database writes):**
-  - Backend: `tsc` exit 0; `npm run lint` exit 0; `npm test` → 10 files, 104 pass.
-  - Frontend: `tsc` exit 0; `npm run lint` exit 0.
-  - Working tree still clean afterwards.
-- **Not re-run (existing results from LOG-20261120-1425-phase2-reconcile):** 142 end-to-end tests (writes the test database), the builds (write `dist/` and `.next/`), 14/14 browser checks (writes to the development database).
-- **Read:** this file (§5, §11–§14 and the 2026-11-20 entries), `docs/IMPLEMENTATION_ROADMAP.md`, `src/seed/demo.ts`, `src/parties/parties.service.ts`, the Phase 2 backend services, the e2e spec (30 cases), and the frontend quotation and booking pages and components.
-- **Known gaps re-checked, all still present:**
-  1. No fictional quotations or bookings in `src/seed/demo.ts`. The approved plan's Phase 0 as-built note expected quotations to be seeded "in Phase 2", so this is a gap against the plan.
-  2. No standalone-booking page (`app/bookings/` holds only the list and `[reference]`). The approved frontend scope is only "a minimal booking list and detail", so this page is optional unless the owner wants it.
-  3. "Live data" badge together with the "Demonstration data" banner: `isLivePage` matches every `/quotations/…` path, including demo fallbacks.
-  4. The credit rule and the permission matrix still await the repository owner's approval.
-- **New findings (not fixed):**
-  1. **Bug:** `PATCH /api/quotations/:reference` on a `sent` quotation can move `issueDate` after `sentAt`. The update path never compares them, and no test covers it.
-  2. **Convert form:** it sends no carrier, carrier booking number or planned dates, although the API accepts them. With no booking edit endpoint, a converted booking can never get these details through the UI.
-  3. **Cancelled bookings:** after cancellation, the quotation still shows "Booked" (list and detail) and cannot be converted again (`Booking.quotationId` is unique).
-  4. **Phase 1 customer page:** `openQuotations` counts draft and sent quotations even when expired. The page still says quotations "move to the live system in later phases" and has no link to the customer's quotations; the API's `customerId` filter is unused by the UI.
-  5. **Concurrent edits:** quotations have no stale-update check (last save wins, as decided for customers).
-  6. **`on_hold` and `closed` customers** can still receive quotations and bookings.
-  7. **Archiving:** a customer with pending or confirmed bookings can be archived; the Phase 1 check considers shipments only.
-  8. **Reproducibility:**
-     - The browser checks exist only as a scratchpad script.
-     - The frontend has no test runner, and `lib/live-quotations.ts` is untested.
-     - Missing e2e cases: the issueDate/sentAt rule; switching to an archived customer and clearing the agent; an inactive charge type; list search and the agent filter; concurrent over-limit bookings for one customer; an unknown-booking 404; a standalone agent-role mismatch.
-  9. **Security notes (low):**
-     - `GET /api/charge-types` is open to any signed-in user, including future portal accounts.
-     - The 409 credit warning shows billing figures to any `quotations.manage` holder. Today that is only sales and admin, both of whom hold `parties.billing.view`, but it would become an exposure if the permissions change.
-- **Decisions needed from the repository owner:**
-  - the credit rule;
-  - the permission matrix;
-  - `on_hold` and `closed` customers;
-  - archiving with open bookings or quotations;
-  - what a cancelled booking means for its quotation (re-conversion would need a schema change);
-  - booking edits;
-  - whether the standalone-booking page belongs in Phase 2;
-  - stale-update handling for quotations;
-  - also pending: the four 2026-11-04 Phase 1 decisions and the accountant's tax-default review.
-- **Recommended order (awaiting the operator's approval):**
-  1. Fix the issueDate/sentAt bug, with a test.
-  2. Fixes needing no decision: the badge on demo-fallback pages; the cancelled-booking display; the Phase 1 open-quotation count, outdated text and customer link.
-  3. Carrier and planned dates in the convert form.
-  4. Fictional quotations and bookings in the demo seed, with counters.
-  5. Implement the owner's decisions.
-  6. The missing e2e cases, and optionally commit the browser-check script.
-  7. A full acceptance run and documentation update.
-  8. Open the PR, then the owner's review and merge.
-- **Conclusion:** Phase 2 is **not ready to be declared complete**. The PR does not exist; owner decisions are pending; there is one validation bug; the demo-seed quotations expected by the approved plan are missing.
-- **Not done (deliberately):** §12 and §14 not yet updated with the new findings (left for the approved fix session); no code, database, permission or Git changes; Phase 3 not started.
-- Database/schema changes: none · Dependency changes: none · Commit: **not committed** · Pushed: no.
-- Working-tree status after: `CLAUDE.md` modified (this entry only); branch `feature/quotations-phase2` at `071041a`.
 
 ### LOG-20261120-1501-phase2-batch1 — Phase 2 remediation batch 1: seven fixes, tests, seed; not committed
 - Time: 2026-11-20, from 14:45:07 (start) to 15:03:09 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`. The label uses 15:01, when the last check finished.
@@ -606,6 +467,40 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Commit: **not committed** · Pushed: **no**.
 - Working-tree status after: on `feature/quotations-phase2` at `071041a`; batch 1 and this work uncommitted; nothing staged.
 
+### LOG-20261120-1543-phase2-complete — Checkpoint pushed; Phase 2 implementation completed; questions added as §17
+- Time: 2026-11-20, from about 15:30 (start) to 15:43:34 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`. The checkpoint commit was pushed at the start.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "commit and push to the feature branch. also make sure phase 2 is completely complete. if you have any questions you need me to answer write them at the bottom of claude.md". This authorizes committing and pushing to `feature/quotations-phase2` (not `main`, not a PR, not a merge).
+- **Checkpoint:**
+  - After `git fetch origin --prune`, the branch was level with its remote (0/0).
+  - Committed the verified work of LOG-20261120-1436, -1501 and -1514 (32 files) as **`7112b59`** ("feat(quotations): Phase 2 fixes, demo quotations and credit approval step"), from a message file in the scratchpad.
+  - `git push origin feature/quotations-phase2` → `071041a..7112b59`. `git ls-remote` = `git rev-parse HEAD` = `7112b59…`; working tree clean afterwards.
+- **What "completely complete" covered** (everything that needs no owner decision):
+  1. **New booking page** `/bookings/new`, for standalone bookings, the approved "standalone creation". It covers customer, agent, mode, direction, route, cargo, carrier, carrier booking number, planned dates and estimated value. Client checks match the API. Over the limit, it uses the same choices as conversion (proceed, request approval, or stop).
+     - The warning panel was moved into the shared `components/quotations/credit-warning-panel.tsx`, used by both forms.
+     - A "New booking" button on `/bookings` for `quotations.manage` holders.
+     - New files: `app/bookings/new/page.tsx`, `components/quotations/new-booking-form.tsx`. Edited: `app/bookings/page.tsx`, `components/quotations/live-quotation-actions.tsx`.
+  2. **The e2e cases the audit listed as missing**, 6 new tests in `test/quotations.e2e-spec.ts`:
+     - moving a quotation to an archived customer (409) and clearing its agent;
+     - an inactive charge type (400), and an active one's tax category used;
+     - search by reference and the agent filter;
+     - a standalone booking with an agent lacking the agent role (400);
+     - an unknown booking (404);
+     - two approvers deciding at once, giving exactly one 200, one 409 and one `CreditCheck`.
+- **Checks run (actual results):**
+  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, 112 pass; `npm run test:e2e` → 6 files, **158 pass** (70 s); build pass. Prettier: only the three files flagged before this session.
+  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0 (one unused import removed after the refactor); build pass, including `/bookings/new`.
+  - Headless Chrome (scratchpad `browser-check.mjs`, plus the New booking check) → **22/22**, no server error lines. Servers stopped (3000 → 18248, 3001 → 15692). The development database gained more fictional records.
+- **Docs:**
+  - `Frontend/frontend/docs/api-contracts.md`: `POST /api/bookings` is now used by a page.
+  - `docs/backend-implementation-plan.md`: as-built note.
+  - `docs/IMPLEMENTATION_ROADMAP.md`: Phase 2 completion status.
+  - This file: §5, §11, §12 (item 17 resolved; item 22 now points to §17), §14, this entry, and **new §17 "Questions for the operator and the repository owner"** at the bottom, as instructed.
+- **Phase 2 status:** implementation complete and verified. **Not closed:** the PR is not opened (no `gh`) and not merged, and the owner decisions in §17 are unanswered. Some answers (re-conversion, booking edits, permissions) would need further work.
+- **Commit:** this entry and the changes above are committed and pushed in a second commit after this entry; the session reply reports its hash.
+- Database/schema changes: none · Dependency changes: none · Phase 3: not started.
+- History archived (§15 rule 7): this file had reached 104,339 characters, so LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit (5 entries) were moved verbatim to `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`.
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-20 (LOG-20261120-1425-phase2-reconcile), because the earlier text still said Phase 2 was uncommitted and not started.
@@ -624,14 +519,15 @@ Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `doc
   - **Credit-approval step (2026-11-20, LOG-20261120-1514-credit-approval): done and verified (112 unit, 152 end-to-end, 21/21 browser) but NOT committed.** Sales book over the limit and request approval; Finance or Management approve or reject. Interpretation of the operator's instruction; the owner should confirm it.
   - **Remediation batch 1 (2026-11-20, LOG-20261120-1501-phase2-batch1): done and verified (108 unit, 145 end-to-end, 18/18 browser) but NOT committed.** It fixed the issue-date bug, the open-quotation count, the cancelled-booking display, the badge on demo fallback pages and the outdated customer page with its link; it added carrier details to the convert form and fictional quotations and bookings to the seed.
   - Live pages: sign-in, Customers, Settings › Numbering, Quotations (list, detail, new, edit) and Bookings (list, detail). All other pages still use fictional demo data in the browser session.
-- **Pull request:** to be opened from `feature/quotations-phase2` into `main`; see the newest §13 entry for its number or link. Do not merge without the repository owner.
+- **Pull request:** not opened yet (`gh` is not installed). To be opened from `feature/quotations-phase2` into `main`: https://github.com/karechel/freight-management/compare/main...feature/quotations-phase2?expand=1. Do not merge without the repository owner. See §17 question 1.
+- **Phase 2 status (2026-11-20, LOG-20261120-1543-phase2-complete):** implementation complete and verified (112 unit, 158 end-to-end, 22/22 browser), committed and pushed. It closes once the PR is opened, the owner answers §17 and the PR is merged.
 - **Phase 3 (shipments and tracking): not started.** It needs the operator's explicit approval, after Phase 2 is merged.
 - **Waiting for the repository owner (Phase 2):**
   - The **credit rule** decided by the operator on 2026-11-20 and not yet approved by the owner: outstanding issued-invoice balance + booking value (quotation total, or the estimated value of a standalone booking) against the credit limit; customers without a limit are not checked.
   - The **permission matrix:** only admin holds both `quotations.manage` and `credit.override`. Sales can create bookings but cannot override; finance and management can override but cannot create bookings. No permission data was changed.
   - The **credit-approval step** (LOG-20261120-1514-credit-approval, not committed), added at the operator's instruction: Sales book over the limit and request approval; Finance or Management (`credit.override`) approve or reject. Its design is Claude Code's reading of an instruction that did not spell it out, so the owner should confirm it.
   - The four 2026-11-04 Phase 1 decisions (§9).
-- **Known Phase 2 gaps** (§12): no page for standalone bookings (item 17); cancelled bookings cannot be re-converted (item 20, owner decision); no booking edits (item 21, owner decision); browser checks not in the repository (item 22). Items 16 and 18 were fixed in batch 1.
+- **Known Phase 2 gaps** (§12): none that need no decision. Remaining items wait for answers in §17: re-converting a quotation after its booking was cancelled (item 20), booking edits (item 21), committing the browser-check tool (item 22).
 - **This machine (collaborator's clone):** set up for backend work on 2026-11-20:
   - Node 24.20.0; `npm ci` (backend); the `.env` keys.
   - Development database migrated (marker `9e752599…`) and seeded; it also holds fictional records created by the browser checks.
@@ -670,3 +566,82 @@ Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `doc
 ## 16. Documentation accuracy audit (moved)
 
 The 2026-10-15 documentation accuracy audit, including §16.6 (open questions and the 2026-10-19 decisions), is preserved verbatim in `docs/activity-log.md`, Part A. Its corrections were applied in LOG-20261015-2305-corrections and LOG-20261015-2310-corrections.
+
+---
+
+## 17. Questions for the operator and the repository owner
+
+Added 2026-11-20 (LOG-20261120-1543-phase2-complete) on the operator's instruction: "if you have any questions you need me to answer write them at the bottom of claude.md".
+
+**How to answer:** write the answer under each question, or tell Claude Code in a session. Claude Code then records it in §9 (decisions) and §13, and leaves the question here marked "Answered (date, by whom)".
+
+Phase 2 is implemented, verified and pushed on `feature/quotations-phase2`. Questions 1–9 decide whether it can close; the others can wait.
+
+### Needed to close Phase 2
+
+1. **Pull request.** The GitHub CLI is not installed on this machine, so the PR could not be opened here.
+   - Will a contributor open it in the browser?
+     - Link: https://github.com/karechel/freight-management/compare/main...feature/quotations-phase2?expand=1
+     - Title: "Phase 2: Quotations, Bookings and Credit Controls"
+     - The description drafted on 2026-11-20 should mention the later additions: batch 1, credit approval, the New booking page.
+   - Or may Claude Code install and use `gh`, after you sign in with `gh auth login`?
+   - *Answer:*
+2. **Credit rule.** Decided by the operator on 2026-11-20: the outstanding issued-invoice balance plus the booking's value (the quotation total, or the estimated value of a standalone booking) is checked against the credit limit; customers without a limit are not checked.
+   - Does the repository owner approve this rule?
+   - Or should the exposure also include other open (pending or confirmed) bookings?
+   - *Answer:*
+3. **Credit-approval step** (LOG-20261120-1514-credit-approval).
+   - Your instruction "implement this permission adjustment… Sales creating a booking and Finance/Management approving it" did not say what the adjustment was. Claude Code built: Sales book over the limit and request approval; Finance, Management or Admin approve (the booking can then be confirmed) or reject (the booking is cancelled).
+   - Is that what you meant? Or did you mean the simpler change: give Finance and Management `quotations.manage`, so they can create and override bookings themselves?
+   - *Answer:*
+4. **Permission matrix** (seeded data, unchanged).
+   - Today Admin holds both `quotations.manage` and `credit.override`. Sales can create bookings but not override. Finance and Management can override (and now approve) but cannot create or edit quotations or bookings. Operations can only view quotations and bookings.
+   - Should any of this change?
+   - *Answer:*
+5. **Customers on hold or closed.** They can still receive new quotations and bookings; only archived customers are refused.
+   - Should `on_hold` and/or `closed` block new work, warn, or be allowed?
+   - *Answer:*
+6. **Archiving a customer with open work.** A customer can be archived while they have pending or confirmed bookings, or open quotations; the Phase 1 rule checks only shipments not yet delivered.
+   - Should archiving be refused in those cases too?
+   - *Answer:*
+7. **Cancelled bookings.** A quotation can have only one booking, so a quotation whose booking was cancelled (or rejected at credit approval) can never be converted again; staff must duplicate it.
+   - Is that acceptable?
+   - Or should re-conversion be allowed? That needs a schema change and a reviewed migration.
+   - *Answer:*
+8. **Booking edits.** The approved plan lists no booking edit. Carrier, carrier booking number and planned dates can only be given when a booking is created.
+   - Should bookings be editable while pending? If so, which fields, and by whom?
+   - *Answer:*
+9. **Two people editing one quotation.** The last save wins, with every change in the audit log. This is the rule decided for customers on 2026-11-04.
+   - Keep it for quotations?
+   - Or reject outdated edits (409, "someone else changed this")?
+   - *Answer:*
+
+### Earlier decisions still open
+
+10. **The four Phase 1 decisions of 2026-11-04** (§9), made in a session whose operator was not confirmed:
+    - (a) only management and admin change a customer's account status;
+    - (b) a customer cannot be archived while they have an undelivered shipment;
+    - (c) the last save wins when two people edit a customer;
+    - (d) the KRA PIN has no fixed format for now.
+
+    Does the repository owner confirm them?
+    - *Answer:*
+11. **Tax defaults.** The seeded charge types' tax categories and rates, and the Phase 2 default for quotation lines (the charge type's category, otherwise `standard`), are guesses.
+    - Has the company's accountant reviewed them?
+    - Is half-away-from-zero rounding per line correct?
+    - *Answer:*
+12. **Browser checks in the repository.** The headless-Chrome checks (22 scenarios) live only in a temporary scratchpad script, and the frontend has no test runner.
+    - Should Claude Code commit them as a development tool, using the installed Chrome with no new dependency?
+    - *Answer:*
+
+### Housekeeping
+
+13. **Who ran these sessions?** The 2026-11-20 entries say "operator not confirmed": the Claude Code account differs from this clone's Git identity (Sean Macharia).
+    - Who should the log name?
+    - *Answer:*
+14. **Roadmap proposal.** `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` (Phases 0–18) is committed but not approved; the approved plan stays authoritative.
+    - Keep it as a reference, revise it, or remove it?
+    - *Answer:*
+15. **Next phase.** Phase 3 (shipments and tracking) starts only with explicit approval, after Phase 2 is merged.
+    - Should it follow straight after the merge?
+    - *Answer:*

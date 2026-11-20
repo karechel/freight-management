@@ -3,10 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { CreditWarningPanel } from './credit-warning-panel';
 import { DateField, SelectField, TextAreaField, TextField } from '@/components/ui/form';
 import { ApiError, backend } from '@/lib/api/browser';
 import { fromDateTimeInput, nowDateTimeInput } from '@/lib/dates';
-import { formatKesExact } from '@/lib/format';
 import {
   bookingHref,
   creditWarningOf,
@@ -288,48 +288,14 @@ export function ConvertToBooking({ quotation, carriers = [] }: { quotation: Live
           </Button>
         </>
       ) : (
-        <div role="alert" className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <p className="font-semibold">Over the credit limit</p>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <dt>Outstanding balance</dt>
-            <dd className="text-right tabular-nums">{formatKesExact(warning.exposure)}</dd>
-            <dt>This booking</dt>
-            <dd className="text-right tabular-nums">{formatKesExact(warning.attemptedAmount)}</dd>
-            <dt className="font-semibold">Credit limit</dt>
-            <dd className="text-right font-semibold tabular-nums">{formatKesExact(warning.creditLimit)}</dd>
-          </dl>
-          <TextAreaField
-            id="credit-decision-reason"
-            label="Reason for your decision"
-            required
-            value={reason}
-            onChange={setReason}
-            rows={2}
-            maxLength={500}
-            error={reasonError}
-            hint="Recorded with your name and the time."
-          />
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => convert('blocked')} disabled={busy}>
-              Stop, do not book
-            </Button>
-            {warning.canOverride ? (
-              <Button size="sm" onClick={() => convert('proceed')} disabled={busy}>
-                Proceed past the limit
-              </Button>
-            ) : (
-              <Button size="sm" onClick={() => convert('request_approval')} disabled={busy}>
-                Book and request approval
-              </Button>
-            )}
-          </div>
-          {!warning.canOverride && (
-            <p className="text-xs">
-              The booking is created as pending and cannot be confirmed until finance, management or an administrator
-              approves it. If they reject it, it is cancelled.
-            </p>
-          )}
-        </div>
+        <CreditWarningPanel
+          warning={warning}
+          reason={reason}
+          onReasonChange={setReason}
+          reasonError={reasonError}
+          busy={busy}
+          onChoose={(choice) => convert(choice)}
+        />
       )}
     </div>
   );

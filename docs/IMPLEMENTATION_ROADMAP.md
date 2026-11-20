@@ -72,7 +72,11 @@ Every phase, per the approved plan:
   - Nothing yet blocks new work for an archived customer (Phases 2–3 must check `archivedAt`).
   - Four decisions dated 2026-11-04 (`CLAUDE.md` §9) came from a session whose operator was not confirmed, and await the repository owner's review.
 
-### Phase 2 — Quotations and bookings · **Implemented and verified; committed and pushed on `feature/quotations-phase2`; awaiting PR review and merge** (2026-11-20)
+### Phase 2 — Quotations and bookings · **Implementation complete and verified (2026-11-20); pushed on `feature/quotations-phase2`; awaiting the PR, the repository owner's review and decisions, and merge**
+- **Completion status (2026-11-20, LOG-20261120-1543-phase2-complete):**
+  - Every item in the approved Phase 2 scope is built and tested, plus the audit's fixes and the credit-approval step.
+  - Final checks: 112 unit, 158 end-to-end, 22/22 browser; builds pass.
+  - Phase 2 is **not yet closed**: the PR has not been opened (no `gh` on this machine) or merged, and the owner decisions are listed in `CLAUDE.md` §17. Some of those answers may need further changes.
 - **Status update (2026-11-20, LOG-20261120-1412-phase2-done in `CLAUDE.md`):**
   - Built after the operator's authorization. The as-built notes are in `docs/backend-implementation-plan.md` §6.
   - Checks recorded: 104 unit tests, 142 end-to-end tests (30 of them new), 14 headless-browser checks; `tsc`, lint and builds pass in both apps.

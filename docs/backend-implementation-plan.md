@@ -175,7 +175,7 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
     - `/quotations` pages are live and require sign-in.
     - `/bookings` and `/bookings/[reference]` are new.
     - A reference the backend does not know falls back to the demo record, so demo pages' links still work.
-    - No page creates a standalone booking yet (the API exists).
+    - No page creates a standalone booking yet (the API exists). *(Update 2026-11-20, LOG-20261120-1543-phase2-complete: the New booking page `/bookings/new` now does, with the same credit-warning choices as conversion.)*
   - **Fictional demo seed:** no quotations or bookings added yet. *(Update 2026-11-20, LOG-20261120-1501-phase2-batch1: added in `src/seed/demo-quotations.ts`, run by `npm run db:seed:demo` after the companies:
     - 8 quotations mirroring the frontend demo records, with the same references (`QT-2609-0038` to `QT-2610-0057`), one line each at 0% tax; fictional sent and decision times;
     - 2 confirmed bookings (`BKG-2610-0001`, `BKG-2610-0002`) for the two quotations the demo shows as booked;

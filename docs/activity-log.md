@@ -1853,3 +1853,147 @@ After the Necessary corrections in 16.5 are reviewed and applied, the file is su
   - Modified: 13 tracked files (backend `app.module.ts`, `parties.dto.ts`; frontend quotation pages, nav, sidebar, `customers.ts`, `api-contracts.md`; `docs/IMPLEMENTATION_ROADMAP.md`, `docs/backend-implementation-plan.md`; `CLAUDE.md`).
   - Untracked: the new Phase 2 files and `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`.
   - Nothing staged.
+
+### LOG-20261120-1417-phase2-commit — Phase 2 committed on `feature/quotations-phase2` and pushed
+- Time: 2026-11-20 14:17:01 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "yes, create the branch, commit and push". This authorizes the branch, the commit and the push. **A PR was not mentioned, so none is opened.**
+- **Starting state:** after `git fetch origin`, `main` = `origin/main` = `cbad567` (0 ahead, 0 behind). `git switch -c feature/quotations-phase2` from `cbad567`.
+- **Commit content:**
+  - All Phase 2 changes listed in LOG-20261120-1343-phase2-backend and LOG-20261120-1412-phase2-done.
+  - This session's documentation: `CLAUDE.md` entries LOG-20261120-1246 to this one; `docs/IMPLEMENTATION_ROADMAP.md`; `docs/backend-implementation-plan.md`; `Frontend/frontend/docs/api-contracts.md`.
+  - `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`, the Phases 0–18 proposal, **not approved**; it is committed because `CLAUDE.md` links to it.
+  - Not included: `.env` (git-ignored), `dist/`, `.next/`, scratchpad files.
+- Then `git push -u origin feature/quotations-phase2` (no force). A commit cannot record its own hash; the push result is recorded in the follow-up entry below.
+
+### LOG-20261120-1420-phase2-pushed — Push verified (follow-up to LOG-20261120-1417-phase2-commit)
+- Time: 2026-11-20, about 14:20 +03:00 (Africa/Nairobi). Exact time unavailable; written after the 14:17:01 entry and the push.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Failed attempt:** the first `git commit -F -` with a PowerShell here-string failed. PowerShell split the message into pathspecs ("did not match any file(s)"), so nothing was committed. The chained `git push -u` still ran and created `origin/feature/quotations-phase2` at `cbad567` (identical to `main`, no Phase 2 changes). Nothing else was affected.
+- **Retry:** `git commit -F <scratchpad commit-msg.txt>` from Git Bash → **`ec5c760`** (`ec5c7601a82569b4c8a23a4f937a3fd31c0082fe`), parent `cbad567`, 44 files, 6,796 insertions, 70 deletions. Author: this clone's Git identity (Sean Macharia).
+- **Push:** `git push origin feature/quotations-phase2` → `cbad567..ec5c760`, a fast-forward with no force. Verified: `git ls-remote origin refs/heads/feature/quotations-phase2` = `git rev-parse HEAD` = `ec5c760…`. Working tree clean afterwards.
+- This entry is committed and pushed as a small follow-up commit on the same branch; see `git log -1 feature/quotations-phase2`.
+- **Open:**
+  - No PR opened. GitHub offers `https://github.com/karechel/freight-management/pull/new/feature/quotations-phase2`; opening it needs the operator's approval.
+  - The repository owner's review of the credit rule and the permission matrix.
+  - Fictional quotations in the demo seed.
+  - `CLAUDE.md` is near the 100,000-character archive threshold (§15 rule 7).
+  - Phase 3 not started.
+
+### LOG-20261120-1425-phase2-reconcile — Repository verified; Phase 2 branch re-validated; CLAUDE.md reconciled; history archived
+- Time: 2026-11-20, from 14:22:16 (start) to 14:27:38 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** pasted brief "Phase 2 Documentation Reconciliation and Pull Request":
+  - Verify the repository.
+  - Reconcile §5, §11, §12, §14 and the phase status (§14 still said Phase 2 was uncommitted).
+  - Re-validate the branch.
+  - Open the PR with a given title and contents.
+  - Never merge, delete the branch, start Phase 3, change rules or permissions, or rewrite history.
+- **Repository verification (read-only):**
+  - `origin` = `https://github.com/karechel/freight-management.git`; on branch `feature/quotations-phase2`; working tree clean.
+  - `git fetch origin --prune`: local `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `ab318bb`.
+  - `ec5c7601…` is an ancestor of the branch (`git merge-base --is-ancestor` exit 0).
+  - Against `origin/main` (`cbad567`): 0 behind, 2 ahead.
+  - No PR exists for the branch: the public GitHub API `GET /repos/karechel/freight-management/pulls?state=all&head=karechel:feature/quotations-phase2` returned 0, using a generic User-Agent and no credentials.
+  - `gh` is not installed: not on `PATH`, nor in the usual install folders.
+- **Validation re-run on the branch at `ab318bb` (results from this session):**
+  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, 104 pass; `npm run build` pass; `prisma migration check` → "All checks passed"; `prisma db verify` → "Database marker and schema match contract"; `npm run test:e2e` → 6 files, **142 pass** (72 s; writes only the `*_test` database).
+  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0; build pass (includes `/bookings` and `/bookings/[reference]`).
+  - Headless Chrome: the scratchpad `browser-check.mjs`, run against fresh production builds on ports 3000 and 3001 with a fresh profile → **14/14 pass**. It added a few more fictional records to the development database.
+  - Servers stopped by the ports' owning processes (3000 → 28944, 3001 → 6592).
+  - No failures.
+- **Documentation changes:**
+  - `CLAUDE.md`:
+    - §4 Phase 2 row (branch, awaiting PR review).
+    - §5 Phase 2 row (committed and pushed, awaiting review).
+    - §6 a dated update to the authorized-phases note.
+    - §11 the re-verification results.
+    - §12 new items 16–19: no demo-seed quotations; no standalone-booking page; inconsistent indicators on demo-fallback pages; owner review pending.
+    - **§14 rewritten** to the verified state.
+  - `docs/IMPLEMENTATION_ROADMAP.md` and `docs/backend-implementation-plan.md`: Phase 2 status changed from "not committed" to "committed on `feature/quotations-phase2`, awaiting PR review".
+  - No code, schema, permission or business-rule change.
+- **History archived (§15 rule 7):** `CLAUDE.md` had reached 103,094 characters.
+  - The five oldest §13 entries, LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close (15,487 characters), were moved verbatim and in order to the end of `docs/activity-log.md` Part C.
+  - The §13 summary was updated (pointer and a 2026-11-16 bullet). No archived or remaining entry was edited.
+- **Note on earlier entries:** entries up to LOG-20261120-1412-phase2-done describe Phase 2 as "not committed". That was true when they were written; LOG-20261120-1417 and -1420 record the commit and push. They are not edited.
+
+### LOG-20261120-1430-phase2-pr — Pull request: not created from this machine (`gh` missing); link and text prepared
+- Time: 2026-11-20, about 14:30 +03:00 (Africa/Nairobi). Exact time unavailable; written straight after LOG-20261120-1425-phase2-reconcile.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Outcome:** **no PR was created.**
+  - The GitHub CLI is not installed. Installing it would add software to the machine and is not authorized.
+  - Using the Git credential helper's stored token directly was deliberately not done: it would mean extracting a credential without permission.
+  - The PR must be opened in the browser by a contributor signed in to GitHub.
+- **PR details prepared:**
+  - Base `main`, head `feature/quotations-phase2`.
+  - Commits: `ec5c760` (Phase 2), `ab318bb` (push log), plus the commit that contains this entry.
+  - Title: "Phase 2: Quotations, Bookings and Credit Controls".
+  - Creation link: `https://github.com/karechel/freight-management/compare/main...feature/quotations-phase2?expand=1`.
+  - The description (scope, the credit rule as implemented, the override audit trail, archived-customer restrictions, frontend, tests, owner-review items, known gaps) is in the session scratchpad `pr-body.md` and was given to the operator in the session reply.
+- **Not done:** no merge, no branch deletion, Phase 3 not started.
+- **Commit:** this entry and LOG-20261120-1425-phase2-reconcile are committed together on `feature/quotations-phase2` and pushed. The hash and push are verified in the session reply (`git ls-remote origin refs/heads/feature/quotations-phase2`).
+
+### LOG-20261120-1436-phase2-audit — Read-only Phase 2 completion audit
+- Time: 2026-11-20, audit from 14:36:29 +03:00; this entry written 14:42:52 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instructions received:**
+  1. Pasted brief: a read-only Phase 2 completion audit.
+     - No file edits, database changes, permission changes, migrations or Git mutations other than `git fetch`.
+     - No Phase 3.
+     - Report existing results separately from new checks.
+     - Wait for approval before implementing.
+  2. Then: "add this audit to the CLAUDE.md log first". This entry is the only change; it is **not committed**, since a commit was not requested.
+- **Git state (verified):**
+  - Branch `feature/quotations-phase2` at `071041a`, working tree clean.
+  - After `git fetch origin --prune`: identical to `origin/feature/quotations-phase2` (0/0).
+  - Against `origin/main` (`cbad567`, unchanged): 0 behind, 3 ahead (`ec5c760`, `ab318bb`, `071041a`).
+- **Pull request:** **none exists.** The public GitHub API, queried for PRs of `karechel:feature/quotations-phase2` with state `all`, returned 0. The PR was never opened, reviewed or merged.
+- **New checks run in this audit (safe, no database writes):**
+  - Backend: `tsc` exit 0; `npm run lint` exit 0; `npm test` → 10 files, 104 pass.
+  - Frontend: `tsc` exit 0; `npm run lint` exit 0.
+  - Working tree still clean afterwards.
+- **Not re-run (existing results from LOG-20261120-1425-phase2-reconcile):** 142 end-to-end tests (writes the test database), the builds (write `dist/` and `.next/`), 14/14 browser checks (writes to the development database).
+- **Read:** this file (§5, §11–§14 and the 2026-11-20 entries), `docs/IMPLEMENTATION_ROADMAP.md`, `src/seed/demo.ts`, `src/parties/parties.service.ts`, the Phase 2 backend services, the e2e spec (30 cases), and the frontend quotation and booking pages and components.
+- **Known gaps re-checked, all still present:**
+  1. No fictional quotations or bookings in `src/seed/demo.ts`. The approved plan's Phase 0 as-built note expected quotations to be seeded "in Phase 2", so this is a gap against the plan.
+  2. No standalone-booking page (`app/bookings/` holds only the list and `[reference]`). The approved frontend scope is only "a minimal booking list and detail", so this page is optional unless the owner wants it.
+  3. "Live data" badge together with the "Demonstration data" banner: `isLivePage` matches every `/quotations/…` path, including demo fallbacks.
+  4. The credit rule and the permission matrix still await the repository owner's approval.
+- **New findings (not fixed):**
+  1. **Bug:** `PATCH /api/quotations/:reference` on a `sent` quotation can move `issueDate` after `sentAt`. The update path never compares them, and no test covers it.
+  2. **Convert form:** it sends no carrier, carrier booking number or planned dates, although the API accepts them. With no booking edit endpoint, a converted booking can never get these details through the UI.
+  3. **Cancelled bookings:** after cancellation, the quotation still shows "Booked" (list and detail) and cannot be converted again (`Booking.quotationId` is unique).
+  4. **Phase 1 customer page:** `openQuotations` counts draft and sent quotations even when expired. The page still says quotations "move to the live system in later phases" and has no link to the customer's quotations; the API's `customerId` filter is unused by the UI.
+  5. **Concurrent edits:** quotations have no stale-update check (last save wins, as decided for customers).
+  6. **`on_hold` and `closed` customers** can still receive quotations and bookings.
+  7. **Archiving:** a customer with pending or confirmed bookings can be archived; the Phase 1 check considers shipments only.
+  8. **Reproducibility:**
+     - The browser checks exist only as a scratchpad script.
+     - The frontend has no test runner, and `lib/live-quotations.ts` is untested.
+     - Missing e2e cases: the issueDate/sentAt rule; switching to an archived customer and clearing the agent; an inactive charge type; list search and the agent filter; concurrent over-limit bookings for one customer; an unknown-booking 404; a standalone agent-role mismatch.
+  9. **Security notes (low):**
+     - `GET /api/charge-types` is open to any signed-in user, including future portal accounts.
+     - The 409 credit warning shows billing figures to any `quotations.manage` holder. Today that is only sales and admin, both of whom hold `parties.billing.view`, but it would become an exposure if the permissions change.
+- **Decisions needed from the repository owner:**
+  - the credit rule;
+  - the permission matrix;
+  - `on_hold` and `closed` customers;
+  - archiving with open bookings or quotations;
+  - what a cancelled booking means for its quotation (re-conversion would need a schema change);
+  - booking edits;
+  - whether the standalone-booking page belongs in Phase 2;
+  - stale-update handling for quotations;
+  - also pending: the four 2026-11-04 Phase 1 decisions and the accountant's tax-default review.
+- **Recommended order (awaiting the operator's approval):**
+  1. Fix the issueDate/sentAt bug, with a test.
+  2. Fixes needing no decision: the badge on demo-fallback pages; the cancelled-booking display; the Phase 1 open-quotation count, outdated text and customer link.
+  3. Carrier and planned dates in the convert form.
+  4. Fictional quotations and bookings in the demo seed, with counters.
+  5. Implement the owner's decisions.
+  6. The missing e2e cases, and optionally commit the browser-check script.
+  7. A full acceptance run and documentation update.
+  8. Open the PR, then the owner's review and merge.
+- **Conclusion:** Phase 2 is **not ready to be declared complete**. The PR does not exist; owner decisions are pending; there is one validation bug; the demo-seed quotations expected by the approved plan are missing.
+- **Not done (deliberately):** §12 and §14 not yet updated with the new findings (left for the approved fix session); no code, database, permission or Git changes; Phase 3 not started.
+- Database/schema changes: none · Dependency changes: none · Commit: **not committed** · Pushed: no.
+- Working-tree status after: `CLAUDE.md` modified (this entry only); branch `feature/quotations-phase2` at `071041a`.

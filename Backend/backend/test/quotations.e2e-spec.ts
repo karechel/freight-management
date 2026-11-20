@@ -838,6 +838,124 @@ describe('Quotations and bookings (e2e)', () => {
     });
   });
 
+  describe('remaining coverage (Phase 2 audit, LOG-20261120-1436-phase2-audit)', () => {
+    it('refuses moving a quotation to an archived customer, and can clear its agent', async () => {
+      const { reference } = await newQuotation();
+      const archived = await newCustomer('Archived Move Target Ltd');
+      await admin().post(`/parties/${archived.id}/archive`).expect(200);
+      await sales()
+        .patch(`/quotations/${reference}`, { customerId: archived.id })
+        .expect(409);
+      const cleared = await sales()
+        .patch(`/quotations/${reference}`, { agentId: null })
+        .expect(200);
+      expect(cleared.body.agent).toBeNull();
+    });
+
+    it("refuses an inactive charge type and uses an active one's tax category", async () => {
+      const [first, second] = await db.orm.public.ChargeType.orderBy((c) =>
+        c.id.asc(),
+      ).all();
+      await db.orm.public.ChargeType.where({ id: first.id }).update({
+        isActive: false,
+      });
+      try {
+        const line = {
+          description: 'Charge',
+          quantity: '1',
+          unitPrice: '100',
+          taxRate: '0',
+        };
+        const refused = await sales()
+          .post(
+            '/quotations',
+            quotationBody({ lines: [{ ...line, chargeTypeId: first.id }] }),
+          )
+          .expect(400);
+        expect(fieldsIn(refused.body)).toEqual(['lines.0.chargeTypeId']);
+        const { body } = await sales()
+          .post(
+            '/quotations',
+            quotationBody({ lines: [{ ...line, chargeTypeId: second.id }] }),
+          )
+          .expect(201);
+        expect(body.lines[0].taxCategory).toBe(second.defaultTaxCategory);
+      } finally {
+        await db.orm.public.ChargeType.where({ id: first.id }).update({
+          isActive: true,
+        });
+      }
+    });
+
+    it('searches quotations and filters them by agent', async () => {
+      const otherAgent = await idOf('Gulf Bridge Logistics');
+      const mine = await newQuotation({ agentId: otherAgent });
+      const byReference = await sales()
+        .get(`/quotations?q=${mine.reference}`)
+        .expect(200);
+      expect(
+        byReference.body.items.map((q: { reference: string }) => q.reference),
+      ).toEqual([mine.reference]);
+      const byAgent = await sales()
+        .get(`/quotations?agentId=${otherAgent}`)
+        .expect(200);
+      expect(byAgent.body.total).toBeGreaterThan(0);
+      expect(
+        byAgent.body.items.every(
+          (q: { agent: { id: number } | null }) => q.agent?.id === otherAgent,
+        ),
+      ).toBe(true);
+    });
+
+    it('refuses a standalone booking whose agent does not hold the agent role', async () => {
+      const { body } = await sales()
+        .post('/bookings', {
+          customerId,
+          agentId: carrierId,
+          mode: 'sea',
+          direction: 'import',
+          origin: 'Jeddah',
+          destination: 'Mombasa',
+          cargoSummary: 'Agent role check',
+        })
+        .expect(400);
+      expect(fieldsIn(body)).toEqual(['agentId']);
+    });
+
+    it('returns 404 for an unknown booking', async () => {
+      await sales().get('/bookings/BKG-0000-0000').expect(404);
+    });
+
+    it('records exactly one decision when two approvers decide at once', async () => {
+      const limited = (
+        await newCustomer('Concurrent Approval Ltd', { creditLimit: '100000' })
+      ).id;
+      const reference = await accepted({ customerId: limited });
+      const { body: booking } = await sales()
+        .post(`/quotations/${reference}/convert`, {
+          creditDecision: { decision: 'request_approval', reason: 'Please' },
+        })
+        .expect(201);
+      const results = await Promise.all([
+        api(tokens.finance).post(
+          `/bookings/${booking.reference}/credit-approval`,
+          { decision: 'approve', reason: 'Finance says yes' },
+        ),
+        api(tokens.management).post(
+          `/bookings/${booking.reference}/credit-approval`,
+          { decision: 'reject', reason: 'Management says no' },
+        ),
+      ]);
+      expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([
+        200, 409,
+      ]);
+      const checks = await db.orm.public.CreditCheck.where({
+        bookingId: booking.id,
+      }).all();
+      expect(checks).toHaveLength(1);
+    });
+  });
+
   describe('bookings', () => {
     const standalone = () => ({
       customerId,
