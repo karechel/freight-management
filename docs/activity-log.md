@@ -1443,3 +1443,150 @@ After the Necessary corrections in 16.5 are reviewed and applied, the file is su
 - PR: `gh` is not installed on this machine, so the PR into `main` is opened on GitHub by a contributor, using the description given in the session. Check GitHub for whether it is open.
 - Database/schema changes: none in this step · Dependency changes: none. No checks were re-run for this entry: only `CLAUDE.md` changed after the final checks.
 - Working-tree status after: expected clean; verify with `git status`.
+
+### LOG-20261116-1549-resume-sync — Resume after break: read-only phase audit, switch to `main` and fast-forward pull
+- Time: session started 2026-11-16 14:49:20 +03:00; pull ran 15:48:42–15:48:48 +03:00; this entry written shortly after (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: collaborator's local clone (Git identity Sean Macharia, unchanged); **operator not confirmed in this session** (the Claude Code account signed in differs from the clone's Git identity; confirmation requested) / Claude Code (Opus 5.5).
+- **Instructions received:**
+  1. Pasted brief "Resume, Documentation Recovery and Phase Audit", relaying the repository owner's instructions:
+     - Pull `main`.
+     - Summarize Phases 0 and 1 and list the remaining phases.
+     - Restructure `CLAUDE.md` below the 150k-character limit.
+     - Do not implement Phase 2 yet.
+     - Stop before pulling if not on `main` or if the working tree is dirty.
+  2. Pasted standing instruction "Maintain a Complete and Accurate Activity Log in CLAUDE.md": log every session completely and factually, throughout the session, never rewriting history; a final documentation check before ending. This restates §9 and §15 rule 2, and now applies to every future session.
+  3. "yes, switch to main and pull".
+- **Starting state:**
+  - Branch `feature/frontend-foundation` = `9c5bdf3` = `origin/feature/frontend-foundation`.
+  - Working tree clean: no modified, staged or untracked files. No stashes.
+  - Local `main` = `883f93b`. `origin` = `https://github.com/karechel/freight-management.git`.
+- **Commands that changed state:**
+  - `git fetch origin --prune`:
+    - `origin/main` moved `883f93b` → `d966e35`.
+    - New remote branches: `feature/backend-foundation`, `feature/customers-phase1`, `feature/database-schema`.
+    - The PowerShell call reported exit code 255, although every command in it printed its output. The most likely cause is a final `Select-Object -First 80` truncating `git log` output; not investigated further.
+  - After the operator's approval: `git switch main`, then `git pull --ff-only origin main` → fast-forward `883f93b..d966e35`, 219 files changed. Afterwards `main` = `origin/main` (0 ahead, 0 behind) and the working tree was clean.
+  - Nothing was stashed, reset, merged or rebased, and nothing was pushed.
+- **Findings (read-only, from Git and from files on `origin/main`):**
+  - `feature/frontend-foundation` (`9c5bdf3`) is an ancestor of `origin/main`, so nothing on it is missing from `main`.
+  - The repository owner merged four PRs:
+    - #1 `f663dd2`: frontend.
+    - #2 `293a951`: database schema.
+    - #3 `ff7d6fb`: backend Phase 0 (`af73edf`).
+    - #4 `d966e35`: Phase 1 customers (`94a575f`). Merged 2026-11-04 11:40:52 +03:00; `git diff 94a575f d966e35` is empty.
+  - "Phase 0" and "Phase 1" now refer to the backend phases in `docs/backend-implementation-plan.md` (approved 2026-11-03). They are not the October frontend "phases 1–3".
+  - Phases 2 (quotations and bookings), 3 (shipments and tracking), 4 (remaining modules, scope "to be agreed") and 5 (client data import) are not started.
+  - The schema already has the 33 models Phases 2–3 need, including `Quotation`, `QuotationLine`, `Booking`, `CreditCheck` and `Shipment`.
+  - `CLAUDE.md` on `main`: 231,661 characters (`wc -m`) before this entry, over Claude Code's 150k-character limit. The 174.7k figure Claude Code reported was the older copy on `feature/frontend-foundation`.
+  - Discrepancy: §15 rule 7 names `docs/activity-log.md` for moved history; the brief proposes `docs/PROJECT_HISTORY.md`. Awaiting the operator's choice.
+- **Correction (to LOG-20261104-1135-phase1-commit and §5, §12, §14; originals left unchanged):** PR #4 **was merged** into `main` as `d966e35` on 2026-11-04 11:40:52 +03:00, by the GitHub account recorded as committer "Chelsea Nyaga" (Git metadata). The merge was not logged before this entry. §5 rows and §12 items that say "branch, not merged" for Phase 0 or Phase 1 are out of date: both are on `main`.
+- **Checks and tests:**
+  - Not run in this session: `tsc`, lint, unit, end-to-end and browser tests, and builds.
+  - No `node_modules` reinstall (`npm ci`), no `.env` changes, no Prisma or database commands.
+  - The Phase 0/1 results quoted to the operator were the recorded ones in §11, not re-verified.
+- **Deliberately not changed:**
+  - Application code, configuration, dependencies, schema, migrations.
+  - `CLAUDE.md` restructuring, pending the operator's decisions on the history file name and on direct-to-`main` vs. branch and PR. §5, §12 and §14 are not rewritten yet; the correction above records the facts.
+  - Phase 2 not started (explicit approval required).
+- **Outside the repository:**
+  - Session scratchpad: `main-CLAUDE.md`, `plan.md`, `dbdesign.md` (copies via `git show origin/main:…`) and `session-notes-20261116.md` (running notes).
+  - The first extraction failed because the scratchpad folder did not exist yet; it was created and the command retried.
+  - Claude Code memory note `log-every-phase-in-claude-md.md`, rewritten to hold the standing logging instruction.
+- **This machine still needs setup before backend work** (not done; each step that writes to a database needs approval):
+  - Node 24.20.0 (`.nvmrc`).
+  - `npm ci` in both apps.
+  - Backend `.env` entries (`JWT_SECRET`, `CORS_ORIGINS`, admin and demo passwords; see `Backend/backend/.env.example`).
+  - A local PostgreSQL with migrations and `npm run db:seed` (plus `db:seed:demo`).
+  - This machine's database state is unknown.
+- **Awaiting decisions:**
+  1. History file name (`docs/activity-log.md` or `docs/PROJECT_HISTORY.md`).
+  2. Commit the documentation restructure straight to `main`, or via a branch and PR.
+  3. Operator identity for the log.
+  4. Approval to start Phase 2.
+  5. Repository owner's review of the four 2026-11-04 decisions (§9).
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged by this session.
+- Files edited: `CLAUDE.md` (this entry only). Commit: not committed · Pushed: no.
+- Working-tree status after: branch `main` = `origin/main` = `d966e35`; `CLAUDE.md` modified (this entry); nothing staged.
+
+### LOG-20261116-1554-docs-restructure — `CLAUDE.md` split below the size limit; history archived; roadmap written; committed to `main`
+- Time: 2026-11-16, from about 15:50 to 15:53:58 +03:00 (the label time), then the checks and commit below (Africa/Nairobi) — source: PowerShell `Get-Date`. The exact start time was not recorded.
+- Contributor/session: same session as LOG-20261116-1549-resume-sync; operator not confirmed / Claude Code (Opus 5.5).
+- **Instructions received:**
+  - "use docs/activity-log.md and commit straight to main".
+  - This answers the two questions in LOG-20261116-1549-resume-sync: the history file name (as §15 rule 7 already said), and committing the documentation directly to `main`.
+  - **Pushing was not mentioned**, so nothing is pushed until the operator approves it.
+- **Starting state:** branch `main` = `origin/main` = `d966e35`. Only `CLAUDE.md` modified (LOG-20261116-1549-resume-sync), at 241,385 characters.
+- **What changed:**
+  - **Created `docs/activity-log.md`** (about 189k characters). It holds, verbatim, the blocks taken from `CLAUDE.md` as committed at `d966e35` (`git show HEAD:CLAUDE.md`):
+    - Part A: former §16 audit.
+    - Part B: former §14 handover states.
+    - Part C: all 50 former §13 entries, LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, oldest first.
+    - A short introduction with rules: do not edit; new entries go in `CLAUDE.md`; section numbers refer to the old layout.
+  - **Created `docs/IMPLEMENTATION_ROADMAP.md`:**
+    - the three meanings of "phase"
+    - the work done before the plan
+    - backend Phases 0–5 with status, dependencies, schema, endpoints, tests and completion criteria (criteria marked "proposed" where the approved plan has none)
+    - open items
+    - the former §6 recommendation list, unchanged, under "Superseded plans"
+  - **Rebuilt `CLAUDE.md`** (scratchpad script `split-claude.mjs` and text file `new-sections.md`):
+    - A "Read before making changes" block at the top lists the supporting documents.
+    - §1–§12 kept in place.
+    - §13: the template and LOG-20261116-1549-resume-sync, with a summary of the archived period and a pointer to it.
+    - §14 rewritten for the current state.
+    - §15 rules 1, 2 and 5 extended; rule 7 replaced by the archiving procedure; rule 8 explains old section numbers.
+    - §16 replaced by a pointer to archive Part A.
+  - **Living-section updates in `CLAUDE.md`**, factual and based on the merges recorded in LOG-20261116-1549-resume-sync:
+    - §3: heading, and the backend-foundation line.
+    - §4: rows for the two new docs.
+    - §5: Phase 0 and Phase 1 rows now say merged; module rows updated (auth Verified; customers Verified; users in progress; the rest planned).
+    - §6: replaced by a pointer to the roadmap; authorized-phases note extended (Phase 1 merged; Phase 2 not started and needs approval).
+    - §8: `GET /` removed.
+    - §12: items 1, 2, 5, 8, 9 and 12 now say "on `main`"; item 10 points to the roadmap.
+  - **Not changed:** §9 decisions, §10 setup, §11 results, and all archived entries. Earlier log entries are not edited; the facts that superseded them are recorded here and in LOG-20261116-1549-resume-sync. The `IMPLEMENTATION_ROADMAP.md`, `PROJECT_HISTORY.md` and `TECHNICAL_REFERENCE.md` layout in the brief was adapted:
+    - `docs/activity-log.md` is used instead of `PROJECT_HISTORY.md`, on the operator's instruction.
+    - **No `TECHNICAL_REFERENCE.md` was created.** §3, §4, §7, §10, §11 and §12 stay in `CLAUDE.md`, where every session loads them, because moving the history alone brought the file well under the limit.
+- **Checks run before the commit:**
+  - Scratchpad `verify-split.mjs` compares against `git show HEAD:CLAUDE.md`. Results:
+    - The former §13 entry block, §14 and §16 bodies appear verbatim in the archive.
+    - 50 entries in HEAD and 50 in the archive, in the same order, none missing.
+    - No archived entry is duplicated in `CLAUDE.md`.
+  - Sizes: `CLAUDE.md` 61,064 characters before this paragraph was added (limit 150,000); `docs/activity-log.md` 189,118.
+  - `git diff --check` → exit 0. `git diff --no-index --check` on the two new files → no whitespace errors (exit 1 only because the files differ from `/dev/null`).
+  - Git warned that LF will be replaced by CRLF in this working copy (`core.autocrlf=true`); committed content is LF.
+  - Pattern scan of the three files for connection strings, `password=`, `secret=`, private keys and personal email domains → no matches.
+- **Commit:** only `CLAUDE.md`, `docs/activity-log.md` and `docs/IMPLEMENTATION_ROADMAP.md` are staged. Commit message: "docs: archive activity log, add implementation roadmap and slim CLAUDE.md", parent `d966e35`, directly on `main`. A file cannot record its own hash; see `git log -1 main`. **Not pushed** (not yet authorized). The hash is recorded in a follow-up entry.
+- **Failed attempt / correction:** the entry label was first written in advance as `…-1602-…`. The actual time was 15:53:58, so it was renamed to `…-1554-…` in `CLAUDE.md`, the archive introduction and the roadmap with `sed` (5 occurrences). Archived entries were not touched.
+- **Outside the repository** (session scratchpad): `split-claude.mjs`, `new-sections.md`.
+- Database/schema changes: none · Dependency changes: none · Application code and configuration: unchanged · Tests: none run (documentation only).
+
+### LOG-20261116-1555-commit-confirmed — Result of the LOG-20261116-1554-docs-restructure commit (not pushed)
+- Time: 2026-11-16 15:55:08 +03:00 (commit), 15:55:09 (check) (Africa/Nairobi) — source: `git log`, PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- Commit: `773db22` (`773db22c83cc3a11248b4ec60f271a5966b5b136`), parent `d966e35`, on `main`, authored under this clone's Git identity (Sean Macharia; unchanged). 3 files: 1,777 insertions, 1,450 deletions; two files created. `git commit` exit 0.
+- Committed `CLAUDE.md`: 62,568 characters.
+- **Not pushed:** `main` is 1 commit ahead of `origin/main` (`d966e35`). Pushing needs the operator's approval.
+- **This entry is uncommitted.** It goes into the next approved commit.
+- Working-tree status after: `CLAUDE.md` modified (this entry only); nothing staged.
+
+### LOG-20261116-1657-push — Commit the follow-up entry and push `main`
+- Time: 2026-11-16 16:57:08 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "commit the log entry and push to main". This authorizes pushing `773db22` and this commit.
+- **Starting state:** `main` = `773db22`; `git fetch origin` → `origin/main` still `d966e35` (1 ahead, 0 behind), so the push is a fast-forward. Only `CLAUDE.md` modified (LOG-20261116-1555-commit-confirmed).
+- **What changed:** this entry and LOG-20261116-1555-commit-confirmed committed (`CLAUDE.md` only), then `git push origin main` (no force).
+- **Push result:** a commit cannot record its own hash or the push that follows it. Verify with `git ls-remote origin main`, which should match `git rev-parse main`. If the push had failed, the next session must record that here as a new entry.
+- Database/schema changes: none · Dependency changes: none · Application code: unchanged · Tests: none run (documentation only).
+- **Still open:** approval to start Phase 2; operator identity; the repository owner's review of the four 2026-11-04 decisions; machine setup for backend work (§14).
+
+### LOG-20261116-1658-session-close — Push confirmed; operator identified; session closed
+- Time: 2026-11-16 16:58:25 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: **Sean (collaborator)**, stated by the operator in this session ("Sean worked on this session") / Claude Code (Opus 5.5). This applies to every 2026-11-16 entry above (LOG-20261116-1549-resume-sync to LOG-20261116-1657-push), which said "operator not confirmed". Those entries are not edited. The Claude Code account signed in during the session belongs to a different person than the Git identity; the operator's statement is recorded as given.
+- **Instruction received:** "just make sure everything is committed and pushed for now. Sean worked on this session".
+- **Push result for LOG-20261116-1657-push (verified):** `git push origin main` → `d966e35..3bcc128 main -> main`. Afterwards `git ls-remote origin main` = `git rev-parse main` = `3bcc128186e8cc8f06eb5f40dba88abf5b9b9d0d`; working tree clean.
+- **What changed:** this entry, and §14 "Awaiting decisions" (operator identity removed as resolved). Committed and pushed to `main` with the operator's authorization. The hash of this commit is visible with `git log -1 main`.
+- **Not done (deliberately):** Phase 2 not started; no machine setup; no tests, builds or database commands. Database/schema changes: none · Dependency changes: none · Application code: unchanged.
+- **Unfinished items for the next session:**
+  - Approval to start Phase 2.
+  - The repository owner's review of the four 2026-11-04 decisions (§9).
+  - Machine setup for backend work on this clone (§14).
+- Working-tree status after: expected clean, with `main` = `origin/main`. Confirm with `git status` at the start of the next session.

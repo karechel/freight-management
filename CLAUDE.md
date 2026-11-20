@@ -85,7 +85,7 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Backend/backend/src/common/`, `src/audit/`, `src/app.setup.ts` | Error format and database-error mapping, pagination DTO, audit log service, global HTTP setup |
 | `Backend/backend/src/parties/` | Customers and contacts API (reused by agents and partners later): rules, DTOs, service, controller. `src/common/parse-id.pipe.ts` reads ids from URLs |
 | `Frontend/frontend/app/parties/`, `components/customers/`, `lib/customers.ts`, `lib/customer-form.ts`, `lib/api/server.ts` | Live Customers pages, their rules and types, and backend reads made while rendering on the server |
-| `Backend/backend/src/quotations/`, `src/bookings/`, `src/credit/`, `src/charge-types/` | Phase 2 (2026-11-20, not yet committed): quotations API and rules, bookings and conversion, the shared credit-limit check, the charge-type list. Shared helpers in `src/common/text-fields.ts`, `decimal-fields.ts` and `src/parties/party-checks.ts` |
+| `Backend/backend/src/quotations/`, `src/bookings/`, `src/credit/`, `src/charge-types/` | Phase 2 (2026-11-20, on `feature/quotations-phase2`, awaiting PR review): quotations API and rules, bookings and conversion, the shared credit-limit check, the charge-type list. Shared helpers in `src/common/text-fields.ts`, `decimal-fields.ts` and `src/parties/party-checks.ts` |
 | `Frontend/frontend/lib/live-quotations.ts`, `components/quotations/live-*.tsx`, `booking-detail.tsx`, `app/bookings/`, `lib/api/quotation-options.ts` | Phase 2 live quotation and booking pages. Demo quotation components are kept for demo references |
 | `Backend/backend/src/seed/` | `db:seed` (setup data, first admin) and `db:seed:demo` (fictional data, refuses production) |
 | `Backend/backend/test/` | End-to-end tests; `test/support/` creates and migrates the separate `*_test` database |
@@ -115,7 +115,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 |---|---|---|
 | Backend `GET /health` | **Verified** 2026-11-03 | Unit and end-to-end tests |
 | Customers (Phase 1): list, search, filters, paging, create, edit, archive, restore, contacts, calculated figures, per-role billing access | **Verified** 2026-11-04; merged to `main` (PR #4, `d966e35`, 2026-11-04; recorded in LOG-20261116-1549-resume-sync) | LOG-20261104-1056-phase1 and LOG-20261104-1120-phase1-decisions: 70 unit tests, 112 end-to-end tests, 91 browser checks. Live pages need sign-in |
-| Quotations and bookings (Phase 2): quotations API, server totals, status flow, expiry, duplicate, conversion to a booking, standalone bookings, confirm and cancel, credit-limit check with override, archived-customer refusal; live quotation pages and minimal booking pages | **Verified** 2026-11-20 on the collaborator's clone; **not committed** | LOG-20261120-1343-phase2-backend and LOG-20261120-1412-phase2-done: 104 unit tests, 142 end-to-end tests, 14 browser checks |
+| Quotations and bookings (Phase 2): quotations API, server totals, status flow, expiry, duplicate, conversion to a booking, standalone bookings, confirm and cancel, credit-limit check with override, archived-customer refusal; live quotation pages and minimal booking pages | **Verified** 2026-11-20 (re-run on the branch the same day); committed on `feature/quotations-phase2` (`ec5c760`) and pushed; **awaiting PR review and merge**, not on `main` | LOG-20261120-1343-phase2-backend, LOG-20261120-1412-phase2-done, LOG-20261120-1425-phase2-reconcile: 104 unit tests, 142 end-to-end tests, 14 browser checks |
 | Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03; merged to `main` (PR #3) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
 | Configurable reference formats | **Verified** 2026-11-03; merged to `main` (PR #3) | Includes concurrency, rollback and "issued references never change" tests. No record type uses them yet; quotations are first, in Phase 2 |
 | Frontend sign-in, sign-out, Numbering editor | **Verified** in headless Chrome 2026-11-03; merged to `main` (PR #3) | Demo pages remain open without signing in |
@@ -146,7 +146,10 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 
 **The roadmap is in `docs/IMPLEMENTATION_ROADMAP.md`** (all phases, status, dependencies, completion criteria). **The detailed backend roadmap proposal is in `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`** (2026-11-20, awaiting review). It keeps Phases 0–3 as approved, splits Phase 3 into 3A and 3B, splits the approved "Phase 4, remaining modules" into Phases 4–16, and renumbers client data import (approved "Phase 5") as Phase 17 and deployment as Phase 18. The renumbering is not in effect until the repository owner approves it. The approved scope of each backend phase is in `docs/backend-implementation-plan.md`. The 2026-10-15 recommendation list that used to be here is preserved in the roadmap's "Superseded plans" section (moved 2026-11-16).
 
-**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3); **database design and schema implementation** (2026-10-26, repository owner: approved schema, Node 24.20.0 pin, migration on the owner's own local DB, on branch `feature/database-schema`). **Backend Phase 0** (2026-11-03, repository owner: foundation, auth, `ReferenceFormat` migration, local test database, seeding the owner's local DB; on `feature/backend-foundation`; see `docs/backend-implementation-plan.md`). Later backend phases follow that plan. Integrations and deployment are **not** authorized. **Backend Phase 1** (customers) was built and merged on 2026-11-04. **Phase 2 has not started:** the repository owner's instruction relayed on 2026-11-16 is to implement Phases 2, 3 and 4 one at a time, but each start needs the operator's explicit approval in the session (LOG-20261116-1549-resume-sync).
+**Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3); **database design and schema implementation** (2026-10-26, repository owner: approved schema, Node 24.20.0 pin, migration on the owner's own local DB, on branch `feature/database-schema`). **Backend Phase 0** (2026-11-03, repository owner: foundation, auth, `ReferenceFormat` migration, local test database, seeding the owner's local DB; on `feature/backend-foundation`; see `docs/backend-implementation-plan.md`). Later backend phases follow that plan. Integrations and deployment are **not** authorized. **Backend Phase 1** (customers) was built and merged on 2026-11-04. **Phase 2 has not started:** the repository owner's instruction relayed on 2026-11-16 is to implement Phases 2, 3 and 4 one at a time, but each start needs the operator's explicit approval in the session (LOG-20261116-1549-resume-sync). *Update 2026-11-20:*
+- Phase 2 was authorized by the operator and implemented (LOG-20261120-1315-phase2-start onwards).
+- It is committed and pushed on `feature/quotations-phase2` and awaits PR review.
+- Phase 3 has not started.
 
 ## 7. Database and integration notes
 
@@ -237,6 +240,11 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
+- **Re-verified on branch `feature/quotations-phase2` at `ab318bb` (2026-11-20 14:22–14:30, LOG-20261120-1425-phase2-reconcile):**
+  - Backend: `tsc`, lint and build → pass; `npm test` → 10 files, 104 pass; `npm run test:e2e` → 6 files, 142 pass. Prisma `migration check` → pass; `db verify` → match.
+  - Frontend: `next typegen`, `tsc`, lint and build → pass.
+  - Headless Chrome against fresh production builds → 14/14 pass.
+  - The same figures as the first run below; the code had not changed since.
 - **Latest results (2026-11-20, collaborator's clone with Git identity Sean Macharia, Node 24.20.0, PostgreSQL 18, LOG-20261120-1412-phase2-done):**
   - Backend: `tsc`, lint and build → pass; `npm test` → 10 files, 104 tests pass; `npm run test:e2e` → 6 files, 142 tests pass. That is all 112 earlier tests plus 30 new Phase 2 tests.
   - Prettier: clean except the three files already flagged before this session (`src/prisma/contract.d.ts`, `db.ts`, `prisma.module.ts`).
@@ -286,16 +294,21 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 13. (2026-10-26) The frontend demo types differ from the database in places (`USD` currency, `mpesa`, a stored `booked` quotation status, integer-cent prices, a single customs entry per shipment). See `docs/database-design.md` §7. The API layer or the frontend must reconcile these.
 14. (2026-10-26) Applying a migration to a fresh database (baseline + delta) has not been tested; only the delta was applied, on the repository owner's DB. **Resolved 2026-11-03: the test database migrates from empty on the first end-to-end run.**
 15. (2026-11-03) Signing out does not revoke a token (no server-side session store): a stolen token works until it expires, up to 8 hours, unless the user is disabled. The login limit is in memory, so it resets on restart and applies per server process.
+16. (2026-11-20, Phase 2) The fictional demo seed (`npm run db:seed:demo`) has no quotations or bookings, so a fresh database shows empty Quotations and Bookings lists until someone creates them.
+17. (2026-11-20, Phase 2) No page creates a standalone booking (a booking without a quotation). `POST /api/bookings` exists and is tested, but bookings can only be made in the UI by converting an accepted quotation.
+18. (2026-11-20, Phase 2) A demo quotation reference (such as `QT-2610-0057`, linked from demo pages) opens the demo record under `/quotations/...`. That page shows the top bar's "Live data" badge together with its own "Demonstration data" banner, which is inconsistent.
+19. (2026-11-20, Phase 2) Owner review pending, not a defect: the credit rule (decided by the operator on 2026-11-20) and the seeded permission matrix, in which only admin holds both `quotations.manage` and `credit.override`. See §14.
 
 ## 13. Shared activity log
 
 Append-only, oldest first. Never edit past entries; corrections are new entries referencing the original. Never record secrets.
 
-**Older entries are archived verbatim in `docs/activity-log.md`, Part C** (LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, moved 2026-11-16 by LOG-20261116-1554-docs-restructure). Summary of the archived period, for orientation only:
+**Older entries are archived verbatim in `docs/activity-log.md`, Part C** (LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, moved 2026-11-16 by LOG-20261116-1554-docs-restructure; then LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close, moved 2026-11-20 by LOG-20261120-1425-phase2-reconcile). Summary of the archived period, for orientation only:
 - **2026-10-05 – 10-15:** initial scaffold (`b68a0cd`); the commit titled "Phase 0" (`42ae8a8`: test and env fixes, before the backend plan defined its own Phase 0); read-only audit; this handover file; documentation audit (archive Part A) and its corrections.
 - **2026-10-19 – 10-22:** frontend on fictional demo data (`feature/frontend-foundation`), built in three frontend "phases" (shipments and delays; quotations, customers and agents; document uploads), then the grouped sidebar, expenses, reports, users, settings and audit log, notifications and tasks; headless-browser review; fresh-clone check.
 - **2026-10-26 – 10-29:** database schema (33 tables, migrations) and Node 24.20.0 pin (`feature/database-schema`); PRs #1 and #2 merged; read-only backend audit.
 - **2026-11-03 – 11-04:** backend plan approved; backend Phase 0 (sign-in, permissions, reference formats, seeds) and Phase 1 (customers) built, verified, committed and pushed; PR #3 merged. The PR #4 merge is recorded in LOG-20261116-1549-resume-sync.
+- **2026-11-16:** resumed on the collaborator's clone; `main` pulled to `d966e35`; this file split below the size limit (history archived, `docs/IMPLEMENTATION_ROADMAP.md` written); committed and pushed to `main` (`773db22`, `3bcc128`, `cbad567`); operator identified as Sean (collaborator).
 
 Entry template:
 
@@ -314,153 +327,6 @@ Entry template:
 - Commit: <hash> | not committed · Pushed: yes (confirmed how) | no
 - Working-tree status after:
 ```
-
-### LOG-20261116-1549-resume-sync — Resume after break: read-only phase audit, switch to `main` and fast-forward pull
-- Time: session started 2026-11-16 14:49:20 +03:00; pull ran 15:48:42–15:48:48 +03:00; this entry written shortly after (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: collaborator's local clone (Git identity Sean Macharia, unchanged); **operator not confirmed in this session** (the Claude Code account signed in differs from the clone's Git identity; confirmation requested) / Claude Code (Opus 5.5).
-- **Instructions received:**
-  1. Pasted brief "Resume, Documentation Recovery and Phase Audit", relaying the repository owner's instructions:
-     - Pull `main`.
-     - Summarize Phases 0 and 1 and list the remaining phases.
-     - Restructure `CLAUDE.md` below the 150k-character limit.
-     - Do not implement Phase 2 yet.
-     - Stop before pulling if not on `main` or if the working tree is dirty.
-  2. Pasted standing instruction "Maintain a Complete and Accurate Activity Log in CLAUDE.md": log every session completely and factually, throughout the session, never rewriting history; a final documentation check before ending. This restates §9 and §15 rule 2, and now applies to every future session.
-  3. "yes, switch to main and pull".
-- **Starting state:**
-  - Branch `feature/frontend-foundation` = `9c5bdf3` = `origin/feature/frontend-foundation`.
-  - Working tree clean: no modified, staged or untracked files. No stashes.
-  - Local `main` = `883f93b`. `origin` = `https://github.com/karechel/freight-management.git`.
-- **Commands that changed state:**
-  - `git fetch origin --prune`:
-    - `origin/main` moved `883f93b` → `d966e35`.
-    - New remote branches: `feature/backend-foundation`, `feature/customers-phase1`, `feature/database-schema`.
-    - The PowerShell call reported exit code 255, although every command in it printed its output. The most likely cause is a final `Select-Object -First 80` truncating `git log` output; not investigated further.
-  - After the operator's approval: `git switch main`, then `git pull --ff-only origin main` → fast-forward `883f93b..d966e35`, 219 files changed. Afterwards `main` = `origin/main` (0 ahead, 0 behind) and the working tree was clean.
-  - Nothing was stashed, reset, merged or rebased, and nothing was pushed.
-- **Findings (read-only, from Git and from files on `origin/main`):**
-  - `feature/frontend-foundation` (`9c5bdf3`) is an ancestor of `origin/main`, so nothing on it is missing from `main`.
-  - The repository owner merged four PRs:
-    - #1 `f663dd2`: frontend.
-    - #2 `293a951`: database schema.
-    - #3 `ff7d6fb`: backend Phase 0 (`af73edf`).
-    - #4 `d966e35`: Phase 1 customers (`94a575f`). Merged 2026-11-04 11:40:52 +03:00; `git diff 94a575f d966e35` is empty.
-  - "Phase 0" and "Phase 1" now refer to the backend phases in `docs/backend-implementation-plan.md` (approved 2026-11-03). They are not the October frontend "phases 1–3".
-  - Phases 2 (quotations and bookings), 3 (shipments and tracking), 4 (remaining modules, scope "to be agreed") and 5 (client data import) are not started.
-  - The schema already has the 33 models Phases 2–3 need, including `Quotation`, `QuotationLine`, `Booking`, `CreditCheck` and `Shipment`.
-  - `CLAUDE.md` on `main`: 231,661 characters (`wc -m`) before this entry, over Claude Code's 150k-character limit. The 174.7k figure Claude Code reported was the older copy on `feature/frontend-foundation`.
-  - Discrepancy: §15 rule 7 names `docs/activity-log.md` for moved history; the brief proposes `docs/PROJECT_HISTORY.md`. Awaiting the operator's choice.
-- **Correction (to LOG-20261104-1135-phase1-commit and §5, §12, §14; originals left unchanged):** PR #4 **was merged** into `main` as `d966e35` on 2026-11-04 11:40:52 +03:00, by the GitHub account recorded as committer "Chelsea Nyaga" (Git metadata). The merge was not logged before this entry. §5 rows and §12 items that say "branch, not merged" for Phase 0 or Phase 1 are out of date: both are on `main`.
-- **Checks and tests:**
-  - Not run in this session: `tsc`, lint, unit, end-to-end and browser tests, and builds.
-  - No `node_modules` reinstall (`npm ci`), no `.env` changes, no Prisma or database commands.
-  - The Phase 0/1 results quoted to the operator were the recorded ones in §11, not re-verified.
-- **Deliberately not changed:**
-  - Application code, configuration, dependencies, schema, migrations.
-  - `CLAUDE.md` restructuring, pending the operator's decisions on the history file name and on direct-to-`main` vs. branch and PR. §5, §12 and §14 are not rewritten yet; the correction above records the facts.
-  - Phase 2 not started (explicit approval required).
-- **Outside the repository:**
-  - Session scratchpad: `main-CLAUDE.md`, `plan.md`, `dbdesign.md` (copies via `git show origin/main:…`) and `session-notes-20261116.md` (running notes).
-  - The first extraction failed because the scratchpad folder did not exist yet; it was created and the command retried.
-  - Claude Code memory note `log-every-phase-in-claude-md.md`, rewritten to hold the standing logging instruction.
-- **This machine still needs setup before backend work** (not done; each step that writes to a database needs approval):
-  - Node 24.20.0 (`.nvmrc`).
-  - `npm ci` in both apps.
-  - Backend `.env` entries (`JWT_SECRET`, `CORS_ORIGINS`, admin and demo passwords; see `Backend/backend/.env.example`).
-  - A local PostgreSQL with migrations and `npm run db:seed` (plus `db:seed:demo`).
-  - This machine's database state is unknown.
-- **Awaiting decisions:**
-  1. History file name (`docs/activity-log.md` or `docs/PROJECT_HISTORY.md`).
-  2. Commit the documentation restructure straight to `main`, or via a branch and PR.
-  3. Operator identity for the log.
-  4. Approval to start Phase 2.
-  5. Repository owner's review of the four 2026-11-04 decisions (§9).
-- Database/schema changes: none · Dependency changes: none · Application code: unchanged by this session.
-- Files edited: `CLAUDE.md` (this entry only). Commit: not committed · Pushed: no.
-- Working-tree status after: branch `main` = `origin/main` = `d966e35`; `CLAUDE.md` modified (this entry); nothing staged.
-
-### LOG-20261116-1554-docs-restructure — `CLAUDE.md` split below the size limit; history archived; roadmap written; committed to `main`
-- Time: 2026-11-16, from about 15:50 to 15:53:58 +03:00 (the label time), then the checks and commit below (Africa/Nairobi) — source: PowerShell `Get-Date`. The exact start time was not recorded.
-- Contributor/session: same session as LOG-20261116-1549-resume-sync; operator not confirmed / Claude Code (Opus 5.5).
-- **Instructions received:**
-  - "use docs/activity-log.md and commit straight to main".
-  - This answers the two questions in LOG-20261116-1549-resume-sync: the history file name (as §15 rule 7 already said), and committing the documentation directly to `main`.
-  - **Pushing was not mentioned**, so nothing is pushed until the operator approves it.
-- **Starting state:** branch `main` = `origin/main` = `d966e35`. Only `CLAUDE.md` modified (LOG-20261116-1549-resume-sync), at 241,385 characters.
-- **What changed:**
-  - **Created `docs/activity-log.md`** (about 189k characters). It holds, verbatim, the blocks taken from `CLAUDE.md` as committed at `d966e35` (`git show HEAD:CLAUDE.md`):
-    - Part A: former §16 audit.
-    - Part B: former §14 handover states.
-    - Part C: all 50 former §13 entries, LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, oldest first.
-    - A short introduction with rules: do not edit; new entries go in `CLAUDE.md`; section numbers refer to the old layout.
-  - **Created `docs/IMPLEMENTATION_ROADMAP.md`:**
-    - the three meanings of "phase"
-    - the work done before the plan
-    - backend Phases 0–5 with status, dependencies, schema, endpoints, tests and completion criteria (criteria marked "proposed" where the approved plan has none)
-    - open items
-    - the former §6 recommendation list, unchanged, under "Superseded plans"
-  - **Rebuilt `CLAUDE.md`** (scratchpad script `split-claude.mjs` and text file `new-sections.md`):
-    - A "Read before making changes" block at the top lists the supporting documents.
-    - §1–§12 kept in place.
-    - §13: the template and LOG-20261116-1549-resume-sync, with a summary of the archived period and a pointer to it.
-    - §14 rewritten for the current state.
-    - §15 rules 1, 2 and 5 extended; rule 7 replaced by the archiving procedure; rule 8 explains old section numbers.
-    - §16 replaced by a pointer to archive Part A.
-  - **Living-section updates in `CLAUDE.md`**, factual and based on the merges recorded in LOG-20261116-1549-resume-sync:
-    - §3: heading, and the backend-foundation line.
-    - §4: rows for the two new docs.
-    - §5: Phase 0 and Phase 1 rows now say merged; module rows updated (auth Verified; customers Verified; users in progress; the rest planned).
-    - §6: replaced by a pointer to the roadmap; authorized-phases note extended (Phase 1 merged; Phase 2 not started and needs approval).
-    - §8: `GET /` removed.
-    - §12: items 1, 2, 5, 8, 9 and 12 now say "on `main`"; item 10 points to the roadmap.
-  - **Not changed:** §9 decisions, §10 setup, §11 results, and all archived entries. Earlier log entries are not edited; the facts that superseded them are recorded here and in LOG-20261116-1549-resume-sync. The `IMPLEMENTATION_ROADMAP.md`, `PROJECT_HISTORY.md` and `TECHNICAL_REFERENCE.md` layout in the brief was adapted:
-    - `docs/activity-log.md` is used instead of `PROJECT_HISTORY.md`, on the operator's instruction.
-    - **No `TECHNICAL_REFERENCE.md` was created.** §3, §4, §7, §10, §11 and §12 stay in `CLAUDE.md`, where every session loads them, because moving the history alone brought the file well under the limit.
-- **Checks run before the commit:**
-  - Scratchpad `verify-split.mjs` compares against `git show HEAD:CLAUDE.md`. Results:
-    - The former §13 entry block, §14 and §16 bodies appear verbatim in the archive.
-    - 50 entries in HEAD and 50 in the archive, in the same order, none missing.
-    - No archived entry is duplicated in `CLAUDE.md`.
-  - Sizes: `CLAUDE.md` 61,064 characters before this paragraph was added (limit 150,000); `docs/activity-log.md` 189,118.
-  - `git diff --check` → exit 0. `git diff --no-index --check` on the two new files → no whitespace errors (exit 1 only because the files differ from `/dev/null`).
-  - Git warned that LF will be replaced by CRLF in this working copy (`core.autocrlf=true`); committed content is LF.
-  - Pattern scan of the three files for connection strings, `password=`, `secret=`, private keys and personal email domains → no matches.
-- **Commit:** only `CLAUDE.md`, `docs/activity-log.md` and `docs/IMPLEMENTATION_ROADMAP.md` are staged. Commit message: "docs: archive activity log, add implementation roadmap and slim CLAUDE.md", parent `d966e35`, directly on `main`. A file cannot record its own hash; see `git log -1 main`. **Not pushed** (not yet authorized). The hash is recorded in a follow-up entry.
-- **Failed attempt / correction:** the entry label was first written in advance as `…-1602-…`. The actual time was 15:53:58, so it was renamed to `…-1554-…` in `CLAUDE.md`, the archive introduction and the roadmap with `sed` (5 occurrences). Archived entries were not touched.
-- **Outside the repository** (session scratchpad): `split-claude.mjs`, `new-sections.md`.
-- Database/schema changes: none · Dependency changes: none · Application code and configuration: unchanged · Tests: none run (documentation only).
-
-### LOG-20261116-1555-commit-confirmed — Result of the LOG-20261116-1554-docs-restructure commit (not pushed)
-- Time: 2026-11-16 15:55:08 +03:00 (commit), 15:55:09 (check) (Africa/Nairobi) — source: `git log`, PowerShell `Get-Date`.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- Commit: `773db22` (`773db22c83cc3a11248b4ec60f271a5966b5b136`), parent `d966e35`, on `main`, authored under this clone's Git identity (Sean Macharia; unchanged). 3 files: 1,777 insertions, 1,450 deletions; two files created. `git commit` exit 0.
-- Committed `CLAUDE.md`: 62,568 characters.
-- **Not pushed:** `main` is 1 commit ahead of `origin/main` (`d966e35`). Pushing needs the operator's approval.
-- **This entry is uncommitted.** It goes into the next approved commit.
-- Working-tree status after: `CLAUDE.md` modified (this entry only); nothing staged.
-
-### LOG-20261116-1657-push — Commit the follow-up entry and push `main`
-- Time: 2026-11-16 16:57:08 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Instruction received:** "commit the log entry and push to main". This authorizes pushing `773db22` and this commit.
-- **Starting state:** `main` = `773db22`; `git fetch origin` → `origin/main` still `d966e35` (1 ahead, 0 behind), so the push is a fast-forward. Only `CLAUDE.md` modified (LOG-20261116-1555-commit-confirmed).
-- **What changed:** this entry and LOG-20261116-1555-commit-confirmed committed (`CLAUDE.md` only), then `git push origin main` (no force).
-- **Push result:** a commit cannot record its own hash or the push that follows it. Verify with `git ls-remote origin main`, which should match `git rev-parse main`. If the push had failed, the next session must record that here as a new entry.
-- Database/schema changes: none · Dependency changes: none · Application code: unchanged · Tests: none run (documentation only).
-- **Still open:** approval to start Phase 2; operator identity; the repository owner's review of the four 2026-11-04 decisions; machine setup for backend work (§14).
-
-### LOG-20261116-1658-session-close — Push confirmed; operator identified; session closed
-- Time: 2026-11-16 16:58:25 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: **Sean (collaborator)**, stated by the operator in this session ("Sean worked on this session") / Claude Code (Opus 5.5). This applies to every 2026-11-16 entry above (LOG-20261116-1549-resume-sync to LOG-20261116-1657-push), which said "operator not confirmed". Those entries are not edited. The Claude Code account signed in during the session belongs to a different person than the Git identity; the operator's statement is recorded as given.
-- **Instruction received:** "just make sure everything is committed and pushed for now. Sean worked on this session".
-- **Push result for LOG-20261116-1657-push (verified):** `git push origin main` → `d966e35..3bcc128 main -> main`. Afterwards `git ls-remote origin main` = `git rev-parse main` = `3bcc128186e8cc8f06eb5f40dba88abf5b9b9d0d`; working tree clean.
-- **What changed:** this entry, and §14 "Awaiting decisions" (operator identity removed as resolved). Committed and pushed to `main` with the operator's authorization. The hash of this commit is visible with `git log -1 main`.
-- **Not done (deliberately):** Phase 2 not started; no machine setup; no tests, builds or database commands. Database/schema changes: none · Dependency changes: none · Application code: unchanged.
-- **Unfinished items for the next session:**
-  - Approval to start Phase 2.
-  - The repository owner's review of the four 2026-11-04 decisions (§9).
-  - Machine setup for backend work on this clone (§14).
-- Working-tree status after: expected clean, with `main` = `origin/main`. Confirm with `git status` at the start of the next session.
 
 ### LOG-20261120-1246-backend-roadmap — Detailed backend roadmap written (planning and documentation only)
 - Time: session started 2026-11-20 12:46:18 +03:00; this entry written 12:56:36 +03:00 (Africa/Nairobi). Source: PowerShell `Get-Date`.
@@ -751,37 +617,89 @@ Entry template:
   - `CLAUDE.md` is near the 100,000-character archive threshold (§15 rule 7).
   - Phase 3 not started.
 
+### LOG-20261120-1425-phase2-reconcile — Repository verified; Phase 2 branch re-validated; CLAUDE.md reconciled; history archived
+- Time: 2026-11-20, from 14:22:16 (start) to 14:27:38 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** pasted brief "Phase 2 Documentation Reconciliation and Pull Request":
+  - Verify the repository.
+  - Reconcile §5, §11, §12, §14 and the phase status (§14 still said Phase 2 was uncommitted).
+  - Re-validate the branch.
+  - Open the PR with a given title and contents.
+  - Never merge, delete the branch, start Phase 3, change rules or permissions, or rewrite history.
+- **Repository verification (read-only):**
+  - `origin` = `https://github.com/karechel/freight-management.git`; on branch `feature/quotations-phase2`; working tree clean.
+  - `git fetch origin --prune`: local `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `ab318bb`.
+  - `ec5c7601…` is an ancestor of the branch (`git merge-base --is-ancestor` exit 0).
+  - Against `origin/main` (`cbad567`): 0 behind, 2 ahead.
+  - No PR exists for the branch: the public GitHub API `GET /repos/karechel/freight-management/pulls?state=all&head=karechel:feature/quotations-phase2` returned 0, using a generic User-Agent and no credentials.
+  - `gh` is not installed: not on `PATH`, nor in the usual install folders.
+- **Validation re-run on the branch at `ab318bb` (results from this session):**
+  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, 104 pass; `npm run build` pass; `prisma migration check` → "All checks passed"; `prisma db verify` → "Database marker and schema match contract"; `npm run test:e2e` → 6 files, **142 pass** (72 s; writes only the `*_test` database).
+  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0; build pass (includes `/bookings` and `/bookings/[reference]`).
+  - Headless Chrome: the scratchpad `browser-check.mjs`, run against fresh production builds on ports 3000 and 3001 with a fresh profile → **14/14 pass**. It added a few more fictional records to the development database.
+  - Servers stopped by the ports' owning processes (3000 → 28944, 3001 → 6592).
+  - No failures.
+- **Documentation changes:**
+  - `CLAUDE.md`:
+    - §4 Phase 2 row (branch, awaiting PR review).
+    - §5 Phase 2 row (committed and pushed, awaiting review).
+    - §6 a dated update to the authorized-phases note.
+    - §11 the re-verification results.
+    - §12 new items 16–19: no demo-seed quotations; no standalone-booking page; inconsistent indicators on demo-fallback pages; owner review pending.
+    - **§14 rewritten** to the verified state.
+  - `docs/IMPLEMENTATION_ROADMAP.md` and `docs/backend-implementation-plan.md`: Phase 2 status changed from "not committed" to "committed on `feature/quotations-phase2`, awaiting PR review".
+  - No code, schema, permission or business-rule change.
+- **History archived (§15 rule 7):** `CLAUDE.md` had reached 103,094 characters.
+  - The five oldest §13 entries, LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close (15,487 characters), were moved verbatim and in order to the end of `docs/activity-log.md` Part C.
+  - The §13 summary was updated (pointer and a 2026-11-16 bullet). No archived or remaining entry was edited.
+- **Note on earlier entries:** entries up to LOG-20261120-1412-phase2-done describe Phase 2 as "not committed". That was true when they were written; LOG-20261120-1417 and -1420 record the commit and push. They are not edited.
+
+### LOG-20261120-1430-phase2-pr — Pull request: not created from this machine (`gh` missing); link and text prepared
+- Time: 2026-11-20, about 14:30 +03:00 (Africa/Nairobi). Exact time unavailable; written straight after LOG-20261120-1425-phase2-reconcile.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Outcome:** **no PR was created.**
+  - The GitHub CLI is not installed. Installing it would add software to the machine and is not authorized.
+  - Using the Git credential helper's stored token directly was deliberately not done: it would mean extracting a credential without permission.
+  - The PR must be opened in the browser by a contributor signed in to GitHub.
+- **PR details prepared:**
+  - Base `main`, head `feature/quotations-phase2`.
+  - Commits: `ec5c760` (Phase 2), `ab318bb` (push log), plus the commit that contains this entry.
+  - Title: "Phase 2: Quotations, Bookings and Credit Controls".
+  - Creation link: `https://github.com/karechel/freight-management/compare/main...feature/quotations-phase2?expand=1`.
+  - The description (scope, the credit rule as implemented, the override audit trail, archived-customer restrictions, frontend, tests, owner-review items, known gaps) is in the session scratchpad `pr-body.md` and was given to the operator in the session reply.
+- **Not done:** no merge, no branch deletion, Phase 3 not started.
+- **Commit:** this entry and LOG-20261120-1425-phase2-reconcile are committed together on `feature/quotations-phase2` and pushed. The hash and push are verified in the session reply (`git ls-remote origin refs/heads/feature/quotations-phase2`).
+
 ## 14. Current handover state
 
-Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B.
+Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-20 (LOG-20261120-1425-phase2-reconcile), because the earlier text still said Phase 2 was uncommitted and not started.
 
-- **Git (2026-11-16, LOG-20261116-1554-docs-restructure):** `main` contains PR #1 (frontend), #2 (database schema), #3 (backend Phase 0) and #4 (Phase 1 customers, merge `d966e35`), plus the documentation restructure commit made in that session. Verify with `git log -1 main` and `git ls-remote origin`. The old feature branches still exist on `origin`.
-- **Done:** backend Phase 0 and Phase 1, recorded as verified in §11 (not re-run on 2026-11-16). Live pages: sign-in, Customers, Settings › Numbering. All other pages still use fictional demo data in the browser session.
-- **Phase 2 (2026-11-20): built and verified on the collaborator's clone, NOT committed** (LOG-20261120-1412-phase2-done).
-  - Live pages now also include Quotations and Bookings.
-  - This clone is set up for backend work: `npm ci`, `.env` keys, development database migrated and seeded, test database created.
-  - Next steps:
-    1. The operator approves a commit on a feature branch, `feature/quotations-phase2`, and a PR.
-    2. The repository owner reviews the 2026-11-20 credit rule and the permission matrix.
-    3. Phase 3 starts only after approval.
-- **Next:** Phase 2, quotations and bookings (`docs/IMPLEMENTATION_ROADMAP.md`), **awaiting explicit approval**. Phase 2 must refuse new work for archived customers (`docs/backend-implementation-plan.md` §6).
-- **Preparing for backend development (2026-11-20, LOG-20261120-1246-backend-roadmap):** the detailed roadmap proposal `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` (Phases 0–18) is written and awaits review by the collaborator, the repository owner and an independent reviewer. **Recommended next actions, in order:**
-  1. Review the roadmap and answer the "Before Phase 2" decisions in its §6.
-  2. Set up this clone for backend work and re-run the Phase 0/1 tests as a baseline.
-  3. Agree the Phase 2 API shapes.
-  4. Approve the start of Phase 2.
-  Not committed yet.
-- **Machine setup:** the collaborator's clone (Git identity Sean Macharia) has not been set up for backend work since the merges: Node 24.20.0, `npm ci` in both apps, the new `.env` keys, a local PostgreSQL with migrations and seeds (§10). Its database state is unknown. Any database that already had Phase 0 needs `npm run db:seed` after pulling Phase 1.
-- **Awaiting decisions:**
-  - Approval to start Phase 2.
-  - The repository owner's review of the four 2026-11-04 decisions (§9).
-  - The KRA PIN format, later.
-  - Phase 4 scope.
-  - Keep or remove the `deploy` script.
-  - Prisma RC vs stable, and the unused `@prisma/client` 7.
-  - `helmet` and a shared rate limiter before launch.
-  - An accountant's review of the seeded tax defaults.
-  - KRA iCMS access.
+- **Git (verified 2026-11-20 with `git fetch` and `git rev-parse`):**
+  - `main` = `origin/main` = `cbad567`. It contains PR #1 (frontend), #2 (database schema), #3 (backend Phase 0), #4 (Phase 1 customers, merge `d966e35`) and the 2026-11-16 documentation commits.
+  - **`feature/quotations-phase2`** exists locally and on `origin`, 2 commits ahead of `main` and 0 behind:
+    - `ec5c760`: Phase 2 implementation, tests and docs.
+    - `ab318bb`: the log entry for that push.
+    - Plus the documentation-reconciliation commit from LOG-20261120-1425-phase2-reconcile.
+  - The old feature branches still exist on `origin`.
+- **Done:**
+  - Backend Phases 0 and 1 (on `main`).
+  - **Backend Phase 2, quotations and bookings: implemented, committed and pushed on `feature/quotations-phase2`. It awaits PR review and merging by the repository owner.**
+  - Phase 2 checks were re-run on the branch on 2026-11-20, all passing: 104 unit, 142 end-to-end, 14/14 browser (§11).
+  - Live pages: sign-in, Customers, Settings › Numbering, Quotations (list, detail, new, edit) and Bookings (list, detail). All other pages still use fictional demo data in the browser session.
+- **Pull request:** to be opened from `feature/quotations-phase2` into `main`; see the newest §13 entry for its number or link. Do not merge without the repository owner.
+- **Phase 3 (shipments and tracking): not started.** It needs the operator's explicit approval, after Phase 2 is merged.
+- **Waiting for the repository owner (Phase 2):**
+  - The **credit rule** decided by the operator on 2026-11-20 and not yet approved by the owner: outstanding issued-invoice balance + booking value (quotation total, or the estimated value of a standalone booking) against the credit limit; customers without a limit are not checked.
+  - The **permission matrix:** only admin holds both `quotations.manage` and `credit.override`. Sales can create bookings but cannot override; finance and management can override but cannot create bookings. Whether to change this is the owner's decision; no permissions were changed.
+  - The four 2026-11-04 Phase 1 decisions (§9).
+- **Known Phase 2 gaps** (§12 items 16–18): no fictional quotations or bookings in the demo seed; no page for standalone bookings (the API exists); demo-fallback quotation pages show both the "Live data" badge and a "Demonstration data" banner.
+- **This machine (collaborator's clone):** set up for backend work on 2026-11-20:
+  - Node 24.20.0; `npm ci` (backend); the `.env` keys.
+  - Development database migrated (marker `9e752599…`) and seeded; it also holds fictional records created by the browser checks.
+  - The `*_test` database exists.
+  - `gh` (GitHub CLI) is **not installed**.
+- **Other open decisions:** the KRA PIN format (later); Phase 4 scope; keep or remove the `deploy` script; Prisma RC vs stable and the unused `@prisma/client` 7; `helmet` and a shared rate limiter before launch; an accountant's review of the seeded tax defaults (and of the line tax-category default added in Phase 2); KRA iCMS access; review of the unapproved roadmap proposal `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`.
+- **Housekeeping:** this file is close to the 100,000-character threshold in §15 rule 7. The next session should move the oldest §13 entries to `docs/activity-log.md`.
 - **Security:** `GET /` was removed in Phase 0. Signing out does not revoke the token (valid up to 8 hours). Demo pages are open without sign-in, so use fictional data only until each page goes live.
 
 ## 15. Maintaining this document

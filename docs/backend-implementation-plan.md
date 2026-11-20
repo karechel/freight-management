@@ -1,6 +1,6 @@
 # Backend implementation plan
 
-Status: **approved by the repository owner on 2026-11-03. Phase 0 is merged to `main`. Phase 1 is built and verified** on `feature/customers-phase1`, not yet merged (see the "As built" notes in §6). Phase 2 has not started. *(Update 2026-11-20: Phase 1 was merged as PR #4 (`d966e35`) on 2026-11-04. Phase 2 is built and verified on the collaborator's clone, not yet committed; see its "As built" notes in §6.)* Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
+Status: **approved by the repository owner on 2026-11-03. Phase 0 is merged to `main`. Phase 1 is built and verified** on `feature/customers-phase1`, not yet merged (see the "As built" notes in §6). Phase 2 has not started. *(Update 2026-11-20: Phase 1 was merged as PR #4 (`d966e35`) on 2026-11-04. Phase 2 is built and verified, committed and pushed on `feature/quotations-phase2`, and awaits PR review; see its "As built" notes in §6.)* Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
 
 ## 1. Decisions
 
@@ -147,7 +147,7 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
 - Credit-limit check at booking: warning, then proceed or block. Only `credit.override` holders may proceed; every decision is recorded in `CreditCheck`.
 - Frontend: quotation pages go live; KES only; a minimal booking list and detail.
 
-- **As built (2026-11-20, LOG-20261120-1412-phase2-done in `CLAUDE.md`; not yet committed):**
+- **As built (2026-11-20, LOG-20261120-1412-phase2-done in `CLAUDE.md`; committed on `feature/quotations-phase2`, awaiting PR review):**
   - No schema change and no migration. No new permission codes:
     - quotations and bookings use `quotations.view` and `quotations.manage`, which the seed describes as covering bookings;
     - the override uses `credit.override`;

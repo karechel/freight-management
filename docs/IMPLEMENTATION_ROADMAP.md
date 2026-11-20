@@ -72,11 +72,11 @@ Every phase, per the approved plan:
   - Nothing yet blocks new work for an archived customer (Phases 2–3 must check `archivedAt`).
   - Four decisions dated 2026-11-04 (`CLAUDE.md` §9) came from a session whose operator was not confirmed, and await the repository owner's review.
 
-### Phase 2 — Quotations and bookings · **Verified on the collaborator's clone, not committed** (2026-11-20)
+### Phase 2 — Quotations and bookings · **Implemented and verified; committed and pushed on `feature/quotations-phase2`; awaiting PR review and merge** (2026-11-20)
 - **Status update (2026-11-20, LOG-20261120-1412-phase2-done in `CLAUDE.md`):**
   - Built after the operator's authorization. The as-built notes are in `docs/backend-implementation-plan.md` §6.
   - Checks recorded: 104 unit tests, 142 end-to-end tests (30 of them new), 14 headless-browser checks; `tsc`, lint and builds pass in both apps.
-  - Not committed or merged yet; a commit and PR need the operator's approval.
+  - Committed as `ec5c760` on `feature/quotations-phase2` and pushed (LOG-20261120-1417-phase2-commit). Re-verified on the branch: the same results (LOG-20261120-1425-phase2-reconcile). Not merged into `main`; the PR awaits the repository owner.
   - Still open: the repository owner's review of the credit rule decided on 2026-11-20, and the permission matrix (only admin can both book and override). Fictional quotations are not yet in the demo seed.
 - The original plan text follows, unchanged.
 
