@@ -6,6 +6,7 @@
 >
 > **Read before making changes** (this file stays short; details live in these files):
 > - `docs/IMPLEMENTATION_ROADMAP.md`: every phase, its status and what remains. Read it before starting or planning any phase.
+> - `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`: **detailed backend roadmap, Phases 0–18 (PROPOSAL, 2026-11-20, awaiting review)**. For each phase: features, database, endpoints, frontend, security, tests, dependencies and completion criteria, plus open decisions and external dependencies. Until the repository owner approves it, the approved plan below is authoritative.
 > - `docs/backend-implementation-plan.md`: the **approved** backend plan (decisions, API conventions, auth, reference numbers, phase scope). It is authoritative where the roadmap summarises it.
 > - `docs/database-design.md`: approved schema, business rules, setup and migration commands. Read it before any database or Prisma work.
 > - `Frontend/frontend/docs/api-contracts.md`: implemented and proposed API contracts. `Frontend/frontend/AGENTS.md`: Next.js rules (read the bundled Next.js docs before writing frontend code).
@@ -77,12 +78,15 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `docs/database-design.md` | Approved database design: business rules, conventions, tables, relationships, setup and migration commands, pgAdmin inspection |
 | `docs/backend-implementation-plan.md` | Approved backend plan: decisions, API conventions, reference-number and auth design, phases; Phase 0 and Phase 1 "as built" notes |
 | `docs/IMPLEMENTATION_ROADMAP.md` | Every phase (frontend demo, schema, backend 0–5) with status, dependencies, tests and completion criteria (2026-11-16) |
+| `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` | Detailed backend roadmap (Phases 0–18), a proposal awaiting review (2026-11-20). Not authoritative until approved |
 | `docs/activity-log.md` | Archived activity log (2026-10-05 to 2026-11-04), the 2026-10-15 documentation audit and older handover states, moved verbatim from this file on 2026-11-16 |
 | `Backend/backend/src/auth/` | Sign-in, scrypt password hashing, JWT, global guard, `@Public()` and `@RequirePermission()` |
 | `Backend/backend/src/references/` | Configurable reference formats: template rules, generation, admin API |
 | `Backend/backend/src/common/`, `src/audit/`, `src/app.setup.ts` | Error format and database-error mapping, pagination DTO, audit log service, global HTTP setup |
 | `Backend/backend/src/parties/` | Customers and contacts API (reused by agents and partners later): rules, DTOs, service, controller. `src/common/parse-id.pipe.ts` reads ids from URLs |
 | `Frontend/frontend/app/parties/`, `components/customers/`, `lib/customers.ts`, `lib/customer-form.ts`, `lib/api/server.ts` | Live Customers pages, their rules and types, and backend reads made while rendering on the server |
+| `Backend/backend/src/quotations/`, `src/bookings/`, `src/credit/`, `src/charge-types/` | Phase 2 (2026-11-20, not yet committed): quotations API and rules, bookings and conversion, the shared credit-limit check, the charge-type list. Shared helpers in `src/common/text-fields.ts`, `decimal-fields.ts` and `src/parties/party-checks.ts` |
+| `Frontend/frontend/lib/live-quotations.ts`, `components/quotations/live-*.tsx`, `booking-detail.tsx`, `app/bookings/`, `lib/api/quotation-options.ts` | Phase 2 live quotation and booking pages. Demo quotation components are kept for demo references |
 | `Backend/backend/src/seed/` | `db:seed` (setup data, first admin) and `db:seed:demo` (fictional data, refuses production) |
 | `Backend/backend/test/` | End-to-end tests; `test/support/` creates and migrates the separate `*_test` database |
 | `Frontend/frontend/app/api/`, `lib/api/session.ts`, `lib/api/browser.ts` | Same-origin login, logout and backend-forwarding routes (token in an HttpOnly cookie); browser API client |
@@ -111,6 +115,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 |---|---|---|
 | Backend `GET /health` | **Verified** 2026-11-03 | Unit and end-to-end tests |
 | Customers (Phase 1): list, search, filters, paging, create, edit, archive, restore, contacts, calculated figures, per-role billing access | **Verified** 2026-11-04; merged to `main` (PR #4, `d966e35`, 2026-11-04; recorded in LOG-20261116-1549-resume-sync) | LOG-20261104-1056-phase1 and LOG-20261104-1120-phase1-decisions: 70 unit tests, 112 end-to-end tests, 91 browser checks. Live pages need sign-in |
+| Quotations and bookings (Phase 2): quotations API, server totals, status flow, expiry, duplicate, conversion to a booking, standalone bookings, confirm and cancel, credit-limit check with override, archived-customer refusal; live quotation pages and minimal booking pages | **Verified** 2026-11-20 on the collaborator's clone; **not committed** | LOG-20261120-1343-phase2-backend and LOG-20261120-1412-phase2-done: 104 unit tests, 142 end-to-end tests, 14 browser checks |
 | Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03; merged to `main` (PR #3) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
 | Configurable reference formats | **Verified** 2026-11-03; merged to `main` (PR #3) | Includes concurrency, rollback and "issued references never change" tests. No record type uses them yet; quotations are first, in Phase 2 |
 | Frontend sign-in, sign-out, Numbering editor | **Verified** in headless Chrome 2026-11-03; merged to `main` (PR #3) | Demo pages remain open without signing in |
@@ -139,7 +144,7 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 
 ## 6. Planned features and roadmap
 
-**The roadmap is in `docs/IMPLEMENTATION_ROADMAP.md`** (all phases, status, dependencies, completion criteria). The approved scope of each backend phase is in `docs/backend-implementation-plan.md`. The 2026-10-15 recommendation list that used to be here is preserved in the roadmap's "Superseded plans" section (moved 2026-11-16).
+**The roadmap is in `docs/IMPLEMENTATION_ROADMAP.md`** (all phases, status, dependencies, completion criteria). **The detailed backend roadmap proposal is in `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`** (2026-11-20, awaiting review). It keeps Phases 0–3 as approved, splits Phase 3 into 3A and 3B, splits the approved "Phase 4, remaining modules" into Phases 4–16, and renumbers client data import (approved "Phase 5") as Phase 17 and deployment as Phase 18. The renumbering is not in effect until the repository owner approves it. The approved scope of each backend phase is in `docs/backend-implementation-plan.md`. The 2026-10-15 recommendation list that used to be here is preserved in the roadmap's "Superseded plans" section (moved 2026-11-16).
 
 **Authorized phases:** documentation (2026-10-15); **frontend development** (2026-10-19, collaborator; frontend only, see §16.6 decision 3); **database design and schema implementation** (2026-10-26, repository owner: approved schema, Node 24.20.0 pin, migration on the owner's own local DB, on branch `feature/database-schema`). **Backend Phase 0** (2026-11-03, repository owner: foundation, auth, `ReferenceFormat` migration, local test database, seeding the owner's local DB; on `feature/backend-foundation`; see `docs/backend-implementation-plan.md`). Later backend phases follow that plan. Integrations and deployment are **not** authorized. **Backend Phase 1** (customers) was built and merged on 2026-11-04. **Phase 2 has not started:** the repository owner's instruction relayed on 2026-11-16 is to implement Phases 2, 3 and 4 one at a time, but each start needs the operator's explicit approval in the session (LOG-20261116-1549-resume-sync).
 
@@ -232,7 +237,14 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
-- **Latest results (2026-11-04, local clone with Git identity PPSOne-02, Node 24.20.0, PostgreSQL 17.11, LOG-20261104-1056-phase1):**
+- **Latest results (2026-11-20, collaborator's clone with Git identity Sean Macharia, Node 24.20.0, PostgreSQL 18, LOG-20261120-1412-phase2-done):**
+  - Backend: `tsc`, lint and build → pass; `npm test` → 10 files, 104 tests pass; `npm run test:e2e` → 6 files, 142 tests pass. That is all 112 earlier tests plus 30 new Phase 2 tests.
+  - Prettier: clean except the three files already flagged before this session (`src/prisma/contract.d.ts`, `db.ts`, `prisma.module.ts`).
+  - Prisma: `migration check` → pass; development database migrated (2 migrations, 257 operations); `db verify` → pass.
+  - Frontend: `next typegen`, `tsc`, lint and build → pass. The earlier TS2344 `AppRoutes` errors were stale route types, fixed by `next typegen`.
+  - Browser: 14/14 headless Chrome checks against production builds and the development database, covering sales, admin and finance and 390 px width. Screenshots reviewed by eye.
+  - Not run: `npm audit`, Safari/Firefox, screen readers.
+- **Earlier results (2026-11-04, local clone with Git identity PPSOne-02, Node 24.20.0, PostgreSQL 17.11, LOG-20261104-1056-phase1):**
   - Backend: `tsc`, lint, Prettier on the changed files and build → pass; `npm test` → 70 tests pass; `npm run test:e2e` → 5 files, 112 tests pass. (Earlier the same day: 77 and 107. The unit count fell because the KRA PIN format tests were removed.)
   - Prisma: `migration check` → pass; `db verify` → pass; migrating an empty development database → 3 migrations, 260 operations.
   - Frontend: `tsc`, lint and build → pass; 91/91 headless Chrome checks against production builds and the test database, covering every staff role and 390 px width. Screenshots reviewed by eye.
@@ -450,13 +462,301 @@ Entry template:
   - Machine setup for backend work on this clone (§14).
 - Working-tree status after: expected clean, with `main` = `origin/main`. Confirm with `git status` at the start of the next session.
 
+### LOG-20261120-1246-backend-roadmap — Detailed backend roadmap written (planning and documentation only)
+- Time: session started 2026-11-20 12:46:18 +03:00; this entry written 12:56:36 +03:00 (Africa/Nairobi). Source: PowerShell `Get-Date`.
+- Contributor/session: collaborator's local clone (Git identity Sean Macharia). The operator has **not been confirmed in this session**; the Claude Code account signed in differs from the Git identity, as on 2026-11-16. Model: Claude Code (Opus 5.5).
+- **Instruction received:** pasted brief "TASK: Fully Document the Backend Implementation Roadmap in CLAUDE.md":
+  - Inspect the repository.
+  - Document every backend phase in detail: overview, features, database, backend, frontend, security, testing, dependencies, completion criteria.
+  - Explain the sequence and recommend a first phase.
+  - Keep facts, requirements, proposals, decisions and external dependencies separate.
+  - Use a dedicated document if `CLAUDE.md` would grow too large.
+  - Log the session.
+  - Strictly no code, schema, migration, database, dependency, environment or config changes; no deploy, **no commit or push**.
+- **Starting state:** branch `main` = `origin/main` = `cbad567` (after a `git fetch origin --prune`, which changed nothing); working tree clean.
+- **Inspected (read-only):**
+  - This file.
+  - `docs/IMPLEMENTATION_ROADMAP.md`, `docs/backend-implementation-plan.md`, `docs/database-design.md`.
+  - `Backend/backend/src/prisma/contract.prisma` (whole file).
+  - The backend `src/` tree and `package.json`.
+  - `src/seed/setup-data.ts` (roles and permissions) and `src/seed/demo.ts` (partner roles).
+  - `src/parties/parties.dto.ts` (accepts all five party roles).
+  - `Backend/backend/test/` listing; `migrations/app/` listing; `.env.example` (key names only, values not printed).
+  - `Frontend/frontend/docs/api-contracts.md`, `lib/types.ts`, the `lib/` and `app/**/page.tsx` listings, and `lib/access.ts` (role names).
+  - `node_modules/@nestjs/platform-express/package.json`: it depends on `multer` 2.4.0, so file uploads need no new dependency.
+- **Findings recorded in the roadmap (schema gaps, not changed):**
+  - No FCL/LCL field.
+  - No `cancelled` shipment status.
+  - No shipper or consignee fields.
+  - One agent per shipment.
+  - No supplementary-invoice flag.
+  - No customs item (HS code) lines.
+  - No document scan status or agent-visibility flag.
+  - No `documentation` or `agent` role seeded.
+  - The `AgentRoute`, `CostEstimate`, notification, company-settings and integration-log tables do not exist.
+  - Conflict: the brief lists M-Pesa, but the repository owner removed it from scope on 2026-10-26. The roadmap keeps it out of scope and lists the conflict as a decision.
+  - Differences between `api-contracts.md` and the approved conventions (URL prefix, error format, cents vs decimals, editing sent quotations) are listed in the roadmap's §2.3.
+- **Files created:** `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` (about 119k characters). It holds 20 phase sections: 0, 1, 2, 3A, 3B and 4–18. It also covers the sequence, 37 open decisions and external dependencies. It is assembled from five draft parts in the session scratchpad (`r1.md`–`r5.md`, outside the repository).
+- **Files edited:**
+  - `CLAUDE.md`: "Read before" block, §4 row, §6 note, §14 next actions, and this entry.
+  - `docs/IMPLEMENTATION_ROADMAP.md`: a pointer to the new file at the top.
+  - No earlier log entry was edited.
+- **Roadmap status:** **proposal only.** `docs/backend-implementation-plan.md` stays authoritative until the repository owner approves it. The proposed renumbering is not in effect yet:
+  - Phases 0–3 keep their numbers, with Phase 3 split into 3A and 3B.
+  - The approved Phase 4 becomes Phases 4–16.
+  - The approved Phase 5 becomes Phase 17, and deployment becomes Phase 18.
+- **Recommended first phase:** Phase 2 (quotations and bookings), after:
+  - the baseline setup and test re-run on this clone;
+  - the "Before Phase 2" decisions;
+  - explicit approval.
+- **Checks run:** `wc -m` on the new file and `CLAUDE.md`; a count of the phase headings (20); `git status`. No tests, builds, lint, Prisma or database commands were run (documentation only).
+- Database/schema changes: none · Dependency changes: none · Application code, configuration and `.env`: unchanged · Processes started: none.
+- Commit: **not committed** · Pushed: **no** (the brief forbids both in this session).
+- Working-tree status after: `CLAUDE.md` and `docs/IMPLEMENTATION_ROADMAP.md` modified; `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` untracked; nothing staged. Branch `main` = `cbad567`.
+- **Open:** review of the roadmap; the decisions in its §6; approval to start Phase 2; operator identity for this session; the repository owner's review of the 2026-11-04 decisions.
+
+### LOG-20261120-1300-approved-plan-review — Explanation of the approved backend plan (Phases 0–5); comparison with the proposal
+- Time: 2026-11-20 13:00:11 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session as LOG-20261120-1246-backend-roadmap; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** pasted brief "TASK: Explain and Review the Existing Approved Backend Phase Plan":
+  - Explain approved Phases 0–5 in detail, and the order between them.
+  - Compare `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` **without adopting its numbering**.
+  - Recommend how to proceed.
+  - Documentation and explanation only: no code, schema, migration, dependency, environment or config changes, no database writes, no deploy, no commit or push.
+- **Confirmed by the operator:** `docs/backend-implementation-plan.md` is authoritative. The Phases 0–18 file is a supporting proposal only. No document was changed to say otherwise.
+- **Starting state:** `main` = `origin/main` = `cbad567` (after `git fetch origin`). Still uncommitted from LOG-20261120-1246-backend-roadmap: `CLAUDE.md` and `docs/IMPLEMENTATION_ROADMAP.md` modified, `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` untracked.
+- **Read:** the six documents named in the brief. All were already read in full earlier in this session; none changed in between (`git status`).
+- **Output:** the explanation was given in the session reply, not written to a file.
+- **Documentation problems found and reported, not fixed:**
+  - `docs/backend-implementation-plan.md`:
+    - Its status line still says Phase 1 is "not yet merged". It was merged as PR #4 (`d966e35`).
+    - Its Phase 1 rule "KRA PIN format" is superseded by the 2026-11-04 decision ("as built" note in the same section).
+  - `Frontend/frontend/docs/api-contracts.md`:
+    - "Before real operational data is handled" still says no authentication exists and CORS is hard-coded. Both are out of date since Phase 0.
+    - The older proposed sections differ from the approved conventions: no `/api` prefix, 422 `{ errors }` instead of 400 `details`, prices in cents, a sent quotation never edited, and quotation → shipment without a booking.
+  - `CLAUDE.md` §3: the architecture diagram still shows CORS hard-coded. §12 item 8 records the fix.
+  - `docs/database-design.md` says "33 tables" in some places and "34, including `User`" in §3. Both are correct depending on whether `User` is counted.
+  - The approved plan has no completion criteria for Phases 2–3 and no agreed scope for Phase 4.
+  - The approved Phase 5 includes "production security hardening and launch checks", but deployment is not authorized anywhere.
+- **Checks run:** `git status`, `git fetch`, `git rev-parse`. No tests, builds, Prisma or database commands.
+- Database/schema changes: none · Dependency changes: none · Application code and configuration: unchanged.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: `CLAUDE.md` (both 2026-11-20 entries) and `docs/IMPLEMENTATION_ROADMAP.md` modified; `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` untracked; nothing staged; `main` = `cbad567`.
+
+### LOG-20261120-1309-phase2-prep-audit — Read-only readiness check of this machine for Phase 2 (nothing changed)
+- Time: 2026-11-20 13:08:51 +03:00 (start) (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "set up this machine for backend work", with the pasted brief "TASK: Prepare the Freight Management Repository for Backend Phase 2". The brief limits this session to read-only checks and a report. It forbids changing environment files, dependencies or code, database-writing commands, commit and push. It says to stop and wait for approval. Following the brief, **no setup step was carried out**.
+- **Repository:**
+  - `origin` = `https://github.com/karechel/freight-management.git`.
+  - Branch `main` = `cbad567`; after `git fetch origin --prune`, 0 ahead and 0 behind `origin/main`. No stashes.
+  - Uncommitted work, all from this session's documentation entries: `CLAUDE.md` and `docs/IMPLEMENTATION_ROADMAP.md` modified, `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` untracked.
+- **Environment (values never displayed):**
+  - Node v24.20.0 (`C:\Program Files\nodejs`) in the root and both app folders; npm 11.19.0; `.nvmrc` 24.20.0.
+  - PostgreSQL 18: service `postgresql-x64-18` running, port 5432 open, `psql` installed. Earlier recorded runs used PostgreSQL 17.11 on another machine.
+  - Backend `.env` exists. Of the `.env.example` keys it has only `DATABASE_URL`, which is set. **Missing:** `JWT_SECRET` (required at startup), `CORS_ORIGINS` (optional, has a default), `PORT` (optional), `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `DEMO_USER_PASSWORD` (needed by the seeds).
+  - Frontend `.env.local` exists with `NEXT_PUBLIC_API_URL` (the only key in its `.env.example`).
+- **Dependencies:**
+  - Backend `npm ls --depth=0` → ELSPROBLEMS. Missing: `@nestjs/jwt`, `class-transformer`, `class-validator`. The installed `node_modules` predates Phase 0, so `npm ci` is needed.
+  - Frontend `npm ls --depth=0` → all present.
+- **Checks run (all read-only):**
+  - Backend `npx tsc --noEmit --incremental false` → fails with TS2307 errors, all from the three missing packages.
+  - `npx prisma --version` → 8.0.0-rc.17.
+  - `npx prisma migration check` → all checks passed.
+  - `npx prisma db verify` → exit 4, `CONTRACT.MARKER_MISMATCH`: the database marker `a9d7a849…` is the original `User` contract, and the code expects `9e752599…`.
+  - `npx prisma db migrate --show` → 2 migrations would run: `20261026T1926_freight_core_schema` and `20261103T1857_add_reference_format`.
+  - Prisma also warned "agent skills are out of date (`prisma skills sync`)". Not acted on.
+  - Frontend: `npx tsc --noEmit --incremental false` → exit 2, TS2344 `AppRoutes` errors on `app/login/page.tsx` and `app/parties/[id]/edit/page.tsx`. The likely cause is stale generated route types in `.next/` (earlier sessions ran `next typegen` before `tsc`). Not confirmed.
+  - Frontend `npm run lint` → pass.
+- **Not run:**
+  - Backend lint, unit tests, end-to-end tests and build: their dependencies are missing.
+  - `next typegen` and the frontend build: they write `.next/`.
+  - Any database-writing command, `npm ci`, and anything that edits `.env`.
+- **Files outside the repository:** none. npm wrote its own debug log to the user's npm cache after the ELSPROBLEMS result.
+- Database/schema changes: none · Dependency changes: none · Application code, configuration and environment files: unchanged.
+- Commit: not committed · Pushed: no.
+- Working-tree status after: unchanged from the start of this entry, plus this entry in `CLAUDE.md`.
+- **Awaiting approval:**
+  1. `npm ci` in `Backend/backend`.
+  2. Adding the missing backend `.env` keys.
+  3. Migrating the local development database, after checking what data it holds.
+  4. `npm run db:seed` and `npm run db:seed:demo`.
+  5. `npm run test:e2e`, which creates and migrates a `*_test` database.
+  6. `next typegen` / the frontend build.
+
+### LOG-20261120-1315-phase2-start — Phase 2 authorized; blocked on setup approvals and one credit-check rule
+- Time: 2026-11-20 13:15:18 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** pasted brief "TASK: Implement Backend Phase 2 — Quotations and Bookings":
+  - The operator authorizes Phase 2 under the approved plan.
+  - No unapproved proposal features; no Phase 3 or later work.
+  - No database writes without explicit approval in this session.
+  - No dependency or environment changes unless authorized.
+  - Ask one clear question where a business rule is missing.
+  - No commit or push.
+- **Rechecked (read-only), unchanged since LOG-20261120-1309-phase2-prep-audit:**
+  - `main` = `origin/main` = `cbad567`, with the same uncommitted documentation.
+  - Backend packages `@nestjs/jwt`, `class-transformer` and `class-validator` still missing.
+  - Backend `.env` still has only `DATABASE_URL`.
+  - `prisma db verify` still reports "Hash mismatch".
+- **Read for Phase 2:**
+  - Backend: `src/references/references.service.ts` and `reference.types.ts`; `src/audit/audit.service.ts`; `src/auth/auth.decorators.ts`; `src/app.module.ts`; `src/common/` (`parse-id.pipe.ts`, `validation-exception.ts`, `pagination.dto.ts`); `src/prisma/db.ts` and `prisma.service.ts`; `src/parties/parties.service.ts`.
+  - Frontend: `lib/quotations.ts`, `lib/quotation-changes.ts`, `lib/money.ts`, `lib/quotation-form.ts`.
+- **Blocked on:**
+  1. Approval for `npm ci`, the `.env` keys and the database steps.
+  2. The operator's answer on the credit-check comparison at booking (exposure and attempted amount). The approved plan does not define it, and a standalone booking has no amount column.
+- No files changed except this entry.
+
+### LOG-20261120-1343-phase2-backend — Phase 2 backend written; unit tests, lint and build pass; end-to-end tests not yet run
+- Time: 2026-11-20, from 13:15 to about 13:43 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date` at the start; smoke-test log timestamp 13:42:12.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Answers received (question dialog, 13:2x):**
+  - Setup: **only "npm ci in backend" approved.** Not approved: migrating and seeding the development database, creating the `*_test` database for end-to-end tests, `next typegen` and the frontend build.
+  - `.env`: "I generate them". The missing keys were appended to `Backend/backend/.env` with random values, never printed: `JWT_SECRET`, `ADMIN_EMAIL` (a fictional `admin@freight-demo.example`), `ADMIN_PASSWORD`, `DEMO_USER_PASSWORD`. `.env` is git-ignored (`git check-ignore`). `CORS_ORIGINS` and `PORT` were left at their defaults.
+  - **Credit rule (business decision by the operator, 2026-11-20):** "Outstanding + quote total". A warning is raised when the customer's outstanding issued-invoice balance (the Phase 1 `outstanding` figure) plus the booking's value exceeds the credit limit. The value is the quotation total; a standalone booking requires an estimated value, which is recorded in `CreditCheck`. No limit means no check.
+- **Commands that changed state:**
+  - `npm ci` in `Backend/backend` → exit 0; `npm ls` reports no missing packages. npm noted that the install scripts of `esbuild` and `workerd` are not covered by `allowScripts`; not acted on. No lockfile change.
+  - `.env` append (above).
+  - `npm run build` (writes `dist/`).
+  - One smoke start of `node dist/main.js` on port 3199, stopped by the port's owning process (PID 12484). Output went to `%TEMP%\fm-smoke.out` and `.err`, outside the repository.
+- **Baseline before changes:** `tsc` pass; lint pass; `npm test` → 7 files, 70 tests pass (matches the recorded Phase 1 count).
+- **Implemented (backend, approved Phase 2 scope):**
+  - `GET /api/charge-types`: any signed-in user; active charge types only.
+  - `GET/POST /api/quotations`, `GET/PATCH /api/quotations/:reference`, `POST /api/quotations/:reference/status`:
+    - lines saved in one transaction;
+    - totals calculated in SQL (`round(qty × price, 2)`, then `round(net × rate / 100, 2)`, half away from zero like the frontend's `lineAmounts`);
+    - editable only while `draft` or `sent` (approved plan), never once expired or booked;
+    - status flow `draft → sent → accepted | declined`, plus `accepted → declined` while unbooked, as in the frontend's `quotationTransitions`;
+    - `expired` is derived from `validUntil` on the Nairobi calendar and never stored;
+    - duplicate by sending `duplicatedFrom`;
+    - `QT-…` reference from the configured format inside the creating transaction;
+    - concurrent changes serialized with `SELECT … FOR UPDATE`.
+  - `POST /api/quotations/:reference/convert`: accepted quotations only, at most one booking (409 otherwise). Copies customer, agent, mode, direction, route and cargo; optional carrier, carrier booking number and planned dates; `BKG-…` reference.
+  - `GET/POST /api/bookings`, `GET /api/bookings/:reference`, `POST …/confirm` (pending only), `POST …/cancel` (pending or confirmed, reason required). No booking edit endpoint: the approved plan lists none.
+  - **Credit check at booking** (`src/credit/credit.service.ts`):
+    - locks the customer row;
+    - 409 with the figures in `details` when over the limit and no decision was sent;
+    - `proceed` needs `credit.override` (403 otherwise);
+    - `blocked` records the decision and returns 409 after the commit;
+    - every decision writes a `CreditCheck` row and an `AuditLog` entry.
+  - Archived customers are refused for new quotations, bookings, conversions and moving a quotation to that customer. Party roles are checked (customer, agent, carrier).
+  - Permissions use only the existing seeded codes: `quotations.view` and `quotations.manage` (described in the seed as covering bookings), `credit.override`, and `parties.billing.view` (credit decisions are shown on bookings only to its holders). No permission or schema change; no migration.
+  - Every create, edit, status change, conversion, confirmation, cancellation and credit decision is audited.
+- **Files created:**
+  - `src/quotations/` (`quotation-rules.ts` + spec, `quotations.dto.ts`, `.service.ts`, `.controller.ts`, `.module.ts`);
+  - `src/bookings/` (`booking-rules.ts` + spec, `bookings.dto.ts`, `.service.ts`, `.controller.ts`, `.module.ts`);
+  - `src/credit/` (`credit.service.ts`, `credit.module.ts`);
+  - `src/charge-types/` (controller, module);
+  - `src/common/text-fields.ts`, `src/common/decimal-fields.ts` + spec;
+  - `src/parties/party-checks.ts`;
+  - `test/quotations.e2e-spec.ts`.
+- **Files edited:**
+  - `src/app.module.ts`: new modules registered.
+  - `src/parties/parties.dto.ts`: `trim`, `blankToNull`, `OptionalText` and `RequiredText` moved unchanged to `src/common/text-fields.ts` and imported back. No behaviour change; the existing unit tests pass.
+- **Checks run after the changes:**
+  - `tsc` pass; `npm run lint` pass.
+  - `npm test` → 10 files, **104 tests pass**.
+  - Prettier `--check --end-of-line auto`: only the three files flagged before this session (`src/prisma/contract.d.ts`, `db.ts`, `prisma.module.ts`), left untouched. New files were formatted with `prettier --write` on those files only.
+  - `npm run build` pass.
+  - Smoke start: all modules load; `/health` → 200; `/api/quotations`, `/api/bookings`, `/api/charge-types` and `POST /api/quotations/QT-1/convert` without a token → 401.
+- **Not run:**
+  - `npm run test:e2e` (needs the `*_test` database, not approved). `test/quotations.e2e-spec.ts` is written and covers: permissions per role; totals and rounding; validation; archived customers; editing; the status flow; expiry; duplication; concurrent references; single and concurrent conversion; credit warning, stop, proceed and 403; the estimated value; confirm and cancel; hidden credit decisions.
+  - Browser checks.
+- **Not done yet:**
+  - Frontend: quotation pages to live data, and the minimal booking list and detail.
+  - Fictional quotations in the demo seed.
+  - `api-contracts.md` and the other Phase 2 documentation.
+- **Observation for the owner (not changed):** in the seeded matrix, only admin holds both `quotations.manage` and `credit.override`. Finance and management can override but cannot create bookings, and sales can create but not override. Proceeding past a limit therefore needs an admin, unless the permission data is changed.
+- Database/schema changes: none · Dependency changes: none (lockfile install only).
+- Commit: not committed · Pushed: no.
+
+### LOG-20261120-1412-phase2-done — Phase 2 end-to-end and browser verified; databases set up; frontend live; documentation updated (not committed)
+- Time: 2026-11-20, from about 13:45 to 14:11:35 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date` (end-to-end run started 13:50:10; entry written 14:11:35).
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Approvals received (question dialog, about 13:45):**
+  1. "Yes, create test DB": `npm run test:e2e` may create, migrate and empty the `*_test` database.
+  2. "Build it, migrate + seed dev DB (Recommended)": implement the Phase 2 frontend; migrate and seed the development database; run `next typegen` and the build; check the pages in headless Chrome.
+- **Database commands that changed state (operator-approved):**
+  - `npm run test:e2e` created and migrated the `*_test` database (it refuses any other name) and emptied it between files.
+  - Read-only check of the development database first: 1 table (`User`), 0 rows.
+  - `npx prisma db migrate --advance-ref db` → "Applied 2 migration(s) (257 operation(s))". `npx prisma db verify` → "Database marker and schema match contract".
+  - `npm run db:seed` → roles, 62 grants, 14 charge types, 1 retention policy, 7 reference formats, admin created. `npm run db:seed:demo` → 12 parties, 12 contacts, 4 users.
+  - The browser checks then created fictional records in the development database: about 9 quotations, 6 bookings and 3 customers named "Browser Credit Ltd …" (each with a 100,000 credit limit), plus `CreditCheck` and audit rows. All fictional; nothing was reset.
+- **Side effect noticed and handled:** `--advance-ref db` rewrote `Backend/backend/migrations/app/refs/db.json` with identical content (marker `9e752599…`, as committed). Only the working copy's CRLF became LF. Restored with `git checkout -- …/refs/db.json`; no content change.
+- **Checks run (actual results):**
+  - `npm run test:e2e` → 6 files, **142 tests pass** (112 earlier + 30 new in `test/quotations.e2e-spec.ts`), 76 s, first run.
+  - Frontend: `npx next typegen` → generated. `tsc` → pass (the TS2344 errors from LOG-20261120-1309-phase2-prep-audit were stale route types). `npm run lint` → pass (one unused-variable warning fixed). `npm run build` → pass; the routes now include `/bookings` and `/bookings/[reference]`.
+  - Backend `npm run build` before starting the servers → pass.
+  - Headless Chrome, using a scratchpad script that drives Chrome's DevTools protocol (`browser-check.mjs`, outside the repository):
+    - Run 1: 13/14. The failing check matched hint text, not a button; the hint is now hidden from users who cannot duplicate, and the check was tightened.
+    - Run 2: 13/14. A test-setup fault: the reused Chrome profile kept a session cookie.
+    - Runs 3 and 4 (the last on the final build): **14/14 pass**, no console errors or exceptions, no errors in the server logs.
+    - The checks: signed-out redirect; the live list; create through the form; client validation; edit; record sent and accepted; convert and confirm; the bookings list; the sales credit warning (no proceed button, reason required, stop recorded); an admin proceeding with the decision shown on the booking; finance view-only; the demo-reference fallback; an unknown booking giving not found; no sideways scrolling at 390 px on 5 pages.
+  - Screenshots in the scratchpad `shots/`, reviewed by eye. Two fixes followed: the outdated sidebar footer text, and booking references wrapping on phones.
+- **Processes:**
+  - Backend `node dist/main.js` (port 3001) and frontend `next start -p 3000` were started for the browser checks; the frontend was restarted twice after rebuilds.
+  - All were stopped by the ports' owning processes (last: 3000 → 6768, 3001 → 4772).
+  - Logs in the scratchpad (`backend.out/.err`, `frontend.out/.err`).
+- **Frontend files:**
+  - New: `lib/live-quotations.ts`, `lib/api/quotation-options.ts`, `components/quotations/live-quotation-form.tsx`, `live-quotation-detail.tsx`, `live-quotation-actions.tsx`, `live-lists.tsx`, `booking-detail.tsx`, `app/bookings/page.tsx`, `app/bookings/[reference]/page.tsx`.
+  - Edited:
+    - `app/quotations/page.tsx`, `[reference]/page.tsx`, `[reference]/edit/page.tsx` and `new/page.tsx`: live data; a reference the backend does not know falls back to the demo record.
+    - `components/layout/nav-items.ts` and `sidebar.tsx`: `/bookings` highlights "Quotations and Bookings"; footer text updated.
+    - `lib/customers.ts`: `isLivePage` includes `/quotations` and `/bookings`.
+  - Demo quotation components are unchanged.
+- **Documentation:**
+  - `Frontend/frontend/docs/api-contracts.md`: new "Implemented (Phase 2)" section; the old proposal marked superseded; the data-access table updated.
+  - `docs/backend-implementation-plan.md`: Phase 2 "As built" notes; a dated update of the stale status line.
+  - `docs/IMPLEMENTATION_ROADMAP.md`: Phase 2 status.
+  - This file: §4, §5, §11 and §14.
+- **Correction:** the label `LOG-20261120-1415-phase2-done` had been written in advance into two documents. The actual time is 14:11, so it was renamed to `…-1412-…` with `sed`.
+- **Not done / open:**
+  - No commit, branch or PR (needs approval).
+  - Fictional quotations not added to the demo seed.
+  - No page for standalone bookings (the API exists).
+  - The demo-fallback quotation pages show the "Live data" badge in the top bar, alongside their own "Demonstration data" banner.
+  - The repository owner should review the 2026-11-20 credit rule and the seeded permission matrix (only admin can both book and override).
+  - Phase 3 not started.
+- Database/schema changes: none to the schema or migrations. Development and test databases written as above.
+- Dependency changes: none.
+- Commit: **not committed** · Pushed: **no**.
+- Working-tree status after: on `main` at `cbad567` (= `origin/main`).
+  - Modified: 13 tracked files (backend `app.module.ts`, `parties.dto.ts`; frontend quotation pages, nav, sidebar, `customers.ts`, `api-contracts.md`; `docs/IMPLEMENTATION_ROADMAP.md`, `docs/backend-implementation-plan.md`; `CLAUDE.md`).
+  - Untracked: the new Phase 2 files and `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`.
+  - Nothing staged.
+
+### LOG-20261120-1417-phase2-commit — Phase 2 committed on `feature/quotations-phase2` and pushed
+- Time: 2026-11-20 14:17:01 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "yes, create the branch, commit and push". This authorizes the branch, the commit and the push. **A PR was not mentioned, so none is opened.**
+- **Starting state:** after `git fetch origin`, `main` = `origin/main` = `cbad567` (0 ahead, 0 behind). `git switch -c feature/quotations-phase2` from `cbad567`.
+- **Commit content:**
+  - All Phase 2 changes listed in LOG-20261120-1343-phase2-backend and LOG-20261120-1412-phase2-done.
+  - This session's documentation: `CLAUDE.md` entries LOG-20261120-1246 to this one; `docs/IMPLEMENTATION_ROADMAP.md`; `docs/backend-implementation-plan.md`; `Frontend/frontend/docs/api-contracts.md`.
+  - `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`, the Phases 0–18 proposal, **not approved**; it is committed because `CLAUDE.md` links to it.
+  - Not included: `.env` (git-ignored), `dist/`, `.next/`, scratchpad files.
+- Then `git push -u origin feature/quotations-phase2` (no force). A commit cannot record its own hash; the push result is recorded in the follow-up entry below.
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B.
 
 - **Git (2026-11-16, LOG-20261116-1554-docs-restructure):** `main` contains PR #1 (frontend), #2 (database schema), #3 (backend Phase 0) and #4 (Phase 1 customers, merge `d966e35`), plus the documentation restructure commit made in that session. Verify with `git log -1 main` and `git ls-remote origin`. The old feature branches still exist on `origin`.
 - **Done:** backend Phase 0 and Phase 1, recorded as verified in §11 (not re-run on 2026-11-16). Live pages: sign-in, Customers, Settings › Numbering. All other pages still use fictional demo data in the browser session.
+- **Phase 2 (2026-11-20): built and verified on the collaborator's clone, NOT committed** (LOG-20261120-1412-phase2-done).
+  - Live pages now also include Quotations and Bookings.
+  - This clone is set up for backend work: `npm ci`, `.env` keys, development database migrated and seeded, test database created.
+  - Next steps:
+    1. The operator approves a commit on a feature branch, `feature/quotations-phase2`, and a PR.
+    2. The repository owner reviews the 2026-11-20 credit rule and the permission matrix.
+    3. Phase 3 starts only after approval.
 - **Next:** Phase 2, quotations and bookings (`docs/IMPLEMENTATION_ROADMAP.md`), **awaiting explicit approval**. Phase 2 must refuse new work for archived customers (`docs/backend-implementation-plan.md` §6).
+- **Preparing for backend development (2026-11-20, LOG-20261120-1246-backend-roadmap):** the detailed roadmap proposal `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` (Phases 0–18) is written and awaits review by the collaborator, the repository owner and an independent reviewer. **Recommended next actions, in order:**
+  1. Review the roadmap and answer the "Before Phase 2" decisions in its §6.
+  2. Set up this clone for backend work and re-run the Phase 0/1 tests as a baseline.
+  3. Agree the Phase 2 API shapes.
+  4. Approve the start of Phase 2.
+  Not committed yet.
 - **Machine setup:** the collaborator's clone (Git identity Sean Macharia) has not been set up for backend work since the merges: Node 24.20.0, `npm ci` in both apps, the new `.env` keys, a local PostgreSQL with migrations and seeds (§10). Its database state is unknown. Any database that already had Phase 0 needs `npm run db:seed` after pulling Phase 1.
 - **Awaiting decisions:**
   - Approval to start Phase 2.

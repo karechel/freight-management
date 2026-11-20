@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDownIcon, ShipIcon } from '@/components/ui/icons';
 import { useSessionStore } from '@/lib/data/session-store';
-import { isActive, navGroups, type NavGroup, type NavItem } from './nav-items';
+import { isItemActive, navGroups, type NavGroup, type NavItem } from './nav-items';
 
 function UnreadCount() {
   const { notifications, readNotificationIds } = useSessionStore();
@@ -20,7 +20,7 @@ function UnreadCount() {
 }
 
 function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
-  const active = isActive(pathname, item.href);
+  const active = isItemActive(pathname, item);
   const Icon = item.icon;
   return (
     <Link
@@ -54,7 +54,7 @@ function NavSection({
 }) {
   const listId = `nav-group-${group.id}`;
   // The group holding the current page always stays open, so the highlight is never hidden.
-  const containsActive = group.items.some((item) => isActive(pathname, item.href));
+  const containsActive = group.items.some((item) => isItemActive(pathname, item));
   const open = containsActive || !collapsed;
   return (
     <li>
@@ -112,7 +112,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </nav>
       <p className="shrink-0 border-t border-white/10 px-5 py-3 text-xs text-blue-200/70">
-        In development: Customers is live. Other pages show demo data.
+        In development: Customers, Quotations and Bookings are live. Other pages show demo data.
       </p>
     </div>
   );

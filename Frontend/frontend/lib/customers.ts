@@ -120,7 +120,11 @@ export function customerApiQuery(filters: CustomerFilters): string {
 export const isLiveCustomerId = (id: string) => /^[1-9]\d{0,9}$/.test(id);
 
 /** Pages whose records come from the live backend rather than demo data. */
-export const isLivePage = (pathname: string) => /^\/parties(\/new|\/[1-9]\d{0,9}(\/edit)?)?\/?$/.test(pathname);
+export const isLivePage = (pathname: string) =>
+  /^\/parties(\/new|\/[1-9]\d{0,9}(\/edit)?)?\/?$/.test(pathname) ||
+  // Phase 2. A demo quotation opened from a demo page also lands under /quotations; its page
+  // shows its own "Demonstration data" banner.
+  /^\/(quotations|bookings)(\/.*)?$/.test(pathname);
 
 export const customerLocation =(customer: Pick<Customer, 'city' | 'country'>) =>
   [customer.city, customer.country].filter(Boolean).join(', ');

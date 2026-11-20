@@ -57,6 +57,60 @@ Pages read these on the server with `lib/api/server.ts` and change them through 
 - `accountStatus` is `active`, `on_hold` or `closed`. Only management and admin can change it.
 - An archived party cannot be changed until it is restored. Parties are never deleted.
 
+## Implemented (Phase 2: quotations and bookings, covered by the backend's end-to-end tests)
+
+Pages read these on the server with `lib/api/server.ts` and change them through `lib/api/browser.ts`. Types: `lib/live-quotations.ts`.
+Quotations and bookings are addressed by their reference (for example `/api/quotations/QT-2611-0001`). Reference formats never contain `/` or spaces, so they are safe in URLs.
+
+| Method | Path | Permission | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/charge-types` | Signed in | | Active charge types: `[{ id, code, name, category, defaultTaxCategory, defaultTaxRate, isDisbursement }]` |
+| GET | `/api/quotations` | `quotations.view` | Query: `status` (`draft`, `sent`, `accepted`, `declined`, `expired`), `customerId`, `agentId`, `q`, `limit`, `offset` | `{ items, total }`, newest issue date first. Items have no `lines` |
+| GET | `/api/quotations/:reference` | `quotations.view` | | The quotation with `lines`. 404 if unknown |
+| POST | `/api/quotations` | `quotations.manage` | `{ customerId, agentId?, mode, direction, origin, destination, cargoSummary, issueDate, validUntil, lines[], incoterm?, packages?, grossWeightKg?, volumeCbm?, terms?, internalNote?, duplicatedFrom? }` | 201 with the quotation, status `draft`. `duplicatedFrom` (a reference) records a copy |
+| PATCH | `/api/quotations/:reference` | `quotations.manage` | Any header fields, including `customerId`; `lines` replaces every line | The quotation. 409 unless it is `draft` or `sent`, not expired and not booked |
+| POST | `/api/quotations/:reference/status` | `quotations.manage` | `{ status: 'sent', sentAt, sentTo }` or `{ status: 'accepted' \| 'declined', decidedAt }`, plus `note?` | The quotation. 409 for a transition that is not allowed |
+| POST | `/api/quotations/:reference/convert` | `quotations.manage` (proceeding past a credit limit also needs `credit.override`) | `{ carrierId?, carrierBookingNumber?, plannedEtd?, plannedEta?, creditDecision? }` | 201 with the booking. 409 if not accepted, already converted, or over the credit limit (see below) |
+| GET | `/api/bookings` | `quotations.view` | Query: `status`, `customerId`, `q`, `limit`, `offset` | `{ items, total }`, newest first |
+| GET | `/api/bookings/:reference` | `quotations.view` | | The booking. `creditChecks` only for callers with `parties.billing.view` |
+| POST | `/api/bookings` | `quotations.manage` | `{ customerId, agentId?, mode, direction, origin, destination, cargoSummary, carrierId?, carrierBookingNumber?, plannedEtd?, plannedEta?, estimatedValue?, creditDecision? }` | 201 with the booking (no quotation). No page uses this yet |
+| POST | `/api/bookings/:reference/confirm` | `quotations.manage` | | The booking. Pending only (409 otherwise) |
+| POST | `/api/bookings/:reference/cancel` | `quotations.manage` | `{ reason }` | The booking. Pending or confirmed only |
+
+**Quotation fields:**
+- Identity and status: `id`, `reference`, `status` (what users see: `expired` is derived), `storedStatus`, `editable`.
+- Parties: `customer` and `agent` (`{ id, name }`), `preparedBy`.
+- Route and cargo: `mode`, `direction`, `origin`, `destination`, `incoterm`, `cargoSummary`, `packages`, `grossWeightKg`, `volumeCbm`.
+- Text: `terms`, `internalNote`.
+- Dates: `issueDate`, `validUntil` (`YYYY-MM-DD`), `sentAt`, `sentTo`, `decidedAt`.
+- Links: `duplicatedFrom` (`{ id, reference }`), `booking` (`{ id, reference, status }`).
+- Money: `currency` (always `KES`), `totals` (`{ subtotal, tax, total }`).
+- Each line: `{ id, chargeTypeId, description, quantity, unitPrice, taxCategory, taxRate, sortOrder, amounts: { net, tax, total } }`.
+- Timestamps: `createdAt`, `updatedAt`.
+
+**Booking fields:**
+- `id`, `reference`, `status` (`pending`, `confirmed`, `completed`, `cancelled`), `quotation`.
+- Parties: `customer`, `agent`, `carrier`, `carrierBookingNumber`.
+- Route and cargo: `mode`, `direction`, `origin`, `destination`, `cargoSummary`.
+- Dates: `plannedEtd`, `plannedEta`, `confirmedAt`, `cancelledAt`, `cancellationReason`.
+- `createdBy`, `createdAt`, `updatedAt`, `creditChecks?`.
+
+**Rules:**
+- **Money and decimals:** amounts, quantities and rates are sent and returned as decimal strings. A quantity has up to 3 decimals, above 0 and up to 1,000,000. A unit price has up to 2 decimals, up to 1,000,000,000. A tax rate is 0–100 with up to 2 decimals.
+- **Totals** are calculated by the server and never accepted from the client (unknown fields are refused with 400). Each line's net is quantity × unit price rounded to the cent, half away from zero, and its tax is net × rate rounded the same way, as in `lib/money.ts`. The total must be above zero.
+- **Tax category:** a line's `taxCategory` defaults to the charge type's category, or `standard` without one.
+- **Header rules:** origin and destination must differ. The issue date cannot be in the future. Valid-until is on or after the issue date. Up to 50 lines.
+- **Expiry:** a draft or sent quotation is `expired` once its valid-until date has passed on the Nairobi calendar. It is still valid on that day. Expired quotations cannot be edited or change status; duplicate them instead.
+- **Status flow:** `draft → sent → accepted | declined`, and `accepted → declined` while not booked. `sentAt` and `decidedAt` cannot be in the future or before the issue date, and a decision cannot be before the quotation was sent. Nothing is emailed.
+- **Parties:** the customer must hold the `customer` role and must not be archived (409). An agent must hold `agent`, and a carrier must hold `carrier`.
+- **Bookings:** an accepted quotation converts to exactly one booking, which copies its customer, agent, mode, direction, route and cargo. A cancelled booking cannot be replaced by converting again.
+- **Credit limit** (decided 2026-11-20). A check runs when the customer has a credit limit and the outstanding balance plus the booking's value exceeds it. The outstanding balance is the same figure as `billing.account.outstanding`; the value is the quotation total, or `estimatedValue` for a booking without a quotation (required when the customer has a limit).
+  - Without a `creditDecision`, the response is 409 with `details[0] = { field: 'creditDecision', exposure, creditLimit, attemptedAmount, canOverride }`.
+  - `creditDecision: { decision: 'proceed', reason }` needs `credit.override` (403 otherwise) and creates the booking.
+  - `{ decision: 'blocked', reason }` records the decision and returns 409 with `details[0].decision = 'blocked'`; no booking is created.
+  - Every decision is stored in `CreditCheck` and the audit log.
+- **Not built in Phase 2:** booking edits after creation, `completed` (set once shipments exist, Phase 3), sending quotations, server PDFs.
+
 ## Needed (not implemented)
 
 | Data-access function | Proposed endpoint | Returns (`lib/types.ts`) |
@@ -64,7 +118,7 @@ Pages read these on the server with `lib/api/server.ts` and change them through 
 | `getShipments()` | `GET /shipments?view=&mode=&q=` | `Shipment[]` |
 | `getShipment(ref)` | `GET /shipments/:reference` | `Shipment` (404 if unknown) |
 | `getDocuments(ref?)` | `GET /documents?shipment=` | `ShipmentDocument[]` (metadata only) |
-| `getQuotations()` | `GET /quotations` | `Quotation[]` |
+| `getQuotations()` | `GET /api/quotations` (implemented, Phase 2; the live pages call it directly and demo pages still use demo data here) | `Quotation[]` |
 | `getParties(type?)` | `GET /api/parties?role=` (implemented; agents, carriers and demo forms still use demo data here) | `Party[]` |
 | `getInvoices(ref?)` | `GET /invoices?shipment=` | `Invoice[]` |
 | `getPayments()` | `GET /payments` | `Payment[]` |
@@ -74,7 +128,7 @@ Pages read these on the server with `lib/api/server.ts` and change them through 
 | `getStaff()` | `GET /users?assignable=true` | `{ id, name }[]` (the UI uses names today) |
 | `getShipmentFormOptions()` | Composed from `/parties` and `/users` | Customers, agents, staff, carrier suggestions |
 | `getParty(id)` | `GET /parties/:id` | `Party` with `billing` or `routes` |
-| `getQuotationFormOptions()` | Composed from `/parties` | Customers, agents, default terms |
+| `getQuotationFormOptions()` | Composed from `/api/parties` (implemented for the live form in `lib/api/quotation-options.ts`; demo forms still use demo data) | Customers, agents, default terms |
 
 ## Before real operational data is handled
 
@@ -127,6 +181,14 @@ Still required before these endpoints are used with real data:
 - **Other pages.** The Customs page still reads the static demo data, so shipments created in the session do not appear there yet. (Since phase 2, the Customers & agents pages read shipments and quotations from the session store.)
 
 ## Quotations (phase 2 UI)
+
+> **Superseded for the backend by "Implemented (Phase 2: quotations and bookings)" above** (2026-11-20). This section is the original proposal for the demo UI. Where they differ, the implemented section and the approved conventions win:
+> - the `/api` prefix;
+> - errors as 400 with `details`;
+> - decimal strings instead of cents;
+> - KES only;
+> - sent quotations are still editable;
+> - conversion creates a booking, not a shipment.
 
 Same session-store approach as above. Rules: `lib/quotation-form.ts`,
 `lib/quotation-changes.ts`, `lib/quotations.ts`, `lib/money.ts`.

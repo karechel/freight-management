@@ -1,6 +1,6 @@
 # Backend implementation plan
 
-Status: **approved by the repository owner on 2026-11-03. Phase 0 is merged to `main`. Phase 1 is built and verified** on `feature/customers-phase1`, not yet merged (see the "As built" notes in §6). Phase 2 has not started. Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
+Status: **approved by the repository owner on 2026-11-03. Phase 0 is merged to `main`. Phase 1 is built and verified** on `feature/customers-phase1`, not yet merged (see the "As built" notes in §6). Phase 2 has not started. *(Update 2026-11-20: Phase 1 was merged as PR #4 (`d966e35`) on 2026-11-04. Phase 2 is built and verified on the collaborator's clone, not yet committed; see its "As built" notes in §6.)* Decisions on the formerly open items are in §7. The audit behind this plan is in the root `CLAUDE.md` (LOG-20261029-2146-backend-audit).
 
 ## 1. Decisions
 
@@ -146,6 +146,38 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
 - Bookings: converting an accepted quotation creates the booking automatically (409 if one exists); standalone creation, confirm, cancel with a reason. Charge types read endpoint.
 - Credit-limit check at booking: warning, then proceed or block. Only `credit.override` holders may proceed; every decision is recorded in `CreditCheck`.
 - Frontend: quotation pages go live; KES only; a minimal booking list and detail.
+
+- **As built (2026-11-20, LOG-20261120-1412-phase2-done in `CLAUDE.md`; not yet committed):**
+  - No schema change and no migration. No new permission codes:
+    - quotations and bookings use `quotations.view` and `quotations.manage`, which the seed describes as covering bookings;
+    - the override uses `credit.override`;
+    - credit decisions on a booking are shown only with `parties.billing.view`.
+  - **Credit rule (decided by the operator, 2026-11-20).** The check runs when the customer has a credit limit and the outstanding issued-invoice balance (the Phase 1 `outstanding` figure) plus the booking's value exceeds it.
+    - The value is the quotation total, or an `estimatedValue` for a booking without a quotation (required when the customer has a limit). It is stored only in `CreditCheck`.
+    - Until invoicing exists, the outstanding balance is always zero.
+  - **Credit decisions:**
+    - Without a decision, the API answers 409 with the figures.
+    - "Proceed" needs `credit.override`.
+    - "Stop" is recorded, and the API answers 409 without creating a booking.
+  - **Quotations:**
+    - Editable while `draft` or `sent`, as this plan says. The older frontend contract allowed drafts only.
+    - `expired` is derived from `validUntil` on the Nairobi calendar and never stored.
+    - Transitions follow the frontend's: `accepted → declined` is allowed until a booking exists.
+    - Duplicating is `POST /api/quotations` with `duplicatedFrom`.
+    - Totals are calculated in SQL with the frontend's rounding rule. A line's tax category defaults to its charge type's, or `standard`; this default should be part of the accountant's review of the tax defaults.
+  - **Archived customers** are refused for new quotations, bookings and conversions, and when moving a quotation to them. Existing quotations of a customer archived later can still be edited and change status.
+  - **Bookings:**
+    - No edit endpoint; this plan lists none.
+    - Confirm (pending only); cancel with a reason (pending or confirmed).
+    - `completed` is left for Phase 3.
+    - A cancelled converted booking cannot be replaced, because a quotation has at most one booking.
+  - **Frontend:**
+    - `/quotations` pages are live and require sign-in.
+    - `/bookings` and `/bookings/[reference]` are new.
+    - A reference the backend does not know falls back to the demo record, so demo pages' links still work.
+    - No page creates a standalone booking yet (the API exists).
+  - **Fictional demo seed:** no quotations or bookings added yet.
+  - **Seeded permissions:** only admin holds both `quotations.manage` and `credit.override`, so in practice only an admin can proceed past a limit. Changing this is a permission-data decision for the repository owner.
 
 **Phase 3: Shipments and tracking**
 - Shipments from a booking or standalone (clearing-only). Server-side views: active, needs attention, arriving, customs, delayed.

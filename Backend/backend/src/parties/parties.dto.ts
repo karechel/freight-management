@@ -8,7 +8,6 @@ import {
   IsEmail,
   IsIn,
   IsInt,
-  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -18,6 +17,12 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { PaginationQueryDto } from '../common/pagination.dto.js';
+import {
+  blankToNull,
+  OptionalText,
+  RequiredText,
+  trim,
+} from '../common/text-fields.js';
 import { MONEY_PATTERN, PHONE_PATTERN } from './party-rules.js';
 
 export const PARTY_ROLES = [
@@ -35,38 +40,8 @@ export type PartyAccountStatus = (typeof ACCOUNT_STATUSES)[number];
 export const ARCHIVED_FILTERS = ['exclude', 'only', 'include'] as const;
 export type ArchivedFilter = (typeof ARCHIVED_FILTERS)[number];
 
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
-
-/** Blank means "no value": forms send empty strings, which are stored as null. */
-const blankToNull = ({ value }: { value: unknown }) => {
-  const trimmed = trim({ value });
-  return trimmed === '' ? null : trimmed;
-};
-
 const upperCase = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.toUpperCase() : value;
-
-/** A text value that may be left out or cleared. */
-const OptionalText = (maxLength: number) =>
-  applyDecorators(
-    Transform(blankToNull),
-    IsOptional(),
-    IsString(),
-    MaxLength(maxLength),
-  );
-
-/** A required text value. On updates it may be left out, but never cleared. */
-const RequiredText = (maxLength: number, updating = false) =>
-  applyDecorators(
-    Transform(trim),
-    ...(updating
-      ? [ValidateIf((_: object, value: unknown) => value !== undefined)]
-      : []),
-    IsString(),
-    IsNotEmpty({ message: 'This field is required.' }),
-    MaxLength(maxLength),
-  );
 
 const OptionalEmail = () =>
   applyDecorators(

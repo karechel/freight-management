@@ -5,6 +5,7 @@ Written 2026-11-16 (LOG-20261116-1554-docs-restructure in `CLAUDE.md` §13), fro
 - **Authoritative source:** `docs/backend-implementation-plan.md` (approved by the repository owner on 2026-11-03). This file summarises it and adds status. If they disagree, the approved plan wins; record the difference in `CLAUDE.md` §13.
 - **Business rules and schema:** `docs/database-design.md`.
 - **API contracts:** `Frontend/frontend/docs/api-contracts.md`.
+- **Detailed backend roadmap (proposal, 2026-11-20, awaiting review):** `docs/BACKEND_IMPLEMENTATION_ROADMAP.md`. It details every phase from 0 to 18. It splits Phase 3 into 3A and 3B and Phase 4 below into Phases 4–16. Phase 5 below becomes Phase 17 (client data import), and deployment becomes Phase 18. Until the repository owner approves it, the numbering in this file stays in effect.
 
 Status labels: **Verified** (checks run and recorded) · **In progress** · **Not started** · **Scope to be agreed**.
 
@@ -71,7 +72,14 @@ Every phase, per the approved plan:
   - Nothing yet blocks new work for an archived customer (Phases 2–3 must check `archivedAt`).
   - Four decisions dated 2026-11-04 (`CLAUDE.md` §9) came from a session whose operator was not confirmed, and await the repository owner's review.
 
-### Phase 2 — Quotations and bookings · **Not started** (awaiting explicit approval)
+### Phase 2 — Quotations and bookings · **Verified on the collaborator's clone, not committed** (2026-11-20)
+- **Status update (2026-11-20, LOG-20261120-1412-phase2-done in `CLAUDE.md`):**
+  - Built after the operator's authorization. The as-built notes are in `docs/backend-implementation-plan.md` §6.
+  - Checks recorded: 104 unit tests, 142 end-to-end tests (30 of them new), 14 headless-browser checks; `tsc`, lint and builds pass in both apps.
+  - Not committed or merged yet; a commit and PR need the operator's approval.
+  - Still open: the repository owner's review of the credit rule decided on 2026-11-20, and the permission matrix (only admin can both book and override). Fictional quotations are not yet in the demo seed.
+- The original plan text follows, unchanged.
+
 - **Depends on:** Phases 0 and 1 (customers, reference formats, permissions, audit).
 - **Schema:** none expected. `Quotation`, `QuotationLine`, `Booking`, `ChargeType`, `CreditCheck` and `NumberSequence` already exist. Confirm against `contract.prisma` before starting; any change needs approval and a reviewed migration.
 - **Backend:**
