@@ -3,6 +3,7 @@ import {
   headerProblems,
   isCalendarDate,
   isEditable,
+  issueAfterSentProblem,
   lineProblems,
   nairobiDate,
   statusChangeProblems,
@@ -165,6 +166,32 @@ describe('headerProblems', () => {
         ),
       ),
     ).toEqual(['issueDate', 'validUntil']);
+  });
+});
+
+describe('issueAfterSentProblem', () => {
+  const sentAt = new Date('2026-11-19T22:30:00+03:00');
+
+  it('allows any issue date on a quotation that was never sent', () => {
+    expect(issueAfterSentProblem('2026-12-01', null)).toBeNull();
+  });
+
+  it('allows an issue date on or before the Nairobi day it was sent', () => {
+    expect(issueAfterSentProblem('2026-11-19', sentAt)).toBeNull();
+    expect(issueAfterSentProblem('2026-11-01', sentAt)).toBeNull();
+  });
+
+  it('refuses an issue date after the day it was sent', () => {
+    const problem = issueAfterSentProblem('2026-11-20', sentAt);
+    expect(problem?.field).toBe('issueDate');
+    expect(problem?.messages[0]).toMatch(/2026-11-19/);
+  });
+
+  it('compares on the Nairobi calendar, not UTC', () => {
+    // 22:30 UTC on the 19th is 01:30 on the 20th in Nairobi.
+    expect(
+      issueAfterSentProblem('2026-11-20', new Date('2026-11-19T22:30:00Z')),
+    ).toBeNull();
   });
 });
 

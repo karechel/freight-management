@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { ErrorState } from '@/components/ui/states';
 import { getCurrentUser, serverGet } from '@/lib/api/server';
-import { QUOTATIONS_MANAGE, type LiveBooking } from '@/lib/live-quotations';
+import { CREDIT_OVERRIDE, QUOTATIONS_MANAGE, type LiveBooking } from '@/lib/live-quotations';
 
 // Next.js passes `params` already URL-decoded, so they are used as-is.
 
@@ -35,5 +35,12 @@ export default async function BookingPage({ params }: PageProps<'/bookings/[refe
       </>
     );
   }
-  return <BookingDetail booking={booking.data} canManage={user.ok && user.data.permissions.includes(QUOTATIONS_MANAGE)} />;
+  const permissions = user.ok ? user.data.permissions : [];
+  return (
+    <BookingDetail
+      booking={booking.data}
+      canManage={permissions.includes(QUOTATIONS_MANAGE)}
+      canApprove={permissions.includes(CREDIT_OVERRIDE)}
+    />
+  );
 }

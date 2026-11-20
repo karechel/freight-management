@@ -2,6 +2,7 @@
 // Money, quantities and rates are exact decimal text from the backend. They are only
 // displayed here, never added up; the backend calculates every total.
 
+import { quotationStatusMeta, type StatusMeta } from './labels';
 import { minorToInput } from './money';
 import type { QuotationInput } from './quotation-form';
 import type { QuotationStatus, ShipmentDirection, TransportMode } from './types';
@@ -82,6 +83,27 @@ export interface CreditCheckView {
   decidedAt: string;
 }
 
+/**
+ * Credit approval (2026-11-20): a booking created over the limit by someone without
+ * `credit.override` waits for finance, management or an administrator to approve or reject it.
+ * The money figures are present only for users who may view billing.
+ */
+export interface CreditApprovalView {
+  state: 'awaiting' | 'approved' | 'rejected';
+  requestedBy: PartyRef | null;
+  requestedAt: string;
+  reason: string;
+  exposure?: string;
+  creditLimit?: string;
+  attemptedAmount?: string;
+}
+
+export const creditApprovalMeta = {
+  awaiting: { label: 'Awaiting credit approval', tone: 'warning' },
+  approved: { label: 'Credit approved', tone: 'success' },
+  rejected: { label: 'Credit rejected', tone: 'danger' },
+} as const;
+
 export interface LiveBooking {
   id: number;
   reference: string;
@@ -106,6 +128,8 @@ export interface LiveBooking {
   updatedAt: string;
   /** Present only for users allowed to view billing. */
   creditChecks?: CreditCheckView[];
+  /** Null unless approval was requested. */
+  creditApproval: CreditApprovalView | null;
 }
 
 export interface ListPage<T> {
@@ -138,6 +162,16 @@ export const bookingStatusMeta = {
   cancelled: { label: 'Cancelled', tone: 'neutral' },
 } as const;
 
+/**
+ * The status badge for a quotation. "Booked" is shown while its booking stands; once the booking
+ * is cancelled, that is shown instead. The quotation itself cannot be converted again (one booking
+ * per quotation); what should happen next is a decision for the repository owner.
+ */
+export function quotationDisplayStatus(q: Pick<LiveQuotation, 'status' | 'booking'>): StatusMeta {
+  if (!q.booking) return quotationStatusMeta[q.status];
+  return q.booking.status === 'cancelled' ? { label: 'Booking cancelled', tone: 'neutral' } : quotationStatusMeta.booked;
+}
+
 export const PAGE_SIZE = 25;
 
 const QUOTATION_STATUSES: readonly string[] = ['draft', 'sent', 'accepted', 'declined', 'expired'];
@@ -147,6 +181,10 @@ export interface ListFilters {
   q: string;
   status: string;
   page: number;
+  /** Bookings only: show only those awaiting credit approval. */
+  awaitingApproval?: boolean;
+  /** Quotations only: one customer's quotations (from the customer page). */
+  customerId?: number;
 }
 
 const single = (value: string | string[] | undefined) => (typeof value === 'string' ? value : '');
@@ -161,16 +199,23 @@ function parseFilters(params: Record<string, string | string[] | undefined>, sta
   };
 }
 
-export const parseQuotationFilters = (params: Record<string, string | string[] | undefined>) =>
-  parseFilters(params, QUOTATION_STATUSES);
-export const parseBookingFilters = (params: Record<string, string | string[] | undefined>) =>
-  parseFilters(params, BOOKING_STATUSES);
+export function parseQuotationFilters(params: Record<string, string | string[] | undefined>): ListFilters {
+  const customerId = Number(single(params.customerId));
+  const valid = /^[1-9]d{0,9}$/.test(single(params.customerId)) && customerId <= 2_147_483_647;
+  return { ...parseFilters(params, QUOTATION_STATUSES), ...(valid ? { customerId } : {}) };
+}
+export function parseBookingFilters(params: Record<string, string | string[] | undefined>): ListFilters {
+  const awaiting = single(params.creditApproval) === 'awaiting';
+  return { ...parseFilters(params, BOOKING_STATUSES), ...(awaiting ? { awaitingApproval: true } : {}) };
+}
 
 /** The page URL's query string for these filters, leaving out defaults. */
 export function listPageQuery(filters: ListFilters): string {
   const query = new URLSearchParams();
   if (filters.q) query.set('q', filters.q);
   if (filters.status) query.set('status', filters.status);
+  if (filters.customerId) query.set('customerId', String(filters.customerId));
+  if (filters.awaitingApproval) query.set('creditApproval', 'awaiting');
   if (filters.page > 1) query.set('page', String(filters.page));
   const text = query.toString();
   return text ? `?${text}` : '';
@@ -181,6 +226,8 @@ export function listApiQuery(filters: ListFilters): string {
   const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((filters.page - 1) * PAGE_SIZE) });
   if (filters.q) query.set('q', filters.q);
   if (filters.status) query.set('status', filters.status);
+  if (filters.customerId) query.set('customerId', String(filters.customerId));
+  if (filters.awaitingApproval) query.set('creditApproval', 'awaiting');
   return query.toString();
 }
 

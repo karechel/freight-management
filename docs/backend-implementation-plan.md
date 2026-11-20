@@ -176,7 +176,22 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
     - `/bookings` and `/bookings/[reference]` are new.
     - A reference the backend does not know falls back to the demo record, so demo pages' links still work.
     - No page creates a standalone booking yet (the API exists).
-  - **Fictional demo seed:** no quotations or bookings added yet.
+  - **Fictional demo seed:** no quotations or bookings added yet. *(Update 2026-11-20, LOG-20261120-1501-phase2-batch1: added in `src/seed/demo-quotations.ts`, run by `npm run db:seed:demo` after the companies:
+    - 8 quotations mirroring the frontend demo records, with the same references (`QT-2609-0038` to `QT-2610-0057`), one line each at 0% tax; fictional sent and decision times;
+    - 2 confirmed bookings (`BKG-2610-0001`, `BKG-2610-0002`) for the two quotations the demo shows as booked;
+    - counters only moved forward.
+    It is separate from `seedDemo` because the end-to-end tests call `seedDemo` and expect fresh counters.)*
+  - **Credit approval step (2026-11-20, LOG-20261120-1514-credit-approval; not committed).** The operator instructed: "implement this permission adjustment, add tests for Sales creating a booking and Finance/Management approving it". The exact adjustment was not written down. The question asking for it was declined and the instruction repeated, so this reading was implemented and recorded; the repository owner's approval is not confirmed.
+    - Staff without `credit.override` (Sales) may book over the limit with `request_approval`. The booking is pending and awaits approval.
+    - `credit.override` holders (Finance, Management, Admin) approve or reject it with `POST /api/bookings/:reference/credit-approval`, which needs `credit.override` + `quotations.view` and **not** `quotations.manage`. Rejecting cancels the booking. Confirmation waits for approval.
+    - Unchanged: the credit rule, the seeded role permissions (no new codes, no seed change) and the schema. The awaiting state is derived from the `credit_approval_requested` audit entry and the booking's `CreditCheck` rows; a dedicated column would be clearer, but that is a schema change and was not authorized.
+  - **Remediation batch 1 (2026-11-20), no new business rule:**
+    - A sent quotation's issue date cannot be moved after the day it was sent.
+    - A customer's "open quotations" leaves out expired ones.
+    - A quotation whose booking was cancelled shows "Booking cancelled" and stays unconvertible.
+    - The convert form takes carrier, carrier booking number and planned dates.
+    - The Customers page links to the customer's quotations.
+    - Demo fallback pages show the "Demo data" badge.
   - **Seeded permissions:** only admin holds both `quotations.manage` and `credit.override`, so in practice only an admin can proceed past a limit. Changing this is a permission-data decision for the repository owner.
 
 **Phase 3: Shipments and tracking**

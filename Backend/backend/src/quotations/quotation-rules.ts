@@ -186,6 +186,26 @@ export function headerProblems(
   return problems;
 }
 
+/**
+ * Editing a sent quotation must not move its issue date after the day it was sent (on the
+ * Nairobi calendar), or the record would say it was sent before it was issued.
+ */
+export function issueAfterSentProblem(
+  issueDate: string,
+  sentAt: Date | null,
+): FieldProblem | null {
+  if (!sentAt) return null;
+  const sentDay = nairobiDate(sentAt);
+  return issueDate > sentDay
+    ? {
+        field: 'issueDate',
+        messages: [
+          `The issue date cannot be after the day the quotation was sent (${sentDay}).`,
+        ],
+      }
+    : null;
+}
+
 /** Largest total that fits the `Money` column, Numeric(14, 2). */
 export const MAX_TOTAL = '999999999999.99';
 const MAX_QUANTITY = '1000000';

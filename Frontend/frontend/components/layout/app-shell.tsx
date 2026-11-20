@@ -7,11 +7,14 @@ import { CloseIcon, MenuIcon } from '@/components/ui/icons';
 import { isLivePage } from '@/lib/customers';
 import { ApiStatusPill } from './api-status';
 import { findNavItem } from './nav-items';
+import { DemoPageContext } from './page-source';
 import { Sidebar } from './sidebar';
 import { UserMenu } from './user-menu';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Set by <DemoPageMarker /> when a live route shows a demo record.
+  const [demoPage, setDemoPage] = useState(false);
   const pathname = usePathname();
   const section = findNavItem(pathname)?.label ?? 'Freight Management';
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -35,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
 
   return (
+    <DemoPageContext.Provider value={setDemoPage}>
     <div className="flex min-h-screen bg-slate-50 print:bg-white">
       <a
         href="#main"
@@ -87,7 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <p className="min-w-0 truncate text-sm font-semibold text-slate-900">{section}</p>
           <div className="ml-auto flex items-center gap-2">
-            {isLivePage(pathname) ? (
+            {isLivePage(pathname) && !demoPage ? (
               <Badge tone="success" className="hidden sm:inline-flex">
                 Live data
               </Badge>
@@ -105,5 +109,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </DemoPageContext.Provider>
   );
 }

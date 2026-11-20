@@ -12,11 +12,33 @@ const ALLOWED_FROM: Record<BookingAction, readonly BookingStatus[]> = {
   cancel: ['pending', 'confirmed'],
 };
 
+/**
+ * Credit approval (2026-11-20, LOG-20261120-1514-credit-approval). A booking created over the
+ * credit limit by someone without `credit.override` awaits approval until an override holder
+ * approves (a `proceed` decision) or rejects it (`blocked`, which also cancels the booking).
+ * Bookings that never needed approval have no approval state.
+ */
+export type CreditApprovalState = 'awaiting' | 'approved' | 'rejected';
+
+export function creditApprovalState(
+  requested: boolean,
+  decisions: readonly ('proceed' | 'blocked')[],
+): CreditApprovalState | null {
+  if (!requested) return null;
+  const last = decisions.at(-1);
+  if (last === undefined) return 'awaiting';
+  return last === 'proceed' ? 'approved' : 'rejected';
+}
+
 /** Why an action is not allowed from the current status, or null when it is. */
 export function bookingActionProblem(
   status: BookingStatus,
   action: BookingAction,
+  approval: CreditApprovalState | null = null,
 ): string | null {
+  if (action === 'confirm' && approval === 'awaiting') {
+    return 'This booking is awaiting credit approval. Finance, management or an administrator must approve it before it can be confirmed.';
+  }
   if (ALLOWED_FROM[action].includes(status)) return null;
   return action === 'confirm'
     ? `Only pending bookings can be confirmed. This booking is ${status}.`

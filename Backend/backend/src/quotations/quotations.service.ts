@@ -19,6 +19,7 @@ import { ReferencesService } from '../references/references.service.js';
 import {
   effectiveStatus,
   headerProblems,
+  issueAfterSentProblem,
   isCalendarDate,
   isEditable,
   lineProblems,
@@ -262,7 +263,12 @@ export class QuotationsService {
       this.assertValid([
         ...this.dateProblems(merged),
         ...(this.datesValid(merged)
-          ? headerProblems(merged, nairobiToday())
+          ? [
+              ...headerProblems(merged, nairobiToday()),
+              ...[
+                issueAfterSentProblem(merged.issueDate, before.sentAt),
+              ].filter((problem) => problem !== null),
+            ]
           : []),
         ...(dto.lines ? lineProblems(dto.lines) : []),
       ]);

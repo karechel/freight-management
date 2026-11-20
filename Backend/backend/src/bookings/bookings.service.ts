@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
 import type { Principal } from '../auth/auth.decorators.js';
+import { normalizeDecimal } from '../common/decimal-fields.js';
 import type { Page } from '../common/pagination.dto.js';
 import { validationFailed } from '../common/validation-exception.js';
 import {
@@ -27,15 +28,34 @@ import { QuotationsService } from '../quotations/quotations.service.js';
 import { ReferencesService } from '../references/references.service.js';
 import {
   bookingActionProblem,
+  creditApprovalState,
   plannedDatesProblem,
   type BookingAction,
+  type CreditApprovalState,
 } from './booking-rules.js';
 import type {
   CancelBookingDto,
   ConvertQuotationDto,
   CreateBookingDto,
+  CreditApprovalDto,
   ListBookingsQueryDto,
 } from './bookings.dto.js';
+
+/** Audit action that marks a booking as created over the limit, awaiting credit approval. */
+export const APPROVAL_REQUESTED = 'credit_approval_requested';
+
+interface ApprovalRecord {
+  state: CreditApprovalState | null;
+  /** The figures and reason recorded with the request, when there was one. */
+  request?: {
+    requestedById: number | null;
+    requestedAt: Date;
+    reason: string;
+    exposure: string;
+    creditLimit: string;
+    attemptedAmount: string;
+  };
+}
 
 type BookingInsert = {
   quotationId: number | null;
@@ -181,7 +201,11 @@ export class BookingsService {
       }
       const outcome = await this.credit.check(tx, {
         customerId: dto.customerId,
-        attemptedAmount: dto.estimatedValue ?? null,
+        // Two decimals, as every other amount, in the warning and the recorded figures.
+        attemptedAmount:
+          dto.estimatedValue === undefined
+            ? null
+            : normalizeDecimal(dto.estimatedValue, 2),
         amountField: 'estimatedValue',
         decision: dto.creditDecision,
         user,
@@ -227,11 +251,98 @@ export class BookingsService {
     return this.act(reference, 'cancel', user, dto.reason);
   }
 
+  /**
+   * An override holder approves or rejects a booking awaiting credit approval. Approving records a
+   * `proceed` decision, so the booking can be confirmed; rejecting records `blocked` and cancels
+   * the booking. The exposure is recalculated now; the value is the one recorded with the request.
+   */
+  async decideCreditApproval(
+    reference: string,
+    dto: CreditApprovalDto,
+    user: Principal,
+  ) {
+    await this.prisma.client.transaction(async (tx) => {
+      const [row] = await tx.query(
+        this.prisma.client.raw.sql`
+          SELECT id FROM "Booking" WHERE reference = ${reference}::text FOR UPDATE
+        `
+          .returnsRow({ id: 'pg/int4@1' })
+          .build(),
+      );
+      if (!row) throw new NotFoundException('Record not found.');
+      const booking = (await tx.orm.public.Booking.first({ id: row.id }))!;
+      const approval = (await this.approvals(tx, [booking.id])).get(
+        booking.id,
+      )!;
+      if (approval.state !== 'awaiting' || !approval.request) {
+        throw new ConflictException(
+          'This booking is not awaiting credit approval.',
+        );
+      }
+      if (booking.status !== 'pending') {
+        throw new ConflictException(
+          `This booking is ${booking.status}, so it can no longer be approved or rejected.`,
+        );
+      }
+      const current = await this.credit.currentFigures(
+        tx,
+        booking.customerId,
+        approval.request.attemptedAmount,
+      );
+      const approve = dto.decision === 'approve';
+      await this.credit.record(tx, {
+        customerId: booking.customerId,
+        bookingId: booking.id,
+        outcome: {
+          kind: approve ? 'proceed' : 'blocked',
+          figures: {
+            exposure: current.exposure,
+            // If the limit was removed since the request, the requested limit is recorded.
+            creditLimit: current.creditLimit ?? approval.request.creditLimit,
+            attemptedAmount: approval.request.attemptedAmount,
+          },
+          reason: dto.reason,
+        },
+        user,
+      });
+      const now = new Date();
+      await tx.orm.public.Booking.where({ id: booking.id }).update(
+        approve
+          ? { updatedAt: now }
+          : {
+              status: 'cancelled',
+              cancelledAt: now,
+              cancellationReason: `Credit approval rejected: ${dto.reason}`,
+              updatedAt: now,
+            },
+      );
+      await this.audit.record(tx, {
+        actorUserId: user.id,
+        entityType: 'Booking',
+        entityId: booking.id,
+        action: approve ? 'credit_approved' : 'credit_rejected',
+        summary: approve
+          ? `${reference}: credit approval given`
+          : `${reference}: credit approval rejected; booking cancelled`,
+        changes: {
+          before: { status: booking.status },
+          after: {
+            status: approve ? booking.status : 'cancelled',
+            decision: dto.decision,
+            reason: dto.reason,
+          },
+        },
+      });
+    });
+    return this.getOne(reference, user);
+  }
+
   async list(query: ListBookingsQueryDto, user: Principal) {
     const { client } = this.prisma;
     const status = query.status ?? '';
     const customerId = query.customerId ?? 0;
     const pattern = query.q ? containsPattern(query.q) : '';
+    const awaiting = query.creditApproval === 'awaiting' ? 'yes' : '';
     const plan = client.raw.sql`
       WITH matching AS (
         SELECT b.id, b."createdAt"
@@ -240,6 +351,13 @@ export class BookingsService {
         LEFT JOIN "Quotation" q ON q.id = b."quotationId"
         WHERE (${status}::text = '' OR b.status = ${status}::text)
           AND (${customerId}::int = 0 OR b."customerId" = ${customerId}::int)
+          -- Awaiting credit approval: requested, still pending, no decision recorded yet.
+          AND (${awaiting}::text = '' OR (
+                b.status = 'pending'
+                AND EXISTS (SELECT 1 FROM "AuditLog" a
+                            WHERE a."entityType" = 'Booking' AND a."entityId" = b.id
+                              AND a.action = ${APPROVAL_REQUESTED}::text)
+                AND NOT EXISTS (SELECT 1 FROM "CreditCheck" cc WHERE cc."bookingId" = b.id)))
           AND (${pattern}::text = ''
                 OR b.reference ILIKE ${pattern}::text
                 OR q.reference ILIKE ${pattern}::text
@@ -313,6 +431,20 @@ export class BookingsService {
         user,
       });
     }
+    if (outcome.kind === 'request') {
+      // No CreditCheck yet: the decision is the approver's. The request and its figures are kept in
+      // the audit log, which is also how the booking is known to be awaiting approval.
+      await this.audit.record(tx, {
+        actorUserId: user.id,
+        entityType: 'Booking',
+        entityId: booking.id,
+        action: APPROVAL_REQUESTED,
+        summary: `${reference} created over the credit limit; credit approval requested`,
+        changes: {
+          after: { ...outcome.figures, reason: outcome.reason },
+        },
+      });
+    }
     await this.audit.record(tx, {
       actorUserId: user.id,
       entityType: 'Booking',
@@ -328,6 +460,7 @@ export class BookingsService {
             plannedEtd,
             plannedEta,
             creditOverride: outcome.kind === 'proceed',
+            creditApprovalRequested: outcome.kind === 'request',
           },
         }),
       ) as { readonly [key: string]: string },
@@ -351,7 +484,12 @@ export class BookingsService {
       );
       if (!row) throw new NotFoundException('Record not found.');
       const before = (await tx.orm.public.Booking.first({ id: row.id }))!;
-      const problem = bookingActionProblem(before.status, action);
+      const approval = (await this.approvals(tx, [before.id])).get(before.id)!;
+      const problem = bookingActionProblem(
+        before.status,
+        action,
+        approval.state,
+      );
       if (problem) throw new ConflictException(problem);
       const now = new Date();
       const patch =
@@ -401,7 +539,7 @@ export class BookingsService {
       b.quotationId ? [b.quotationId] : [],
     );
     const showCredit = detail && user.permissions.includes(BILLING_VIEW);
-    const [parties, quotations, checks] = await Promise.all([
+    const [parties, quotations, checks, approvals] = await Promise.all([
       orm.public.Party.where((p) => p.id.in(partyIds)).all(),
       quotationIds.length
         ? orm.public.Quotation.where((q) => q.id.in(quotationIds)).all()
@@ -411,11 +549,15 @@ export class BookingsService {
             .orderBy((c) => c.decidedAt.asc())
             .all()
         : Promise.resolve([]),
+      this.approvals(this.prisma.client, ids),
     ]);
     const userIds = [
       ...new Set([
         ...bookings.flatMap((b) => (b.createdById ? [b.createdById] : [])),
         ...checks.map((c) => c.decidedById),
+        ...[...approvals.values()].flatMap((a) =>
+          a.request?.requestedById ? [a.request.requestedById] : [],
+        ),
       ]),
     ];
     const users = userIds.length
@@ -430,6 +572,24 @@ export class BookingsService {
       return found ? { id: found.id, name: found.name ?? found.email } : null;
     };
     const byId = new Map(bookings.map((b) => [b.id, b]));
+    const approvalView = (approval: ApprovalRecord) => {
+      if (!approval.state || !approval.request) return null;
+      const { request } = approval;
+      return {
+        state: approval.state,
+        requestedBy: person(request.requestedById),
+        requestedAt: request.requestedAt,
+        reason: request.reason,
+        // Money figures are billing information.
+        ...(user.permissions.includes(BILLING_VIEW)
+          ? {
+              exposure: request.exposure,
+              creditLimit: request.creditLimit,
+              attemptedAmount: request.attemptedAmount,
+            }
+          : {}),
+      };
+    };
 
     return ids.map((id) => {
       const b = byId.get(id)!;
@@ -458,6 +618,7 @@ export class BookingsService {
         createdBy: person(b.createdById),
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
+        creditApproval: approvalView(approvals.get(id)!),
         ...(showCredit
           ? {
               creditChecks: checks
@@ -475,6 +636,54 @@ export class BookingsService {
           : {}),
       };
     });
+  }
+
+  /** Approval state per booking, from the request in the audit log and the recorded decisions. */
+  private async approvals(
+    source: Pick<Tx, 'orm'>,
+    ids: number[],
+  ): Promise<Map<number, ApprovalRecord>> {
+    const result = new Map<number, ApprovalRecord>(
+      ids.map((id) => [id, { state: null }]),
+    );
+    if (ids.length === 0) return result;
+    const [requests, decisions] = await Promise.all([
+      source.orm.public.AuditLog.where({
+        entityType: 'Booking',
+        action: APPROVAL_REQUESTED,
+      })
+        .where((a) => a.entityId.in(ids))
+        .all(),
+      source.orm.public.CreditCheck.where((c) => c.bookingId.in(ids))
+        .orderBy((c) => c.id.asc())
+        .all(),
+    ]);
+    for (const id of ids) {
+      const request = requests.find((r) => r.entityId === id);
+      const state = creditApprovalState(
+        request !== undefined,
+        decisions.filter((d) => d.bookingId === id).map((d) => d.decision),
+      );
+      const after = (
+        request?.changes as { after?: Record<string, string> } | null
+      )?.after;
+      result.set(id, {
+        state,
+        ...(request && after
+          ? {
+              request: {
+                requestedById: request.actorUserId,
+                requestedAt: request.occurredAt,
+                reason: after.reason,
+                exposure: after.exposure,
+                creditLimit: after.creditLimit,
+                attemptedAmount: after.attemptedAmount,
+              },
+            }
+          : {}),
+      });
+    }
+    return result;
   }
 
   private instant(value: string | null | undefined): Date | null {

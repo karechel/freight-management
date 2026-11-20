@@ -14,6 +14,7 @@ import {
   type LiveBooking,
   type LiveQuotation,
   type LiveQuotationStatus,
+  type PartyRef,
 } from '@/lib/live-quotations';
 
 const FORM_ID = 'quotation-status';
@@ -143,7 +144,7 @@ export function LiveQuotationStatusForm({ quotation }: { quotation: LiveQuotatio
  * their credit limit, the backend answers with the figures; staff then proceed (only with
  * `credit.override`) or stop, giving a reason. Both decisions are recorded by the backend.
  */
-export function ConvertToBooking({ quotation }: { quotation: LiveQuotation }) {
+export function ConvertToBooking({ quotation, carriers = [] }: { quotation: LiveQuotation; carriers?: PartyRef[] }) {
   const router = useRouter();
   const [warning, setWarning] = useState<CreditWarning>();
   const [reason, setReason] = useState('');
@@ -151,9 +152,52 @@ export function ConvertToBooking({ quotation }: { quotation: LiveQuotation }) {
   const [failure, setFailure] = useState<string>();
   const [stopped, setStopped] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Optional booking details, sent with the conversion (POST /api/quotations/:reference/convert).
+  const [carrierId, setCarrierId] = useState('');
+  const [carrierBookingNumber, setCarrierBookingNumber] = useState('');
+  const [plannedEtd, setPlannedEtd] = useState('');
+  const [plannedEta, setPlannedEta] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  /** Updates a field and clears its error, so a corrected value no longer shows the old message. */
+  const change = (field: string, set: (value: string) => void) => (value: string) => {
+    set(value);
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
 
-  async function convert(decision?: 'proceed' | 'blocked') {
+  /** The optional details as request fields, or field errors when a date is not valid. */
+  function details(): { body?: Record<string, string | number>; errors: Record<string, string> } {
+    const errors: Record<string, string> = {};
+    const etd = plannedEtd ? fromDateTimeInput(plannedEtd) : undefined;
+    const eta = plannedEta ? fromDateTimeInput(plannedEta) : undefined;
+    if (plannedEtd && !etd) errors.plannedEtd = 'Enter a valid date and time.';
+    if (plannedEta && !eta) errors.plannedEta = 'Enter a valid date and time.';
+    if (etd && eta && new Date(eta).getTime() < new Date(etd).getTime()) {
+      errors.plannedEta = 'The planned arrival cannot be before the planned departure.';
+    }
+    if (Object.keys(errors).length > 0) return { errors };
+    return {
+      errors,
+      body: {
+        ...(carrierId ? { carrierId: Number(carrierId) } : {}),
+        ...(carrierBookingNumber.trim() ? { carrierBookingNumber: carrierBookingNumber.trim() } : {}),
+        ...(etd ? { plannedEtd: etd } : {}),
+        ...(eta ? { plannedEta: eta } : {}),
+      },
+    };
+  }
+
+  async function convert(decision?: 'proceed' | 'blocked' | 'request_approval') {
     setFailure(undefined);
+    const { body, errors } = details();
+    setFieldErrors(errors);
+    if (!body) {
+      setWarning(undefined);
+      return;
+    }
     if (decision && !reason.trim()) {
       setReasonError('Give a reason for this decision.');
       return;
@@ -163,7 +207,7 @@ export function ConvertToBooking({ quotation }: { quotation: LiveQuotation }) {
     try {
       const booking = await backend.post<LiveBooking>(
         `quotations/${encodeURIComponent(quotation.reference)}/convert`,
-        decision ? { creditDecision: { decision, reason: reason.trim() } } : {},
+        decision ? { ...body, creditDecision: { decision, reason: reason.trim() } } : body,
       );
       router.push(bookingHref(booking.reference));
       router.refresh();
@@ -175,6 +219,8 @@ export function ConvertToBooking({ quotation }: { quotation: LiveQuotation }) {
       } else if (found) {
         setWarning(found);
       } else {
+        if (error instanceof ApiError) setFieldErrors(error.fieldErrors);
+        setWarning(undefined);
         setFailure(error instanceof ApiError ? error.message : 'The booking could not be created. Try again.');
       }
       setBusy(false);
@@ -200,8 +246,43 @@ export function ConvertToBooking({ quotation }: { quotation: LiveQuotation }) {
         <>
           <p className="text-sm text-slate-600">
             Creates a pending booking with this quotation&apos;s customer, agent, route and cargo. A quotation can be converted
-            once.
+            once. The details below are optional and cannot be changed after conversion.
           </p>
+          <SelectField
+            id="convert-carrierId"
+            label="Carrier"
+            value={carrierId}
+            onChange={change('carrierId', setCarrierId)}
+            placeholder={carriers.length ? 'Not recorded' : 'No carriers recorded'}
+            options={carriers.map((c) => ({ value: String(c.id), label: c.name }))}
+            error={fieldErrors.carrierId}
+          />
+          <TextField
+            id="convert-carrierBookingNumber"
+            label="Carrier booking number"
+            value={carrierBookingNumber}
+            onChange={change('carrierBookingNumber', setCarrierBookingNumber)}
+            maxLength={60}
+            error={fieldErrors.carrierBookingNumber}
+          />
+          <DateField
+            id="convert-plannedEtd"
+            withTime
+            label="Planned departure"
+            value={plannedEtd}
+            onChange={change('plannedEtd', setPlannedEtd)}
+            error={fieldErrors.plannedEtd}
+            hint="Nairobi time."
+          />
+          <DateField
+            id="convert-plannedEta"
+            withTime
+            label="Planned arrival"
+            value={plannedEta}
+            onChange={change('plannedEta', setPlannedEta)}
+            error={fieldErrors.plannedEta}
+            hint="Nairobi time."
+          />
           <Button onClick={() => convert()} disabled={busy}>
             {busy ? 'Converting…' : 'Convert to booking'}
           </Button>
@@ -237,9 +318,17 @@ export function ConvertToBooking({ quotation }: { quotation: LiveQuotation }) {
                 Proceed past the limit
               </Button>
             ) : (
-              <p className="text-xs">Only finance, management and administrators can proceed past a credit limit.</p>
+              <Button size="sm" onClick={() => convert('request_approval')} disabled={busy}>
+                Book and request approval
+              </Button>
             )}
           </div>
+          {!warning.canOverride && (
+            <p className="text-xs">
+              The booking is created as pending and cannot be confirmed until finance, management or an administrator
+              approves it. If they reject it, it is cancelled.
+            </p>
+          )}
         </div>
       )}
     </div>

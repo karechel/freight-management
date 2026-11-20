@@ -11,7 +11,11 @@ import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 
 export const CREDIT_OVERRIDE = 'credit.override';
 
-export type CreditDecisionValue = 'proceed' | 'blocked';
+/**
+ * `request_approval` (added 2026-11-20, LOG-20261120-1514-credit-approval): staff without
+ * `credit.override` create the booking as pending, awaiting approval by an override holder.
+ */
+export type CreditDecisionValue = 'proceed' | 'blocked' | 'request_approval';
 
 export interface CreditDecisionInput {
   decision: CreditDecisionValue;
@@ -29,7 +33,14 @@ export interface CreditFigures {
 export type CreditOutcome =
   | { kind: 'clear' }
   | { kind: 'proceed'; figures: CreditFigures; reason: string }
-  | { kind: 'blocked'; figures: CreditFigures; reason: string };
+  | { kind: 'blocked'; figures: CreditFigures; reason: string }
+  | { kind: 'request'; figures: CreditFigures; reason: string };
+
+/** A recorded decision: `request` is never stored in `CreditCheck`. */
+export type RecordedOutcome = Extract<
+  CreditOutcome,
+  { kind: 'proceed' } | { kind: 'blocked' }
+>;
 
 type Money = Numeric<14, 2>;
 
@@ -65,18 +76,12 @@ export class CreditService {
       user: Principal;
     },
   ): Promise<CreditOutcome> {
-    const { client } = this.prisma;
-    const [row] = await tx.query(
-      client.raw.sql`
-        SELECT "creditLimit"::text AS "creditLimit"
-        FROM "Party" WHERE id = ${input.customerId}::int
-        FOR UPDATE
-      `
-        .returnsRow({ creditLimit: 'pg/text@1' })
-        .build(),
+    const current = await this.currentFigures(
+      tx,
+      input.customerId,
+      input.attemptedAmount,
     );
-    const creditLimit = row?.creditLimit as string | null | undefined;
-    if (creditLimit == null) return { kind: 'clear' };
+    if (current.creditLimit === null) return { kind: 'clear' };
 
     if (input.attemptedAmount === null) {
       throw validationFailed([
@@ -87,6 +92,76 @@ export class CreditService {
           ],
         },
       ]);
+    }
+    const figures = current;
+    const creditLimit = current.creditLimit;
+    if (!figures.exceeds) return { kind: 'clear' };
+
+    const result: CreditFigures = {
+      exposure: figures.exposure,
+      creditLimit,
+      attemptedAmount: input.attemptedAmount,
+    };
+    const { decision } = input;
+    if (!decision) {
+      throw new ConflictException({
+        message:
+          'This booking would take the customer over their credit limit. Choose to proceed, request approval or stop, and give a reason.',
+        details: [
+          {
+            field: 'creditDecision',
+            messages: ['Over the credit limit: a decision is required.'],
+            ...result,
+            canOverride: input.user.permissions.includes(CREDIT_OVERRIDE),
+          },
+        ],
+      });
+    }
+    if (
+      decision.decision === 'proceed' &&
+      !input.user.permissions.includes(CREDIT_OVERRIDE)
+    ) {
+      throw new ForbiddenException(
+        'Only finance, management and administrators can proceed past a credit-limit warning.',
+      );
+    }
+    return {
+      kind:
+        decision.decision === 'request_approval'
+          ? 'request'
+          : decision.decision,
+      figures: result,
+      reason: decision.reason,
+    };
+  }
+
+  /**
+   * The customer's credit limit (null when none), outstanding balance and whether `attempted` would
+   * exceed the limit. Locks the customer row until the caller's transaction ends.
+   */
+  async currentFigures(
+    tx: Tx,
+    customerId: number,
+    attempted: string | null,
+  ): Promise<{
+    creditLimit: string | null;
+    exposure: string;
+    exceeds: boolean;
+  }> {
+    const input = { customerId, attemptedAmount: attempted ?? '0' };
+    const { client } = this.prisma;
+    const [row] = await tx.query(
+      client.raw.sql`
+        SELECT "creditLimit"::text AS "creditLimit"
+        FROM "Party" WHERE id = ${input.customerId}::int
+        FOR UPDATE
+      `
+        .returnsRow({ creditLimit: 'pg/text@1' })
+        .build(),
+    );
+    const creditLimit = (row?.creditLimit as string | null | undefined) ?? null;
+    if (creditLimit === null) {
+      return { creditLimit: null, exposure: '0.00', exceeds: false };
     }
 
     // Outstanding balance: same definition as the Phase 1 customer figures
@@ -118,40 +193,10 @@ export class CreditService {
         .returnsRow({ exposure: 'pg/text@1', exceeds: 'pg/bool@1' })
         .build(),
     );
-    if (!figures.exceeds) return { kind: 'clear' };
-
-    const result: CreditFigures = {
-      exposure: figures.exposure,
-      creditLimit,
-      attemptedAmount: input.attemptedAmount,
-    };
-    const { decision } = input;
-    if (!decision) {
-      throw new ConflictException({
-        message:
-          'This booking would take the customer over their credit limit. Choose to proceed or stop, and give a reason.',
-        details: [
-          {
-            field: 'creditDecision',
-            messages: ['Over the credit limit: a decision is required.'],
-            ...result,
-            canOverride: input.user.permissions.includes(CREDIT_OVERRIDE),
-          },
-        ],
-      });
-    }
-    if (
-      decision.decision === 'proceed' &&
-      !input.user.permissions.includes(CREDIT_OVERRIDE)
-    ) {
-      throw new ForbiddenException(
-        'Only finance, management and administrators can proceed past a credit-limit warning.',
-      );
-    }
     return {
-      kind: decision.decision,
-      figures: result,
-      reason: decision.reason,
+      creditLimit,
+      exposure: figures.exposure,
+      exceeds: figures.exceeds,
     };
   }
 
@@ -161,7 +206,7 @@ export class CreditService {
     input: {
       customerId: number;
       bookingId: number | null;
-      outcome: Exclude<CreditOutcome, { kind: 'clear' }>;
+      outcome: RecordedOutcome;
       user: Principal;
     },
   ) {

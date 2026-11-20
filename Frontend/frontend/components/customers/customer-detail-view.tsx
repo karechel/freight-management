@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { ButtonLink } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -140,14 +141,27 @@ export function CustomerDetailView({
         <Card>
           <CardHeader
             title="Activity"
-            description="Live records only. Shipments and quotations move to the live system in later phases."
+            description="Live records only. Quotations are live; shipments move to the live system in a later phase. Open quotations are drafts and sent quotations that have not expired."
           />
           <CardBody>
             <DetailList
               columns={2}
               items={[
                 { label: 'Shipments', value: `${customer.shipments.active} active · ${customer.shipments.total} total` },
-                { label: 'Quotations', value: `${customer.quotations.open} open · ${customer.quotations.total} total` },
+                {
+                  label: 'Quotations',
+                  value: (
+                    <>
+                      {customer.quotations.open} open · {customer.quotations.total} total ·{' '}
+                      <Link
+                        href={`/quotations?customerId=${customer.id}`}
+                        className="rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600"
+                      >
+                        View quotations
+                      </Link>
+                    </>
+                  ),
+                },
               ]}
             />
           </CardBody>

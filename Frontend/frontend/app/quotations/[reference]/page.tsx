@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DemoPageMarker } from '@/components/layout/page-source';
 import { LiveQuotationDetail } from '@/components/quotations/live-quotation-detail';
 import { QuotationDetailView } from '@/components/quotations/quotation-detail-view';
 import { Card } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ErrorState } from '@/components/ui/states';
 import { getCurrentUser, serverGet } from '@/lib/api/server';
 import { DEMO_REFERENCE_DATE, getParties } from '@/lib/data';
-import { QUOTATIONS_MANAGE, type LiveQuotation } from '@/lib/live-quotations';
+import { QUOTATIONS_MANAGE, type ListPage, type LiveQuotation, type PartyRef } from '@/lib/live-quotations';
 
 // Next.js passes `params` already URL-decoded, so they are used as-is.
 // Live quotations come from the backend. A reference the backend does not know is looked up
@@ -20,12 +21,15 @@ export async function generateMetadata({ params }: PageProps<'/quotations/[refer
 async function DemoQuotationPage({ reference }: { reference: string }) {
   const customers = await getParties('customer');
   return (
-    <QuotationDetailView
-      reference={reference}
-      referenceDate={DEMO_REFERENCE_DATE}
-      billingByCustomer={Object.fromEntries(customers.data.map((c) => [c.id, c.billing]))}
-      source={customers.source}
-    />
+    <>
+      <DemoPageMarker />
+      <QuotationDetailView
+        reference={reference}
+        referenceDate={DEMO_REFERENCE_DATE}
+        billingByCustomer={Object.fromEntries(customers.data.map((c) => [c.id, c.billing]))}
+        source={customers.source}
+      />
+    </>
   );
 }
 
@@ -50,7 +54,15 @@ export default async function QuotationPage({ params }: PageProps<'/quotations/[
       </>
     );
   }
+  const canManage = user.ok && user.data.permissions.includes(QUOTATIONS_MANAGE);
+  // Carriers are offered on the convert form, shown only for accepted quotations not yet booked.
+  const canConvert = canManage && quotation.data.status === 'accepted' && !quotation.data.booking;
+  const carriers = canConvert ? await serverGet<ListPage<PartyRef>>('parties?role=carrier&limit=200', returnTo) : undefined;
   return (
-    <LiveQuotationDetail quotation={quotation.data} canManage={user.ok && user.data.permissions.includes(QUOTATIONS_MANAGE)} />
+    <LiveQuotationDetail
+      quotation={quotation.data}
+      canManage={canManage}
+      carriers={carriers?.ok ? carriers.data.items.map(({ id, name }) => ({ id, name })) : []}
+    />
   );
 }

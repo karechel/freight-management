@@ -1,4 +1,8 @@
-import { bookingActionProblem, plannedDatesProblem } from './booking-rules.js';
+import {
+  bookingActionProblem,
+  creditApprovalState,
+  plannedDatesProblem,
+} from './booking-rules.js';
 
 describe('bookingActionProblem', () => {
   it('confirms pending bookings only', () => {
@@ -30,5 +34,32 @@ describe('plannedDatesProblem', () => {
     expect(
       plannedDatesProblem(etd, new Date('2026-11-24T08:00:00+03:00')),
     ).not.toBeNull();
+  });
+});
+
+describe('creditApprovalState', () => {
+  it('is empty when no approval was requested', () => {
+    expect(creditApprovalState(false, [])).toBeNull();
+    expect(creditApprovalState(false, ['proceed'])).toBeNull();
+  });
+
+  it('awaits a decision, then follows the latest one', () => {
+    expect(creditApprovalState(true, [])).toBe('awaiting');
+    expect(creditApprovalState(true, ['proceed'])).toBe('approved');
+    expect(creditApprovalState(true, ['blocked'])).toBe('rejected');
+  });
+});
+
+describe('confirming a booking awaiting credit approval', () => {
+  it('is refused until approved', () => {
+    expect(bookingActionProblem('pending', 'confirm', 'awaiting')).toMatch(
+      /awaiting credit approval/,
+    );
+    expect(bookingActionProblem('pending', 'confirm', 'approved')).toBeNull();
+    expect(bookingActionProblem('pending', 'confirm', null)).toBeNull();
+  });
+
+  it('does not stop cancelling', () => {
+    expect(bookingActionProblem('pending', 'cancel', 'awaiting')).toBeNull();
   });
 });

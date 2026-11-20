@@ -13,7 +13,7 @@ import { PendingNotice } from '@/components/ui/states';
 import { ApiError, backend } from '@/lib/api/browser';
 import { formatDateTime, formatKesExact } from '@/lib/format';
 import { directionLabel, modeLabel } from '@/lib/labels';
-import { bookingStatusMeta, liveQuotationHref, type LiveBooking } from '@/lib/live-quotations';
+import { bookingStatusMeta, creditApprovalMeta, liveQuotationHref, type LiveBooking } from '@/lib/live-quotations';
 
 const linkClass = 'rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600';
 
@@ -45,7 +45,8 @@ function BookingActions({ booking }: { booking: LiveBooking }) {
     }
   }
 
-  const canConfirm = booking.status === 'pending';
+  // A booking awaiting credit approval cannot be confirmed (the backend refuses it too).
+  const canConfirm = booking.status === 'pending' && booking.creditApproval?.state !== 'awaiting';
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
   if (!canConfirm && !canCancel) return null;
 
@@ -86,11 +87,113 @@ function BookingActions({ booking }: { booking: LiveBooking }) {
   );
 }
 
-export function BookingDetail({ booking: b, canManage }: { booking: LiveBooking; canManage: boolean }) {
+/**
+ * Credit approval for a booking created over the limit (2026-11-20). Finance, management and
+ * administrators (`credit.override`) approve or reject it with a reason; rejecting cancels it.
+ */
+function CreditApprovalCard({ booking, canApprove }: { booking: LiveBooking; canApprove: boolean }) {
+  const router = useRouter();
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string>();
+  const [failure, setFailure] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const approval = booking.creditApproval!;
+  const decidable = canApprove && approval.state === 'awaiting' && booking.status === 'pending';
+
+  async function decide(decision: 'approve' | 'reject') {
+    setFailure(undefined);
+    if (!reason.trim()) {
+      setReasonError('Give a reason for your decision.');
+      return;
+    }
+    setReasonError(undefined);
+    setBusy(true);
+    try {
+      await backend.post(`bookings/${encodeURIComponent(booking.reference)}/credit-approval`, { decision, reason: reason.trim() });
+      router.refresh();
+    } catch (error) {
+      setFailure(error instanceof ApiError ? error.message : 'The decision could not be recorded. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Credit approval" description="This booking was created over the customer's credit limit." />
+      <CardBody className="flex flex-col gap-4">
+        <DetailList
+          items={[
+            { label: 'Status', value: <StatusBadge meta={creditApprovalMeta[approval.state]} /> },
+            {
+              label: 'Requested',
+              value: `${formatDateTime(approval.requestedAt)}${approval.requestedBy ? ` by ${approval.requestedBy.name}` : ''}`,
+            },
+            { label: 'Reason given', value: approval.reason },
+            ...(approval.attemptedAmount
+              ? [
+                  {
+                    label: 'Figures at request',
+                    value: `Outstanding ${formatKesExact(approval.exposure!)} · booking ${formatKesExact(approval.attemptedAmount)} · limit ${formatKesExact(approval.creditLimit!)}`,
+                  },
+                ]
+              : []),
+          ]}
+        />
+        {approval.state === 'awaiting' && !decidable && (
+          <p className="text-sm text-slate-600">Waiting for finance, management or an administrator to approve or reject it.</p>
+        )}
+        {decidable && (
+          <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
+            {failure && (
+              <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
+                {failure}
+              </p>
+            )}
+            <TextAreaField
+              id="credit-approval-reason"
+              label="Reason for your decision"
+              required
+              value={reason}
+              onChange={(value) => {
+                setReason(value);
+                setReasonError(undefined);
+              }}
+              rows={2}
+              maxLength={500}
+              error={reasonError}
+              hint="Recorded with your name and the time. Rejecting cancels the booking."
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => decide('reject')} disabled={busy}>
+                Reject and cancel booking
+              </Button>
+              <Button size="sm" onClick={() => decide('approve')} disabled={busy}>
+                {busy ? 'Saving…' : 'Approve'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+export function BookingDetail({
+  booking: b,
+  canManage,
+  canApprove = false,
+}: {
+  booking: LiveBooking;
+  canManage: boolean;
+  /** Holds `credit.override`: may approve or reject bookings awaiting credit approval. */
+  canApprove?: boolean;
+}) {
   return (
     <>
       <PageHeader title={b.reference} description={`${b.customer.name} · ${b.origin} → ${b.destination}`} back={{ href: '/bookings', label: 'All bookings' }}>
         <StatusBadge meta={bookingStatusMeta[b.status]} />
+        {b.creditApproval?.state === 'awaiting' && <StatusBadge meta={creditApprovalMeta.awaiting} />}
       </PageHeader>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="flex flex-col gap-6 xl:col-span-2">
@@ -130,6 +233,8 @@ export function BookingDetail({ booking: b, canManage }: { booking: LiveBooking;
             </CardBody>
           </Card>
 
+          {b.creditApproval && <CreditApprovalCard key={`${b.creditApproval.state}-${b.updatedAt}`} booking={b} canApprove={canApprove} />}
+
           {b.creditChecks && b.creditChecks.length > 0 && (
             <Card>
               <CardHeader title="Credit-limit decisions" description="Recorded when this booking was created over the customer's credit limit." />
@@ -164,6 +269,9 @@ export function BookingDetail({ booking: b, canManage }: { booking: LiveBooking;
                   ...(b.cancelledAt ? [{ label: 'Cancelled', value: `${formatDateTime(b.cancelledAt)}: ${b.cancellationReason}` }] : []),
                 ]}
               />
+              {b.creditApproval?.state === 'awaiting' && b.status === 'pending' && (
+                <p className="text-sm text-slate-600">It can be confirmed once its credit approval is given.</p>
+              )}
               {canManage && <BookingActions key={`${b.status}-${b.updatedAt}`} booking={b} />}
             </CardBody>
           </Card>

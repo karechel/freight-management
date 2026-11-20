@@ -1,6 +1,7 @@
 import { db } from '../src/prisma/db.js';
 import { verifyPassword } from '../src/auth/password.js';
 import { seedDemo } from '../src/seed/demo.js';
+import { seedDemoQuotations } from '../src/seed/demo-quotations.js';
 import { seedSetup } from '../src/seed/setup.js';
 import { ADMIN, DEMO_PASSWORD, resetDatabase } from './support/app.js';
 
@@ -82,11 +83,57 @@ describe('Seed scripts (e2e)', () => {
     expect(parties.every((p) => p.email?.endsWith('.example'))).toBe(true);
   });
 
+  it('adds fictional quotations and bookings once, with counters after them', async () => {
+    await expect(seedDemoQuotations(db)).resolves.toEqual({
+      quotations: 8,
+      bookings: 2,
+    });
+    await expect(seedDemoQuotations(db)).resolves.toEqual({
+      quotations: 0,
+      bookings: 0,
+    });
+
+    const booked = await db.orm.public.Quotation.where({
+      reference: 'QT-2610-0051',
+    }).first();
+    expect(booked?.status).toBe('accepted');
+    const booking = await db.orm.public.Booking.where({
+      quotationId: booked!.id,
+    }).first();
+    expect(booking).toMatchObject({
+      reference: 'BKG-2610-0001',
+      status: 'confirmed',
+    });
+    const lines = await db.orm.public.QuotationLine.where({
+      quotationId: booked!.id,
+    }).all();
+    expect(lines.map((l) => l.unitPrice)).toEqual(['968000.00']);
+
+    const counter = (prefix: string) =>
+      db.orm.public.NumberSequence.where({ prefix, year: 0 }).first();
+    expect((await counter('quotation'))?.nextValue).toBe(58);
+    expect((await counter('booking'))?.nextValue).toBe(3);
+  });
+
+  it('never moves a counter back when re-run', async () => {
+    await db.orm.public.NumberSequence.where({
+      prefix: 'quotation',
+      year: 0,
+    }).update({ nextValue: 120 });
+    await seedDemoQuotations(db);
+    const counter = await db.orm.public.NumberSequence.where({
+      prefix: 'quotation',
+      year: 0,
+    }).first();
+    expect(counter?.nextValue).toBe(120);
+  });
+
   it('refuses to add fictional data in production', async () => {
     const original = process.env['NODE_ENV'];
     process.env['NODE_ENV'] = 'production';
     try {
       await expect(seedDemo(db, DEMO_PASSWORD)).rejects.toThrow('production');
+      await expect(seedDemoQuotations(db)).rejects.toThrow('production');
     } finally {
       process.env['NODE_ENV'] = original;
     }

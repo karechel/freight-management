@@ -755,17 +755,25 @@ describe('Customers and contacts (e2e)', () => {
         reference: 'FIG-S1',
       }).first();
 
-      const addQuotation = (reference: string, status: string) =>
+      // Valid far into the future, so "open" does not depend on the day the tests run.
+      const addQuotation = (
+        reference: string,
+        status: string,
+        validUntil = '2999-12-31',
+      ) =>
         run(db.raw.sql`
           INSERT INTO "Quotation"
             (reference, "customerId", mode, direction, status, origin, destination,
              "cargoSummary", "issueDate", "validUntil")
           VALUES (${reference}, ${id}::int, 'sea', 'import', ${status}, 'Shanghai', 'Mombasa',
-             'Fictional', '2026-11-01'::date, '2026-11-30'::date)
+             'Fictional', '2020-01-01'::date, ${validUntil}::date)
         `);
       await addQuotation('FIG-Q1', 'draft');
       await addQuotation('FIG-Q2', 'sent');
       await addQuotation('FIG-Q3', 'declined');
+      // Expired: still draft or sent, but validity ended. Counted in the total, never as open.
+      await addQuotation('FIG-Q4', 'draft', '2020-01-31');
+      await addQuotation('FIG-Q5', 'sent', '2020-01-31');
 
       const addInvoice = (
         number: string,
@@ -833,7 +841,7 @@ describe('Customers and contacts (e2e)', () => {
 
       const { body } = await admin().get(`/parties/${id}`).expect(200);
       expect(body.shipments).toEqual({ active: 2, total: 3 });
-      expect(body.quotations).toEqual({ open: 2, total: 3 });
+      expect(body.quotations).toEqual({ open: 2, total: 5 });
       expect(body.billing.account).toEqual({
         invoiced: '600.60',
         credited: '200.20',

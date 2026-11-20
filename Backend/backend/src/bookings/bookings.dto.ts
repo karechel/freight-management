@@ -30,10 +30,15 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
 const ISO_MESSAGE = 'Send the time as an ISO 8601 date and time.';
 
-/** Sent after a credit-limit warning: proceed (needs `credit.override`) or stop. */
+/**
+ * Sent after a credit-limit warning: proceed (needs `credit.override`), stop, or create the
+ * booking as pending and request approval from an override holder (added 2026-11-20).
+ */
 export class CreditDecisionDto {
-  @IsIn(['proceed', 'blocked'], { message: 'Choose proceed or blocked.' })
-  decision: 'proceed' | 'blocked';
+  @IsIn(['proceed', 'blocked', 'request_approval'], {
+    message: 'Choose proceed, blocked or request_approval.',
+  })
+  decision: 'proceed' | 'blocked' | 'request_approval';
 
   @RequiredText(500)
   reason: string;
@@ -104,6 +109,15 @@ export class CreateBookingDto extends BookingExtrasDto {
   estimatedValue?: string;
 }
 
+/** An override holder's decision on a booking awaiting credit approval. */
+export class CreditApprovalDto {
+  @IsIn(['approve', 'reject'], { message: 'Choose approve or reject.' })
+  decision: 'approve' | 'reject';
+
+  @RequiredText(500)
+  reason: string;
+}
+
 export class CancelBookingDto {
   @RequiredText(500)
   reason: string;
@@ -119,6 +133,11 @@ export class ListBookingsQueryDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   customerId?: number;
+
+  /** `awaiting` lists only bookings waiting for credit approval. */
+  @IsOptional()
+  @IsIn(['awaiting'])
+  creditApproval?: 'awaiting';
 
   @Transform(trim)
   @IsOptional()

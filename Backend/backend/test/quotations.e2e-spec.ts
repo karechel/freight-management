@@ -313,6 +313,41 @@ describe('Quotations and bookings (e2e)', () => {
       expect(sent.body.status).toBe('sent');
     });
 
+    it('refuses moving the issue date of a sent quotation after the day it was sent', async () => {
+      const { reference } = await newQuotation({
+        issueDate: day(-5),
+        validUntil: day(30),
+      });
+      await sales()
+        .post(`/quotations/${reference}/status`, {
+          status: 'sent',
+          // Three days ago, at noon Nairobi time.
+          sentAt: `${day(-3)}T12:00:00+03:00`,
+          sentTo: 'buyer@example.com',
+        })
+        .expect(200);
+
+      const later = await sales()
+        .patch(`/quotations/${reference}`, { issueDate: day(-2) })
+        .expect(400);
+      expect(fieldsIn(later.body)).toEqual(['issueDate']);
+
+      // The day it was sent, or earlier, is still allowed.
+      const sameDay = await sales()
+        .patch(`/quotations/${reference}`, { issueDate: day(-3) })
+        .expect(200);
+      expect(sameDay.body.issueDate).toBe(day(-3));
+
+      // Drafts were never sent, so only the usual date rules apply.
+      const draft = await newQuotation({
+        issueDate: day(-5),
+        validUntil: day(30),
+      });
+      await sales()
+        .patch(`/quotations/${draft.reference}`, { issueDate: day(0) })
+        .expect(200);
+    });
+
     it('locks accepted quotations', async () => {
       const reference = await accepted();
       await sales()
@@ -567,6 +602,239 @@ describe('Quotations and bookings (e2e)', () => {
         .post('/bookings', { ...standalone, estimatedValue: '50000' })
         .expect(201);
       expect(within.body.quotation).toBeNull();
+    });
+  });
+
+  describe('credit approval: sales books, finance or management approve', () => {
+    // Added 2026-11-20 (LOG-20261120-1514-credit-approval). The total is 179000.00 (see above).
+    let customer: number;
+    const finance = () => api(tokens.finance);
+    const management = () => api(tokens.management);
+    const operations = () => api(tokens.operations);
+
+    const requested = async () => {
+      const reference = await accepted({ customerId: customer });
+      const { body } = await sales()
+        .post(`/quotations/${reference}/convert`, {
+          creditDecision: {
+            decision: 'request_approval',
+            reason: 'Customer expects payment next week',
+          },
+        })
+        .expect(201);
+      return {
+        quotation: reference,
+        booking: body as { id: number; reference: string },
+      };
+    };
+
+    beforeAll(async () => {
+      customer = (
+        await newCustomer('Approval Limited Ltd', { creditLimit: '100000' })
+      ).id;
+    });
+
+    it('lets sales create a booking over the limit as pending, awaiting approval', async () => {
+      const { booking } = await requested();
+      const { body } = await sales()
+        .get(`/bookings/${booking.reference}`)
+        .expect(200);
+      expect(body.status).toBe('pending');
+      expect(body.creditApproval).toMatchObject({
+        state: 'awaiting',
+        reason: 'Customer expects payment next week',
+        exposure: '0.00',
+        creditLimit: '100000.00',
+        attemptedAmount: '179000.00',
+      });
+      expect(body.creditApproval.requestedBy.name).toBe('B. Otieno');
+      // No decision yet: CreditCheck rows are decisions, and the approver has not decided.
+      expect(
+        await db.orm.public.CreditCheck.where({
+          bookingId: booking.id,
+        }).first(),
+      ).toBeNull();
+      const request = await db.orm.public.AuditLog.where({
+        entityType: 'Booking',
+        entityId: booking.id,
+        action: 'credit_approval_requested',
+      }).first();
+      expect(request).not.toBeNull();
+    });
+
+    it('refuses confirmation until approved, and approval by staff without credit.override', async () => {
+      const { booking } = await requested();
+      const confirm = await sales()
+        .post(`/bookings/${booking.reference}/confirm`)
+        .expect(409);
+      expect(confirm.body.message).toMatch(/awaiting credit approval/);
+      const decision = { decision: 'approve', reason: 'Fine' };
+      await sales()
+        .post(`/bookings/${booking.reference}/credit-approval`, decision)
+        .expect(403);
+      await operations()
+        .post(`/bookings/${booking.reference}/credit-approval`, decision)
+        .expect(403);
+      await api()
+        .post(`/bookings/${booking.reference}/credit-approval`, decision)
+        .expect(401);
+    });
+
+    it('lets finance approve, recording who, when and why; sales can then confirm', async () => {
+      const { booking } = await requested();
+      const { body } = await finance()
+        .post(`/bookings/${booking.reference}/credit-approval`, {
+          decision: 'approve',
+          reason: 'Approved: payment plan agreed',
+        })
+        .expect(200);
+      expect(body.status).toBe('pending');
+      expect(body.creditApproval.state).toBe('approved');
+      const check = await db.orm.public.CreditCheck.where({
+        bookingId: booking.id,
+      }).first();
+      const financeUser = await db.orm.public.User.where({
+        email: FINANCE,
+      }).first();
+      expect(check).toMatchObject({
+        decision: 'proceed',
+        reason: 'Approved: payment plan agreed',
+        attemptedAmount: '179000.00',
+        decidedById: financeUser!.id,
+      });
+      const audit = await db.orm.public.AuditLog.where({
+        entityType: 'Booking',
+        entityId: booking.id,
+        action: 'credit_approved',
+      }).first();
+      expect(audit?.actorUserId).toBe(financeUser!.id);
+
+      const confirmed = await sales()
+        .post(`/bookings/${booking.reference}/confirm`)
+        .expect(200);
+      expect(confirmed.body.status).toBe('confirmed');
+      // A decision is final.
+      await finance()
+        .post(`/bookings/${booking.reference}/credit-approval`, {
+          decision: 'reject',
+          reason: 'Changed my mind',
+        })
+        .expect(409);
+    });
+
+    it('lets management reject, which cancels the booking', async () => {
+      const { quotation, booking } = await requested();
+      const { body } = await management()
+        .post(`/bookings/${booking.reference}/credit-approval`, {
+          decision: 'reject',
+          reason: 'Balance too high',
+        })
+        .expect(200);
+      expect(body.status).toBe('cancelled');
+      expect(body.cancellationReason).toBe(
+        'Credit approval rejected: Balance too high',
+      );
+      expect(body.creditApproval.state).toBe('rejected');
+      const managementUser = await db.orm.public.User.where({
+        email: MANAGEMENT,
+      }).first();
+      const check = await db.orm.public.CreditCheck.where({
+        bookingId: booking.id,
+      }).first();
+      expect(check).toMatchObject({
+        decision: 'blocked',
+        decidedById: managementUser!.id,
+      });
+      const q = await sales().get(`/quotations/${quotation}`).expect(200);
+      expect(q.body.booking.status).toBe('cancelled');
+      await sales().post(`/bookings/${booking.reference}/confirm`).expect(409);
+    });
+
+    it('needs a reason, and refuses bookings that never asked for approval', async () => {
+      const { booking } = await requested();
+      const missing = await finance()
+        .post(`/bookings/${booking.reference}/credit-approval`, {
+          decision: 'approve',
+          reason: ' ',
+        })
+        .expect(400);
+      expect(fieldsIn(missing.body)).toEqual(['reason']);
+      const plain = await sales()
+        .post('/bookings', {
+          customerId,
+          mode: 'road',
+          direction: 'transit',
+          origin: 'Mombasa',
+          destination: 'Kigali',
+          cargoSummary: 'No approval needed',
+        })
+        .expect(201);
+      expect(plain.body.creditApproval).toBeNull();
+      await finance()
+        .post(`/bookings/${plain.body.reference}/credit-approval`, {
+          decision: 'approve',
+          reason: 'Nothing to approve',
+        })
+        .expect(409);
+      await finance()
+        .post('/bookings/BKG-0000-0000/credit-approval', {
+          decision: 'approve',
+          reason: 'Unknown',
+        })
+        .expect(404);
+    });
+
+    it('works for standalone bookings, lists those awaiting approval, and hides figures from roles without billing access', async () => {
+      const { body } = await sales()
+        .post('/bookings', {
+          customerId: customer,
+          mode: 'air',
+          direction: 'export',
+          origin: 'Nairobi',
+          destination: 'Dubai',
+          cargoSummary: 'Electronics, 3 pallets',
+          estimatedValue: '250000',
+          creditDecision: {
+            decision: 'request_approval',
+            reason: 'Urgent shipment',
+          },
+        })
+        .expect(201);
+      expect(body.creditApproval).toMatchObject({
+        state: 'awaiting',
+        attemptedAmount: '250000.00',
+      });
+
+      const awaiting = await finance()
+        .get(`/bookings?creditApproval=awaiting&customerId=${customer}`)
+        .expect(200);
+      const listed = awaiting.body.items.map(
+        (b: { reference: string }) => b.reference,
+      );
+      expect(listed).toContain(body.reference);
+      expect(
+        awaiting.body.items.every(
+          (b: { creditApproval: { state: string } | null }) =>
+            b.creditApproval?.state === 'awaiting',
+        ),
+      ).toBe(true);
+
+      const ops = await operations()
+        .get(`/bookings/${body.reference}`)
+        .expect(200);
+      expect(ops.body.creditApproval.state).toBe('awaiting');
+      expect(ops.body.creditApproval).not.toHaveProperty('attemptedAmount');
+    });
+
+    it('still lets credit.override holders proceed directly, without an approval step', async () => {
+      const reference = await accepted({ customerId: customer });
+      const { body } = await admin()
+        .post(`/quotations/${reference}/convert`, {
+          creditDecision: { decision: 'proceed', reason: 'Admin decision' },
+        })
+        .expect(201);
+      expect(body.creditApproval).toBeNull();
+      await admin().post(`/bookings/${body.reference}/confirm`).expect(200);
     });
   });
 

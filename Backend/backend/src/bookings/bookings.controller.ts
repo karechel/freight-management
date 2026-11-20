@@ -16,10 +16,12 @@ import {
   QUOTATIONS_MANAGE,
   QUOTATIONS_VIEW,
 } from '../quotations/quotations.service.js';
+import { CREDIT_OVERRIDE } from '../credit/credit.service.js';
 import {
   CancelBookingDto,
   ConvertQuotationDto,
   CreateBookingDto,
+  CreditApprovalDto,
   ListBookingsQueryDto,
 } from './bookings.dto.js';
 import { BookingsService } from './bookings.service.js';
@@ -60,6 +62,22 @@ export class BookingsController {
     @CurrentUser() user: Principal,
   ) {
     return this.bookings.confirm(reference, user);
+  }
+
+  /**
+   * Approve or reject a booking awaiting credit approval (2026-11-20). Needs `credit.override`
+   * (finance, management, admin), not `quotations.manage`: approvers decide on bookings that
+   * others created.
+   */
+  @RequirePermission(CREDIT_OVERRIDE, QUOTATIONS_VIEW)
+  @Post(':reference/credit-approval')
+  @HttpCode(200)
+  decideCreditApproval(
+    @Param('reference') reference: string,
+    @Body() dto: CreditApprovalDto,
+    @CurrentUser() user: Principal,
+  ) {
+    return this.bookings.decideCreditApproval(reference, dto, user);
   }
 
   @RequirePermission(QUOTATIONS_MANAGE)

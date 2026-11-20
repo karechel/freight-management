@@ -615,7 +615,9 @@ export class PartiesService {
         (SELECT COUNT(*)::int FROM "Quotation" q
           WHERE q."customerId" = p.id) AS "totalQuotations",
         (SELECT COUNT(*)::int FROM "Quotation" q
-          WHERE q."customerId" = p.id AND q.status IN ('draft', 'sent')) AS "openQuotations",
+          WHERE q."customerId" = p.id AND q.status IN ('draft', 'sent')
+            -- Expired quotations (validity passed on the Nairobi calendar) are not open (Phase 2).
+            AND q."validUntil" >= (now() AT TIME ZONE 'Africa/Nairobi')::date) AS "openQuotations",
         a.invoiced::text AS "invoiced",
         a.credited::text AS "credited",
         a.paid::text AS "paid",

@@ -10,15 +10,32 @@ import { PendingNotice } from '@/components/ui/states';
 import { Table, Td, Th } from '@/components/ui/table';
 import { formatDate, formatDateTime, formatKesExact } from '@/lib/format';
 import { directionLabel, modeLabel, quotationStatusMeta } from '@/lib/labels';
-import { bookingHref, bookingStatusMeta, liveQuotationHref, trimDecimal, type LiveQuotation } from '@/lib/live-quotations';
+import {
+  bookingHref,
+  bookingStatusMeta,
+  liveQuotationHref,
+  quotationDisplayStatus,
+  trimDecimal,
+  type LiveQuotation,
+  type PartyRef,
+} from '@/lib/live-quotations';
 import { ConvertToBooking, LiveQuotationStatusForm } from './live-quotation-actions';
 
 const linkClass = 'rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600';
 
-export function LiveQuotationDetail({ quotation: q, canManage }: { quotation: LiveQuotation; canManage: boolean }) {
+export function LiveQuotationDetail({
+  quotation: q,
+  canManage,
+  carriers = [],
+}: {
+  quotation: LiveQuotation;
+  canManage: boolean;
+  /** Offered on the convert form. */
+  carriers?: PartyRef[];
+}) {
   const href = liveQuotationHref(q.reference);
-  // "Booked" is not stored; it is shown once a booking exists.
-  const statusMeta = q.booking ? quotationStatusMeta.booked : quotationStatusMeta[q.status];
+  // "Booked" is not stored; it is shown while a booking exists (or "Booking cancelled").
+  const statusMeta = quotationDisplayStatus(q);
   const finished = q.booking || q.status === 'declined' || q.status === 'expired';
 
   return (
@@ -159,7 +176,7 @@ export function LiveQuotationDetail({ quotation: q, canManage }: { quotation: Li
             <Card>
               <CardHeader title="Booking" description="Turn the accepted quotation into a booking" />
               <CardBody>
-                <ConvertToBooking quotation={q} />
+                <ConvertToBooking quotation={q} carriers={carriers} />
               </CardBody>
             </Card>
           )}
@@ -173,6 +190,12 @@ export function LiveQuotationDetail({ quotation: q, canManage }: { quotation: Li
                   </Link>{' '}
                   · <StatusBadge meta={bookingStatusMeta[q.booking.status]} />
                 </p>
+                {q.booking.status === 'cancelled' && (
+                  <p className="mt-2 text-sm text-slate-600">
+                    This booking was cancelled. A quotation can be converted to a booking only once, so this quotation
+                    cannot be converted again.
+                  </p>
+                )}
               </CardBody>
             </Card>
           )}

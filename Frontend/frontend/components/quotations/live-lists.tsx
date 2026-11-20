@@ -11,9 +11,11 @@ import { modeLabel, quotationStatusMeta } from '@/lib/labels';
 import {
   bookingHref,
   bookingStatusMeta,
+  creditApprovalMeta,
   listPageQuery,
   liveQuotationHref,
   PAGE_SIZE,
+  quotationDisplayStatus,
   type ListFilters,
   type ListPage,
   type LiveBooking,
@@ -63,6 +65,8 @@ function Filters({
           ))}
         </select>
       </div>
+      {filters.customerId && <input type="hidden" name="customerId" value={filters.customerId} />}
+      {filters.awaitingApproval && <input type="hidden" name="creditApproval" value="awaiting" />}
       <Button type="submit" variant="secondary">
         Apply
       </Button>
@@ -94,7 +98,7 @@ function Pagination({ action, filters, total }: { action: string; filters: ListF
 }
 
 function NoRows({ action, filters, noun }: { action: string; filters: ListFilters; noun: string }) {
-  const filtered = Boolean(filters.q || filters.status);
+  const filtered = Boolean(filters.q || filters.status || filters.customerId || filters.awaitingApproval);
   return (
     <EmptyState
       title={filtered ? `No ${noun} match these filters` : `No ${noun} yet`}
@@ -115,8 +119,22 @@ const quotationStatuses = (['draft', 'sent', 'accepted', 'declined', 'expired'] 
 }));
 
 export function LiveQuotationList({ page, filters }: { page: ListPage<LiveQuotation>; filters: ListFilters }) {
+  const customerName = filters.customerId ? page.items.find((q) => q.customer.id === filters.customerId)?.customer.name : undefined;
   return (
     <Card>
+      {filters.customerId && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-200 px-4 py-3 text-sm text-slate-700 sm:px-5">
+          <span>
+            Showing quotations for{' '}
+            <Link href={`/parties/${filters.customerId}`} className="rounded font-medium text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600">
+              {customerName ?? 'this customer'}
+            </Link>
+          </span>
+          <Link href={`/quotations${listPageQuery({ ...filters, customerId: undefined, page: 1 })}`} className="rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600">
+            Show all customers
+          </Link>
+        </p>
+      )}
       <Filters action="/quotations" filters={filters} placeholder="Reference, customer, origin, destination or cargo" statuses={quotationStatuses} />
       {page.items.length === 0 ? (
         <NoRows action="/quotations" filters={filters} noun="quotations" />
@@ -148,7 +166,7 @@ export function LiveQuotationList({ page, filters }: { page: ListPage<LiveQuotat
                   </Td>
                   <Td className="whitespace-nowrap">{formatDate(q.validUntil)}</Td>
                   <Td>
-                    <StatusBadge meta={q.booking ? quotationStatusMeta.booked : quotationStatusMeta[q.status]} />
+                    <StatusBadge meta={quotationDisplayStatus(q)} />
                   </Td>
                   <Td className="text-right whitespace-nowrap tabular-nums">{formatKesExact(q.totals.total)}</Td>
                 </tr>
@@ -170,6 +188,20 @@ const bookingStatuses = (Object.keys(bookingStatusMeta) as (keyof typeof booking
 export function BookingList({ page, filters }: { page: ListPage<LiveBooking>; filters: ListFilters }) {
   return (
     <Card>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-200 px-4 py-3 text-sm text-slate-700 sm:px-5">
+        {filters.awaitingApproval ? (
+          <>
+            <span>Showing bookings awaiting credit approval</span>
+            <Link href={`/bookings${listPageQuery({ ...filters, awaitingApproval: false, page: 1 })}`} className="rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600">
+              Show all bookings
+            </Link>
+          </>
+        ) : (
+          <Link href={`/bookings${listPageQuery({ ...filters, awaitingApproval: true, page: 1 })}`} className="rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600">
+            Show only bookings awaiting credit approval
+          </Link>
+        )}
+      </p>
       <Filters action="/bookings" filters={filters} placeholder="Booking or quotation reference, customer, route or cargo" statuses={bookingStatuses} />
       {page.items.length === 0 ? (
         <NoRows action="/bookings" filters={filters} noun="bookings" />
@@ -210,6 +242,11 @@ export function BookingList({ page, filters }: { page: ListPage<LiveBooking>; fi
                   </Td>
                   <Td>
                     <StatusBadge meta={bookingStatusMeta[b.status]} />
+                    {b.creditApproval?.state === 'awaiting' && (
+                      <span className="mt-1 block">
+                        <StatusBadge meta={creditApprovalMeta.awaiting} />
+                      </span>
+                    )}
                   </Td>
                   <Td className="whitespace-nowrap">{formatDate(b.createdAt)}</Td>
                 </tr>

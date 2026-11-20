@@ -45,7 +45,7 @@ Pages read these on the server with `lib/api/server.ts` and change them through 
 | PATCH | `/api/parties/:id/contacts/:contactId` | `parties.manage` | Any contact fields | The contact. 400 if it would leave the party with no primary contact |
 | DELETE | `/api/parties/:id/contacts/:contactId` | `parties.manage` | | 204. If it was primary, the longest-standing remaining contact takes over |
 
-**Party fields:** `id`, `name`, `legalName`, `kraPin`, `email`, `phone`, `address`, `city`, `country`, `notes`, `accountStatus`, `archivedAt`, `createdAt`, `updatedAt`, `roles[]`, `shipments: { active, total }`, `quotations: { open, total }`.
+**Party fields:** `id`, `name`, `legalName`, `kraPin`, `email`, `phone`, `address`, `city`, `country`, `notes`, `accountStatus`, `archivedAt`, `createdAt`, `updatedAt`, `roles[]`, `shipments: { active, total }`, `quotations: { open, total }`. Open quotations are draft or sent quotations whose valid-until date has not passed on the Nairobi calendar (expired ones were counted as open until 2026-11-20, LOG-20261120-1501-phase2-batch1).
 
 **`billing`** appears only for callers with `parties.billing.view`: `{ paymentTermsDays, creditLimit, account: { invoiced, credited, paid, outstanding, overdue, overdueInvoices, availableCredit } }`. Amounts are exact decimal strings calculated in SQL. They count issued invoices and issued credit notes; bounced and cancelled payments do not count. `availableCredit` is `null` with no limit, and negative when the customer is over it.
 
@@ -71,10 +71,11 @@ Quotations and bookings are addressed by their reference (for example `/api/quot
 | PATCH | `/api/quotations/:reference` | `quotations.manage` | Any header fields, including `customerId`; `lines` replaces every line | The quotation. 409 unless it is `draft` or `sent`, not expired and not booked |
 | POST | `/api/quotations/:reference/status` | `quotations.manage` | `{ status: 'sent', sentAt, sentTo }` or `{ status: 'accepted' \| 'declined', decidedAt }`, plus `note?` | The quotation. 409 for a transition that is not allowed |
 | POST | `/api/quotations/:reference/convert` | `quotations.manage` (proceeding past a credit limit also needs `credit.override`) | `{ carrierId?, carrierBookingNumber?, plannedEtd?, plannedEta?, creditDecision? }` | 201 with the booking. 409 if not accepted, already converted, or over the credit limit (see below) |
-| GET | `/api/bookings` | `quotations.view` | Query: `status`, `customerId`, `q`, `limit`, `offset` | `{ items, total }`, newest first |
+| GET | `/api/bookings` | `quotations.view` | Query: `status`, `customerId`, `creditApproval=awaiting`, `q`, `limit`, `offset` | `{ items, total }`, newest first |
 | GET | `/api/bookings/:reference` | `quotations.view` | | The booking. `creditChecks` only for callers with `parties.billing.view` |
 | POST | `/api/bookings` | `quotations.manage` | `{ customerId, agentId?, mode, direction, origin, destination, cargoSummary, carrierId?, carrierBookingNumber?, plannedEtd?, plannedEta?, estimatedValue?, creditDecision? }` | 201 with the booking (no quotation). No page uses this yet |
 | POST | `/api/bookings/:reference/confirm` | `quotations.manage` | | The booking. Pending only (409 otherwise) |
+| POST | `/api/bookings/:reference/credit-approval` | `credit.override` and `quotations.view` (not `quotations.manage`) | `{ decision: 'approve' \| 'reject', reason }` | The booking. 409 unless it is pending and awaiting credit approval; a decision is final. `reject` also cancels the booking |
 | POST | `/api/bookings/:reference/cancel` | `quotations.manage` | `{ reason }` | The booking. Pending or confirmed only |
 
 **Quotation fields:**
@@ -99,7 +100,7 @@ Quotations and bookings are addressed by their reference (for example `/api/quot
 - **Money and decimals:** amounts, quantities and rates are sent and returned as decimal strings. A quantity has up to 3 decimals, above 0 and up to 1,000,000. A unit price has up to 2 decimals, up to 1,000,000,000. A tax rate is 0–100 with up to 2 decimals.
 - **Totals** are calculated by the server and never accepted from the client (unknown fields are refused with 400). Each line's net is quantity × unit price rounded to the cent, half away from zero, and its tax is net × rate rounded the same way, as in `lib/money.ts`. The total must be above zero.
 - **Tax category:** a line's `taxCategory` defaults to the charge type's category, or `standard` without one.
-- **Header rules:** origin and destination must differ. The issue date cannot be in the future. Valid-until is on or after the issue date. Up to 50 lines.
+- **Header rules:** origin and destination must differ. The issue date cannot be in the future. Valid-until is on or after the issue date. Up to 50 lines. On a sent quotation, the issue date cannot be moved after the Nairobi day it was sent (400 on `issueDate`; added 2026-11-20).
 - **Expiry:** a draft or sent quotation is `expired` once its valid-until date has passed on the Nairobi calendar. It is still valid on that day. Expired quotations cannot be edited or change status; duplicate them instead.
 - **Status flow:** `draft → sent → accepted | declined`, and `accepted → declined` while not booked. `sentAt` and `decidedAt` cannot be in the future or before the issue date, and a decision cannot be before the quotation was sent. Nothing is emailed.
 - **Parties:** the customer must hold the `customer` role and must not be archived (409). An agent must hold `agent`, and a carrier must hold `carrier`.
@@ -108,7 +109,11 @@ Quotations and bookings are addressed by their reference (for example `/api/quot
   - Without a `creditDecision`, the response is 409 with `details[0] = { field: 'creditDecision', exposure, creditLimit, attemptedAmount, canOverride }`.
   - `creditDecision: { decision: 'proceed', reason }` needs `credit.override` (403 otherwise) and creates the booking.
   - `{ decision: 'blocked', reason }` records the decision and returns 409 with `details[0].decision = 'blocked'`; no booking is created.
+  - `{ decision: 'request_approval', reason }` (added 2026-11-20, LOG-20261120-1514-credit-approval; anyone with `quotations.manage`) creates the booking as `pending` and **awaiting credit approval**. No `CreditCheck` row is written yet; the request, its figures and reason are kept in the audit log (`credit_approval_requested`).
+  - **Approval:** `POST /api/bookings/:reference/credit-approval`. `approve` writes a `proceed` CreditCheck (exposure recalculated at that moment, the value as requested); `reject` writes `blocked` and cancels the booking with the reason "Credit approval rejected: …". A booking awaiting approval cannot be confirmed (409). Booking responses carry `creditApproval: { state: 'awaiting' | 'approved' | 'rejected', requestedBy, requestedAt, reason, exposure?, creditLimit?, attemptedAmount? }` or `null`; the money figures appear only with `parties.billing.view`.
   - Every decision is stored in `CreditCheck` and the audit log.
+- **Frontend use (2026-11-20):** the Customers page links to `/quotations?customerId=<id>`, which calls `GET /api/quotations?customerId=`. The convert form sends `carrierId`, `carrierBookingNumber`, `plannedEtd` and `plannedEta` when filled in. A quotation whose booking was cancelled is shown as "Booking cancelled" (from `booking.status`); it cannot be converted again.
+- **Fictional data:** `npm run db:seed:demo` also adds 8 quotations with the frontend demo references (`QT-2609-0038` to `QT-2610-0057`) and 2 confirmed bookings (`BKG-2610-0001`, `BKG-2610-0002`), and moves the counters forward past them.
 - **Not built in Phase 2:** booking edits after creation, `completed` (set once shipments exist, Phase 3), sending quotations, server PDFs.
 
 ## Needed (not implemented)

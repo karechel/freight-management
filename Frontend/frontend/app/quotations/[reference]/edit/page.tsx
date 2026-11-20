@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DemoPageMarker } from '@/components/layout/page-source';
 import { LiveQuotationForm } from '@/components/quotations/live-quotation-form';
 import { QuotationFormView } from '@/components/quotations/quotation-form-view';
 import { Card } from '@/components/ui/card';
@@ -26,7 +27,12 @@ export default async function EditQuotationPage({ params }: PageProps<'/quotatio
   // Demo quotations are still edited in the demo session.
   if (!quotation.ok && quotation.status === 404) {
     const options = await getQuotationFormOptions();
-    return <QuotationFormView mode="edit" reference={reference} options={options.data} source={options.source} referenceDate={DEMO_REFERENCE_DATE} />;
+    return (
+      <>
+        <DemoPageMarker />
+        <QuotationFormView mode="edit" reference={reference} options={options.data} source={options.source} referenceDate={DEMO_REFERENCE_DATE} />
+      </>
+    );
   }
 
   const title = `Edit ${reference}`;
