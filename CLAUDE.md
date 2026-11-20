@@ -501,6 +501,22 @@ Entry template:
 - Database/schema changes: none · Dependency changes: none · Phase 3: not started.
 - History archived (§15 rule 7): this file had reached 104,339 characters, so LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit (5 entries) were moved verbatim to `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`.
 
+### LOG-20261120-1632-session-close — Everything committed and pushed; session paused
+- Time: 2026-11-20 16:32:13 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed (see §17 question 13) / Claude Code (Opus 5.5).
+- **Instruction received:** "make sure everything is committed and pushed for now, i will be back".
+- **Verified before this entry:**
+  - After `git fetch origin --prune`, branch `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `cdbe6d5` (0/0). Working tree clean; no stashes.
+  - No servers listening on ports 3000 or 3001.
+  - `main` = `origin/main` = `cbad567`, 5 commits behind the branch.
+- **What changed:** only this entry, committed and pushed to `feature/quotations-phase2` (no force). The session reply verifies the hash with `git ls-remote`.
+- **For the next session:**
+  - Start with `git status` and `git fetch`.
+  - Read §14 and the questions in §17.
+  - The PR is still not opened (§17 question 1). Phase 2 closes after the PR, the owner's answers and the merge.
+  - Phase 3 has not started.
+- Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-20 (LOG-20261120-1425-phase2-reconcile), because the earlier text still said Phase 2 was uncommitted and not started.
