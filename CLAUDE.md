@@ -737,6 +737,20 @@ Entry template:
   - Not included: `.env` (git-ignored), `dist/`, `.next/`, scratchpad files.
 - Then `git push -u origin feature/quotations-phase2` (no force). A commit cannot record its own hash; the push result is recorded in the follow-up entry below.
 
+### LOG-20261120-1420-phase2-pushed — Push verified (follow-up to LOG-20261120-1417-phase2-commit)
+- Time: 2026-11-20, about 14:20 +03:00 (Africa/Nairobi). Exact time unavailable; written after the 14:17:01 entry and the push.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Failed attempt:** the first `git commit -F -` with a PowerShell here-string failed. PowerShell split the message into pathspecs ("did not match any file(s)"), so nothing was committed. The chained `git push -u` still ran and created `origin/feature/quotations-phase2` at `cbad567` (identical to `main`, no Phase 2 changes). Nothing else was affected.
+- **Retry:** `git commit -F <scratchpad commit-msg.txt>` from Git Bash → **`ec5c760`** (`ec5c7601a82569b4c8a23a4f937a3fd31c0082fe`), parent `cbad567`, 44 files, 6,796 insertions, 70 deletions. Author: this clone's Git identity (Sean Macharia).
+- **Push:** `git push origin feature/quotations-phase2` → `cbad567..ec5c760`, a fast-forward with no force. Verified: `git ls-remote origin refs/heads/feature/quotations-phase2` = `git rev-parse HEAD` = `ec5c760…`. Working tree clean afterwards.
+- This entry is committed and pushed as a small follow-up commit on the same branch; see `git log -1 feature/quotations-phase2`.
+- **Open:**
+  - No PR opened. GitHub offers `https://github.com/karechel/freight-management/pull/new/feature/quotations-phase2`; opening it needs the operator's approval.
+  - The repository owner's review of the credit rule and the permission matrix.
+  - Fictional quotations in the demo seed.
+  - `CLAUDE.md` is near the 100,000-character archive threshold (§15 rule 7).
+  - Phase 3 not started.
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B.
