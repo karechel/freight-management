@@ -59,6 +59,12 @@ const SHIPMENT_BLOCK_MESSAGES = {
     "This customer's account is closed, so new work is blocked. Management or an administrator must make the account active before a new shipment is opened.",
 } as const;
 
+const BOOKING_CUSTOMER_BLOCK = {
+  archived: "This booking's customer is archived.",
+  on_hold: "This booking's customer is on hold.",
+  closed: "This booking's customer account is closed.",
+} as const;
+
 const DETAIL_FIELDS = [
   'carrierId',
   'agentId',
@@ -159,18 +165,19 @@ export class ShipmentsService {
           }
         }
         if (problems.length) throw validationFailed(problems);
-        // An existing booking is not new work for the customer, so only archiving stops it
-        // (on-hold and closed customers: open question, CLAUDE.md §17).
+        // Archived customers since Phase 3; on-hold and closed customers too since the repository
+        // owner's decision of 2026-11-27 (CLAUDE.md §17 question 19).
         const customer = (await tx.orm.public.Party.first({
           id: booking.customerId,
         }))!;
-        if (customer.archivedAt !== null) {
+        const block = newWorkBlock(customer);
+        if (block) {
           throw new ConflictException({
-            message: SHIPMENT_BLOCK_MESSAGES.archived,
+            message: SHIPMENT_BLOCK_MESSAGES[block],
             details: [
               {
                 field: 'bookingReference',
-                messages: ["This booking's customer is archived."],
+                messages: [BOOKING_CUSTOMER_BLOCK[block]],
               },
             ],
           });
@@ -438,6 +445,9 @@ export class ShipmentsService {
         updatedAt: now,
       });
       await this.syncMilestones(tx, before.id, before, dates, user);
+      if (dto.status === 'delivered' && before.bookingId !== null) {
+        await this.completeBookingIfDelivered(tx, before.bookingId, user);
+      }
       const recorded = (['atd', 'ata', 'deliveredAt'] as const).filter(
         (f) => !sameTime(dates[f], before[f]),
       );
@@ -1009,6 +1019,56 @@ export class ShipmentsService {
   }
 
   // --- Helpers ------------------------------------------------------------------------------
+
+  /**
+   * Repository owner, 2026-11-27 (CLAUDE.md §17 question 20): a booking becomes `completed` once
+   * every one of its shipments is delivered. Called inside the transaction that delivers a
+   * shipment, after that shipment is updated. The booking row is locked first, so two shipments
+   * delivered at the same time are checked one after the other: the second sees the first's
+   * committed delivery (READ COMMITTED) and completes the booking exactly once. Only a confirmed
+   * booking is completed (the only status a booking with shipments can have, since shipments are
+   * made from confirmed bookings and such bookings cannot be cancelled).
+   */
+  private async completeBookingIfDelivered(
+    tx: Tx,
+    bookingId: number,
+    user: Principal,
+  ) {
+    const [locked] = await tx.query(
+      this.prisma.client.raw.sql`
+        SELECT id, status FROM "Booking" WHERE id = ${bookingId}::int FOR UPDATE
+      `
+        .returnsRow({ id: 'pg/int4@1', status: 'pg/text@1' })
+        .build(),
+    );
+    if (!locked || locked.status !== 'confirmed') return;
+    const shipments = await tx.orm.public.Shipment.where({ bookingId }).all();
+    if (
+      shipments.length === 0 ||
+      shipments.some((s) => s.status !== 'delivered')
+    ) {
+      return;
+    }
+    const booking = (await tx.orm.public.Booking.first({ id: bookingId }))!;
+    await tx.orm.public.Booking.where({ id: bookingId }).update({
+      status: 'completed',
+      updatedAt: new Date(),
+    });
+    await this.audit.record(tx, {
+      actorUserId: user.id,
+      entityType: 'Booking',
+      entityId: bookingId,
+      action: 'complete',
+      summary: `${booking.reference} completed: all ${shipments.length} shipment${shipments.length === 1 ? '' : 's'} delivered`,
+      changes: plainJson({
+        before: { status: 'confirmed' },
+        after: {
+          status: 'completed',
+          shipments: shipments.map((s) => s.reference),
+        },
+      }),
+    });
+  }
 
   private async lock(tx: Tx, reference: string): Promise<ShipmentRow> {
     const [row] = await tx.query(

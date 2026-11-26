@@ -215,6 +215,7 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
   - Views (`active`, `attention`, `delayed`, `arriving` within 7 days, `customs`) are calculated in SQL, with counts per view. The customs summary reads the latest `CustomsEntry`; customs work itself stays in Phase 4.
   - A booking with shipments can no longer be cancelled (`CLAUDE.md` §17 question 20). `completed` bookings are still not set automatically.
   - Fictional demo shipments: `src/seed/demo-shipments.ts`, run by `npm run db:seed:demo`.
+  - **Repository-owner decisions of 2026-11-27 (`CLAUDE.md` §17 questions 19–22):** a shipment is refused for a confirmed booking whose customer is on hold or closed, as for archived customers (409, `details` field `bookingReference`). When a shipment of a booking is delivered, the booking row is locked and, if every shipment of the booking is now delivered and the booking is confirmed, it becomes `completed` (audited on the booking as `complete`); simultaneous deliveries complete it exactly once. A completed booking cannot be cancelled and takes no new shipments. Delivered stays final, the planned ETA stays required, and the current ETA still comes from open delays only.
 
 **Phase 4: Remaining modules (scope to be agreed)**
 Documents with private storage, customs, finance (invoices, credit notes, payments, allocations, credit checks), tasks and notifications, reports, user management. Agents, suppliers and transporters reuse `/api/parties`.

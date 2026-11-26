@@ -297,6 +297,9 @@ export function BookingDetail({
                   ))}
                 </ul>
               )}
+              {b.status === 'completed' && (
+                <p className="text-sm text-slate-600">All shipments are delivered, so the booking was completed automatically.</p>
+              )}
               {canCreateShipment && b.status === 'confirmed' && (
                 <ButtonLink href={`/shipments/new?booking=${encodeURIComponent(b.reference)}`} size="sm">
                   Create shipment

@@ -918,6 +918,33 @@ await step('workflow: delivery needs the delivery time, then the shipment is del
   await shot('26-workflow-delivered');
 });
 
+await step('workflow: the booking completes once its only shipment is delivered (2026-11-27)', async () => {
+  const b = await api('GET', `/api/backend/bookings/${bookingRef}`);
+  expect(b.body.status === 'completed', `booking is ${b.body.status}`);
+  await nav(`/bookings/${bookingRef}`);
+  const t = await text();
+  expect(t.includes('Completed') && t.includes('completed automatically'), 'completion not shown');
+  expect(!t.includes('Cancel booking'), 'completed booking still offers cancel');
+});
+
+await step('a confirmed booking of an on-hold customer cannot become a shipment (2026-11-27)', async () => {
+  await signOut();
+  await signIn(ADMIN.email, ADMIN.password);
+  const customer = await api('POST', '/api/backend/parties', { name: `Held Shipment Browser Ltd ${Date.now()}`, roles: ['customer'] });
+  const made = await api('POST', '/api/backend/bookings', {
+    customerId: customer.body.id, mode: 'sea', direction: 'import', origin: 'Jebel Ali, AE', destination: 'Mombasa', cargoSummary: 'Held check',
+  });
+  expect(made.status === 201, `booking ${made.status}`);
+  await api('POST', `/api/backend/bookings/${made.body.reference}/confirm`, {});
+  await api('PATCH', `/api/backend/parties/${customer.body.id}`, { accountStatus: 'on_hold' });
+  await signOut();
+  await signIn(OPERATIONS, DEMO);
+  await nav(`/shipments/new?booking=${made.body.reference}`);
+  expect((await text()).includes('is on hold, so'), 'no refusal on the new shipment page');
+  const r = await api('POST', '/api/backend/shipments', { bookingReference: made.body.reference });
+  expect(r.status === 409, `shipment created: ${r.status}`);
+});
+
 await step('demo pages load without errors and say which data is live', async () => {
   await signOut();
   await signIn(ADMIN.email, ADMIN.password);

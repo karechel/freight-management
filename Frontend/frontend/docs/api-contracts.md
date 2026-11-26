@@ -370,3 +370,5 @@ Branch `feature/shipments-phase3`. All routes need sign-in; reads need `shipment
 | `POST /api/shipments/:reference/containers`, `DELETE …/containers/:id` | ISO container numbers (four letters, seven digits) |
 
 Bookings: `GET /api/bookings/:reference` now includes `shipments` (`reference`, `status`); cancelling a booking with shipments answers 409.
+
+Since 2026-11-27 (repository owner, `CLAUDE.md` §17 questions 19 and 20): `POST /api/shipments` with a `bookingReference` answers 409 when the booking's customer is on hold, closed or archived; delivering the last undelivered shipment of a booking sets the booking to `completed`.

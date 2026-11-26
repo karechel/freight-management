@@ -363,6 +363,127 @@ describe('Shipments and tracking (e2e)', () => {
     });
   });
 
+  describe('repository-owner decisions (2026-11-27)', () => {
+    const setStatus = (id: number, accountStatus: string) =>
+      admin().patch(`/parties/${id}`, { accountStatus }).expect(200);
+    const deliver = (reference: string) =>
+      ops().post(`/shipments/${reference}/status`, {
+        status: 'delivered',
+        deliveredAt: when(0),
+      });
+    const bookingOf = async (reference: string) =>
+      (await admin().get(`/bookings/${reference}`).expect(200)).body as {
+        id: number;
+        status: string;
+      };
+    const completions = async (bookingId: number) =>
+      (
+        await db.orm.public.AuditLog.where({
+          entityType: 'Booking',
+          entityId: bookingId,
+          action: 'complete',
+        }).all()
+      ).length;
+    const shipmentFrom = async (booking: string) =>
+      (
+        await ops()
+          .post('/shipments', { bookingReference: booking })
+          .expect(201)
+      ).body as ShipmentView;
+
+    it.each([
+      ['on_hold', 'on hold'],
+      ['closed', 'closed'],
+    ])(
+      'refuses a shipment from a confirmed booking of a %s customer (question 19)',
+      async (status, words) => {
+        const customer = await newCustomer(`Booking Hold ${status} Ltd`);
+        const booking = await confirmedBooking(customer.id);
+        await setStatus(customer.id, status);
+        const refused = await ops()
+          .post('/shipments', { bookingReference: booking })
+          .expect(409);
+        expect(refused.body.message).toContain(words);
+        expect(refused.body.message).toContain('new shipment');
+        expect(fieldsIn(refused.body)).toEqual(['bookingReference']);
+        await setStatus(customer.id, 'active');
+        await shipmentFrom(booking);
+      },
+    );
+
+    it('completes a booking when its only shipment is delivered (question 20)', async () => {
+      const booking = await confirmedBooking();
+      const s = await shipmentFrom(booking);
+      expect((await bookingOf(booking)).status).toBe('confirmed');
+      await deliver(s.reference).expect(200);
+      const after = await bookingOf(booking);
+      expect(after.status).toBe('completed');
+      expect(await completions(after.id)).toBe(1);
+      // Repeating the delivery is refused (delivered is final) and changes nothing.
+      await deliver(s.reference).expect(409);
+      expect((await bookingOf(booking)).status).toBe('completed');
+      expect(await completions(after.id)).toBe(1);
+      // A completed booking is no longer cancellable and takes no new shipments.
+      await admin()
+        .post(`/bookings/${booking}/cancel`, { reason: 'Too late' })
+        .expect(409);
+      await ops().post('/shipments', { bookingReference: booking }).expect(409);
+      // The shipment's own history is kept.
+      const view = (await ops().get(`/shipments/${s.reference}`).expect(200))
+        .body as ShipmentView;
+      expect(view.history.map((h) => h.action)).toEqual([
+        'create',
+        'status_change',
+      ]);
+    });
+
+    it('waits until every shipment of the booking is delivered', async () => {
+      const booking = await confirmedBooking();
+      const first = await shipmentFrom(booking);
+      const second = await shipmentFrom(booking);
+      const third = await shipmentFrom(booking);
+      await deliver(first.reference).expect(200);
+      await ops()
+        .post(`/shipments/${second.reference}/status`, { status: 'in_transit' })
+        .expect(200);
+      expect((await bookingOf(booking)).status).toBe('confirmed');
+      await deliver(second.reference).expect(200);
+      expect((await bookingOf(booking)).status).toBe('confirmed');
+      await deliver(third.reference).expect(200);
+      const after = await bookingOf(booking);
+      expect(after.status).toBe('completed');
+      expect(await completions(after.id)).toBe(1);
+    });
+
+    it('completes the booking exactly once when its shipments are delivered at the same time', async () => {
+      const booking = await confirmedBooking();
+      const shipments = [
+        await shipmentFrom(booking),
+        await shipmentFrom(booking),
+        await shipmentFrom(booking),
+      ];
+      const results = await Promise.all(
+        shipments.map((s) => deliver(s.reference)),
+      );
+      expect(results.map((r) => r.status)).toEqual([200, 200, 200]);
+      const after = await bookingOf(booking);
+      expect(after.status).toBe('completed');
+      expect(await completions(after.id)).toBe(1);
+    });
+
+    it('never completes a booking without shipments, or through another booking', async () => {
+      const empty = await confirmedBooking();
+      const other = await confirmedBooking();
+      const s = await shipmentFrom(other);
+      await deliver(s.reference).expect(200);
+      expect((await bookingOf(empty)).status).toBe('confirmed');
+      expect((await bookingOf(other)).status).toBe('completed');
+      // A standalone shipment has no booking to complete.
+      const standaloneJob = await newShipment();
+      await deliver(standaloneJob.reference).expect(200);
+    });
+  });
+
   describe('status and dates', () => {
     it('records departure, arrival and delivery, completing their milestones', async () => {
       const s = await newShipment();

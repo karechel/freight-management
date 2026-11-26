@@ -51,6 +51,32 @@ export default async function NewShipmentPage({ searchParams }: PageProps<'/ship
       />
     );
   }
+  if (booking?.ok) {
+    // On-hold, closed and archived customers' bookings do not become shipments (2026-11-27,
+    // CLAUDE.md §17 question 19); the backend refuses it too.
+    const customer = await serverGet<{ name: string; accountStatus: string; archivedAt: string | null }>(
+      `parties/${booking.data.customer.id}`,
+      returnTo,
+    );
+    const block = !customer.ok
+      ? undefined
+      : customer.data.archivedAt
+        ? 'is archived'
+        : customer.data.accountStatus === 'on_hold'
+          ? 'is on hold'
+          : customer.data.accountStatus === 'closed'
+            ? 'has a closed account'
+            : undefined;
+    if (block) {
+      return (
+        <Refused
+          title="This booking's customer cannot receive new shipments"
+          description={`${booking.data.customer.name} ${block}, so ${booking.data.reference} cannot be turned into a shipment. Management or an administrator must make the account active first.`}
+          back={back}
+        />
+      );
+    }
+  }
   return (
     <>
       <PageHeader
