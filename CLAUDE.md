@@ -424,6 +424,20 @@ Entry template:
 - **Tests:** none run (documentation only).
 - **Commit and push:** committed and pushed to `feature/shipments-phase3` (no force); hash verified with `git ls-remote` in the session reply.
 
+### LOG-20261127-0111-verify-and-close — Read-only GitHub handover verification; session paused
+- Time: 2026-11-27, from 01:07:15 (verification start) to 01:11:24 +03:00 (this entry) (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: Sean Macharia (operator) / Claude Code (Opus 5.5).
+- **Instructions received:** (1) "Final Phase 2 and Phase 3 GitHub handover verification", read-only; (2) "commit and push everything for now, i will be back".
+- **Verified (read-only):**
+  - Git: `main` = `cbad567a3cef33e63bc66a166e22a0de593901f2`; `feature/quotations-phase2` = `ea7e7adb4d4d4e8fead03ceafc44812ce2f9c531`; `feature/shipments-phase3` = `53fd029f2cdd47f4de9dcb5c13f906c0422cb1db`; each equal to its tracking ref and to `git ls-remote origin`; 0 ahead, 0 behind; clean; no stashes; one worktree.
+  - Remote contents: Phase 2 holds questions 16 (record), 17 and 18; Phase 3 holds questions 16 (record), 19, 20.1, 20.2 and 21, the approved completion criteria and LOG-20261127-0100-handover-correction; `settings.tax.manage` reaches admin only in both branches' seed data. No code changed after `f96903b` (later commits touch only `CLAUDE.md` and `docs/`).
+  - Pull requests: `git ls-remote origin "refs/pull/*"` lists only PRs #1–#4, so **neither Phase 2 nor Phase 3 PR exists**.
+  - Branch graph: merge base `ab2962b02baee213f2f858b765046bc0c1675205`; Phase 3 has 9 commits not in Phase 2 and lacks `23dc964` and `ea7e7ad`; `git merge-tree --write-tree` of the two remote heads exits 0 (no conflicts).
+  - Demonstration: port 3000 → PID 23212 (`next start`), port 3001 → PID 13160 (`node dist/main`), both started 00:49:29 from builds of 00:48–00:49 (after `f96903b`, committed 00:30:49); `/health` ok, `/login` 200; the builds contain `completeBookingIfDelivered` and the question 19 page text.
+  - Documentation: §14, the roadmap headings and the archived 2026-11-27 entries agree; remaining older figures are in dated history. Noted, not changed: the Phase 2 branch's own `CLAUDE.md` is the older copy (its §17 shows questions 17 and 18 unanswered); the current handover lives on this branch.
+- **Changes:** only this entry, committed and pushed to `feature/shipments-phase3` (no force). No code, database, process or Phase 2 branch change; nothing merged; no PR opened or retargeted.
+- **For the next session:** `git status`, `git fetch`; read §14. Next steps: open both PRs in the browser; owner reviews and merges Phase 2; with approval merge `main` into Phase 3, re-test, retarget and merge.
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-27 (LOG-20261127-0100-handover-correction) to match LOG-20261127-0050-finalise.
