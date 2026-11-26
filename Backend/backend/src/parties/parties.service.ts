@@ -399,12 +399,13 @@ export class PartiesService {
 
   /**
    * A customer's open work, which blocks archiving: undelivered shipments, pending or confirmed
-   * bookings, and open quotations (draft or sent and still valid on the Nairobi calendar, the same
-   * rule as the customer's "open quotations" figure).
+   * bookings, open quotations (draft or sent and still valid on the Nairobi calendar, the same
+   * rule as the customer's "open quotations" figure), and accepted quotations that have no booking
+   * (repository owner, 2026-11-27). A quotation with any booking, even a cancelled one, is booked.
    */
   private async openWork(tx: Tx, customerId: number): Promise<OpenWork> {
     const today = nairobiToday();
-    const [shipments, bookings, quotations] = await Promise.all([
+    const [shipments, bookings, quotations, accepted] = await Promise.all([
       tx.orm.public.Shipment.where({ customerId })
         .where((s) => s.status.neq('delivered'))
         .orderBy((s) => s.reference.asc())
@@ -417,7 +418,19 @@ export class PartiesService {
         .where((q) => q.status.in(['draft', 'sent']))
         .orderBy((q) => q.reference.asc())
         .all(),
+      tx.orm.public.Quotation.where({ customerId, status: 'accepted' })
+        .orderBy((q) => q.reference.asc())
+        .all(),
     ]);
+    const booked = accepted.length
+      ? new Set(
+          (
+            await tx.orm.public.Booking.where((b) =>
+              b.quotationId.in(accepted.map((q) => q.id)),
+            ).all()
+          ).map((b) => b.quotationId),
+        )
+      : new Set<number | null>();
     return {
       shipments: shipments.map((s) => s.reference),
       bookings: bookings.map((b) => b.reference),
@@ -425,6 +438,9 @@ export class PartiesService {
         .filter(
           (q) => effectiveStatus(q.status, q.validUntil, today) !== 'expired',
         )
+        .map((q) => q.reference),
+      acceptedQuotations: accepted
+        .filter((q) => !booked.has(q.id))
         .map((q) => q.reference),
     };
   }

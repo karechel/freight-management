@@ -34,7 +34,12 @@ describe('new-work block (repository owner, 2026-11-26)', () => {
 describe('archive blockers (repository owner, 2026-11-26)', () => {
   it('allows archiving without open work', () => {
     expect(
-      archiveBlockers({ shipments: [], bookings: [], quotations: [] }),
+      archiveBlockers({
+        shipments: [],
+        bookings: [],
+        quotations: [],
+        acceptedQuotations: [],
+      }),
     ).toBeNull();
   });
 
@@ -43,6 +48,7 @@ describe('archive blockers (repository owner, 2026-11-26)', () => {
       shipments: ['FMS-S-1'],
       bookings: ['BKG-1', 'BKG-2'],
       quotations: ['QT-1'],
+      acceptedQuotations: ['QT-9'],
     });
     expect(result!.message).toContain('open work');
     expect(result!.details).toEqual([
@@ -52,12 +58,22 @@ describe('archive blockers (repository owner, 2026-11-26)', () => {
         messages: ['2 pending or confirmed bookings: BKG-1, BKG-2.'],
       },
       { field: 'quotations', messages: ['1 open quotation: QT-1.'] },
+      {
+        field: 'acceptedQuotations',
+        messages: ['1 accepted quotation not yet booked: QT-9.'],
+      },
     ]);
+    expect(result!.message).toContain('accepted quotations');
   });
 
   it('lists at most five references per kind', () => {
     const quotations = Array.from({ length: 7 }, (_, i) => `QT-${i + 1}`);
-    const result = archiveBlockers({ shipments: [], bookings: [], quotations });
+    const result = archiveBlockers({
+      shipments: [],
+      bookings: [],
+      quotations,
+      acceptedQuotations: [],
+    });
     expect(result!.details).toEqual([
       {
         field: 'quotations',

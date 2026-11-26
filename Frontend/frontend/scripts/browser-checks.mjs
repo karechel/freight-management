@@ -511,6 +511,27 @@ await step('on-hold customer: quotation explains the block and the forms leave t
   await api('PATCH', `/api/backend/parties/${customer.body.id}`, { accountStatus: 'active' });
 });
 
+await step('on-hold customer: a pending booking explains why it cannot be confirmed (2026-11-27)', async () => {
+  await signOut();
+  await signIn(ADMIN.email, ADMIN.password);
+  const customer = await api('POST', '/api/backend/parties', { name: `Held Booking Ltd ${Date.now()}`, roles: ['customer'] });
+  expect(customer.status === 201, `customer ${customer.status}`);
+  const booking = await api('POST', '/api/backend/bookings', {
+    customerId: customer.body.id, mode: 'road', direction: 'transit', origin: 'Mombasa', destination: 'Kampala', cargoSummary: 'Transit cargo, 1 truck',
+  });
+  expect(booking.status === 201, `booking ${booking.status}`);
+  const held = await api('PATCH', `/api/backend/parties/${customer.body.id}`, { accountStatus: 'on_hold' });
+  expect(held.status === 200, `hold ${held.status}`);
+  await nav(`/bookings/${booking.body.reference}`);
+  const t = await text();
+  expect(t.includes('cannot be confirmed or credit-approved'), 'no explanation shown');
+  expect(!t.includes('Confirm booking'), 'confirm button still offered');
+  expect(t.includes('Cancel booking'), 'cancel no longer offered');
+  const r = await api('POST', `/api/backend/bookings/${booking.body.reference}/confirm`, {});
+  expect(r.status === 409, `confirm allowed: ${r.status}`);
+  await shot('19b-held-booking');
+});
+
 await step('archiving is refused while the customer has open work, naming it', async () => {
   const q = await api('POST', '/api/backend/quotations', {
     customerId: heldCustomer.id, mode: 'air', direction: 'export', origin: 'Nairobi', destination: 'Dubai',

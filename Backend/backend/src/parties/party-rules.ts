@@ -45,6 +45,8 @@ export interface OpenWork {
   shipments: string[];
   bookings: string[];
   quotations: string[];
+  /** Accepted quotations without a booking (repository owner, 2026-11-27, §17 question 18). */
+  acceptedQuotations: string[];
 }
 
 /** Shows at most this many references per kind in the archive refusal. */
@@ -55,9 +57,7 @@ const LISTED = 5;
  * or open quotations (repository owner, 2026-11-26). Returns the refusal, naming the records, or
  * null when the customer can be archived.
  */
-export function archiveBlockers(
-  open: OpenWork,
-): {
+export function archiveBlockers(open: OpenWork): {
   message: string;
   details: { field: string; messages: string[] }[];
 } | null {
@@ -65,6 +65,11 @@ export function archiveBlockers(
     ['shipments', 'undelivered shipment', open.shipments],
     ['bookings', 'pending or confirmed booking', open.bookings],
     ['quotations', 'open quotation', open.quotations],
+    [
+      'acceptedQuotations',
+      'accepted quotation not yet booked',
+      open.acceptedQuotations,
+    ],
   ] as const;
   const details = kinds
     .filter(([, , references]) => references.length > 0)
@@ -84,7 +89,7 @@ export function archiveBlockers(
   if (details.length === 0) return null;
   return {
     message:
-      'This customer has open work, so they cannot be archived yet. Deliver the shipments, complete or cancel the bookings, and decline or let the quotations expire first.',
+      'This customer has open work, so they cannot be archived yet. Deliver the shipments, complete or cancel the bookings, decline or let the open quotations expire, and convert or decline the accepted quotations first.',
     details,
   };
 }

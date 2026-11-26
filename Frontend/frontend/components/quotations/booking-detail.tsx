@@ -7,6 +7,7 @@ import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DetailList } from '@/components/ui/detail-list';
+import { heldBookingText } from '@/lib/held-booking';
 import { TextAreaField } from '@/components/ui/form';
 import { PageHeader } from '@/components/ui/page-header';
 import { PendingNotice } from '@/components/ui/states';
@@ -46,7 +47,9 @@ function BookingActions({ booking }: { booking: LiveBooking }) {
   }
 
   // A booking awaiting credit approval cannot be confirmed (the backend refuses it too).
-  const canConfirm = booking.status === 'pending' && booking.creditApproval?.state !== 'awaiting';
+  // On-hold or closed customers' bookings cannot be confirmed (2026-11-27); the backend refuses it too.
+  const held = booking.customerNewWorkBlock ? heldBookingText[booking.customerNewWorkBlock] : undefined;
+  const canConfirm = booking.status === 'pending' && booking.creditApproval?.state !== 'awaiting' && !held;
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
   if (!canConfirm && !canCancel) return null;
 
@@ -56,6 +59,9 @@ function BookingActions({ booking }: { booking: LiveBooking }) {
         <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
           {failure}
         </p>
+      )}
+      {held && booking.status === 'pending' && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{held}</p>
       )}
       {cancelling ? (
         <>
@@ -99,6 +105,8 @@ function CreditApprovalCard({ booking, canApprove }: { booking: LiveBooking; can
   const [busy, setBusy] = useState(false);
   const approval = booking.creditApproval!;
   const decidable = canApprove && approval.state === 'awaiting' && booking.status === 'pending';
+  // Approval is refused for on-hold or closed customers (2026-11-27); rejecting stays possible.
+  const heldApproval = booking.customerNewWorkBlock ? heldBookingText[booking.customerNewWorkBlock] : undefined;
 
   async function decide(decision: 'approve' | 'reject') {
     setFailure(undefined);
@@ -150,6 +158,9 @@ function CreditApprovalCard({ booking, canApprove }: { booking: LiveBooking; can
                 {failure}
               </p>
             )}
+            {heldApproval && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{heldApproval}</p>
+            )}
             <TextAreaField
               id="credit-approval-reason"
               label="Reason for your decision"
@@ -168,9 +179,11 @@ function CreditApprovalCard({ booking, canApprove }: { booking: LiveBooking; can
               <Button variant="secondary" size="sm" onClick={() => decide('reject')} disabled={busy}>
                 Reject and cancel booking
               </Button>
-              <Button size="sm" onClick={() => decide('approve')} disabled={busy}>
-                {busy ? 'Saving…' : 'Approve'}
-              </Button>
+              {!heldApproval && (
+                <Button size="sm" onClick={() => decide('approve')} disabled={busy}>
+                  {busy ? 'Saving…' : 'Approve'}
+                </Button>
+              )}
             </div>
           </div>
         )}

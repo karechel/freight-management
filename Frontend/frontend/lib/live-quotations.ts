@@ -123,6 +123,8 @@ export interface LiveBooking {
   status: BookingStatus;
   quotation: { id: number; reference: string } | null;
   customer: PartyRef;
+  /** On hold or closed: the booking cannot be confirmed or credit-approved (2026-11-27). */
+  customerNewWorkBlock: CustomerNewWorkBlock | null;
   agent: PartyRef | null;
   carrier: PartyRef | null;
   carrierBookingNumber: string | null;

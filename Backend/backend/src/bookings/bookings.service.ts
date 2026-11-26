@@ -17,7 +17,7 @@ import {
   requireActiveCustomer,
   requirePartyWithRole,
 } from '../parties/party-checks.js';
-import { containsPattern } from '../parties/party-rules.js';
+import { containsPattern, newWorkBlock } from '../parties/party-rules.js';
 import { BILLING_VIEW } from '../parties/parties.service.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 import {
@@ -289,6 +289,13 @@ export class BookingsService {
         booking.customerId,
         approval.request.attemptedAmount,
       );
+      if (dto.decision === 'approve') {
+        await this.requireCustomerNotHeld(
+          tx,
+          booking.customerId,
+          'credit-approved',
+        );
+      }
       const approve = dto.decision === 'approve';
       await this.credit.record(tx, {
         customerId: booking.customerId,
@@ -485,6 +492,9 @@ export class BookingsService {
       if (!row) throw new NotFoundException('Record not found.');
       const before = (await tx.orm.public.Booking.first({ id: row.id }))!;
       const approval = (await this.approvals(tx, [before.id])).get(before.id)!;
+      if (action === 'confirm') {
+        await this.requireCustomerNotHeld(tx, before.customerId, 'confirmed');
+      }
       const problem = bookingActionProblem(
         before.status,
         action,
@@ -567,6 +577,10 @@ export class BookingsService {
       const found = id === null ? undefined : parties.find((p) => p.id === id);
       return found ? { id: found.id, name: found.name } : null;
     };
+    const blockOf = (id: number) => {
+      const found = parties.find((p) => p.id === id);
+      return found ? newWorkBlock(found) : null;
+    };
     const person = (id: number | null) => {
       const found = id === null ? undefined : users.find((u) => u.id === id);
       return found ? { id: found.id, name: found.name ?? found.email } : null;
@@ -602,6 +616,8 @@ export class BookingsService {
           ? { id: quotation.id, reference: quotation.reference }
           : null,
         customer: party(b.customerId),
+        // Why the booking cannot be confirmed or credit-approved (2026-11-27), or null.
+        customerNewWorkBlock: blockOf(b.customerId),
         agent: party(b.agentId),
         carrier: party(b.carrierId),
         carrierBookingNumber: b.carrierBookingNumber,
@@ -684,6 +700,37 @@ export class BookingsService {
       });
     }
     return result;
+  }
+
+  /**
+   * Repository owner, 2026-11-27 (§17 question 17): a pending booking whose customer is on hold or
+   * closed cannot be confirmed or credit-approved. Cancelling and rejecting stay possible.
+   */
+  private async requireCustomerNotHeld(
+    tx: Tx,
+    customerId: number,
+    action: 'confirmed' | 'credit-approved',
+  ) {
+    const customer = (await tx.orm.public.Party.first({ id: customerId }))!;
+    const block = newWorkBlock(customer);
+    if (block !== 'on_hold' && block !== 'closed') return;
+    const status =
+      block === 'on_hold'
+        ? "This booking's customer is on hold"
+        : "This booking's customer account is closed";
+    throw new ConflictException({
+      message: `${status}, so the booking cannot be ${action}. Management or an administrator must make the account active first.`,
+      details: [
+        {
+          field: 'customerId',
+          messages: [
+            block === 'on_hold'
+              ? 'The customer is on hold.'
+              : "The customer's account is closed.",
+          ],
+        },
+      ],
+    });
   }
 
   private instant(value: string | null | undefined): Date | null {

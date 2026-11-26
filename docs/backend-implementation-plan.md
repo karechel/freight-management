@@ -200,6 +200,9 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
     - **Archiving** a customer is refused while they have undelivered shipments, pending or confirmed bookings, or open quotations (draft or sent and still valid, the same rule as the "open quotations" figure). The 409 names up to five references per kind in `details` (`shipments`, `bookings`, `quotations`).
     - **Tax settings:** `GET /api/charge-types/tax-settings` and `PATCH /api/charge-types/:id/tax` (`defaultTaxCategory`, `defaultTaxRate` 0–100), audited as `tax_update`, behind the new admin-only permission `settings.tax.manage` (seed data only; no schema change). Saved quotation lines keep their values. Settings › Tax settings edits them and marks them **provisional: not reviewed by the accountant**. Per-line half-away-from-zero rounding is unchanged.
   - **KRA PIN:** still no fixed format (up to 20 characters, unique, upper case). An admin-configurable format is a future requirement; it needs a settings store (a schema change) and is not part of Phase 2.
+- **Repository-owner decisions of 2026-11-27 (`CLAUDE.md` §17 questions 17 and 18), built on `feature/quotations-phase2`:**
+  - **Pending bookings of on-hold or closed customers** cannot be confirmed or credit-approved (409 explaining the status). Cancelling and rejecting stay possible. Booking views carry `customerNewWorkBlock`, and the booking page explains the block instead of offering Confirm or Approve.
+  - **Archiving** is also refused while the customer has an **accepted quotation without a booking** (`details` field `acceptedQuotations`). A quotation with any booking, even a cancelled one, counts as booked.
 
 **Phase 3: Shipments and tracking**
 - Shipments from a booking or standalone (clearing-only). Server-side views: active, needs attention, arriving, customs, delayed.

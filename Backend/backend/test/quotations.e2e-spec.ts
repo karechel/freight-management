@@ -478,7 +478,11 @@ describe('Quotations and bookings (e2e)', () => {
     it('refuses conversion for a customer archived after acceptance', async () => {
       const customer = await newCustomer('Archived Later Ltd');
       const reference = await accepted({ customerId: customer.id });
-      await admin().post(`/parties/${customer.id}/archive`).expect(200);
+      // Since 2026-11-27 an accepted, unbooked quotation blocks archiving (§17 question 18), so the
+      // archive is set directly, as for a customer archived before that rule.
+      await db.orm.public.Party.where({ id: customer.id }).update({
+        archivedAt: new Date(),
+      });
       await sales().post(`/quotations/${reference}/convert`).expect(409);
     });
   });
@@ -1106,6 +1110,154 @@ describe('Quotations and bookings (e2e)', () => {
         const again = await sales().get(`/quotations/${existing}`).expect(200);
         expect(again.body.customerNewWorkBlock).toBeNull();
         await sales().post(`/quotations/${existing}/convert`).expect(201);
+      },
+    );
+
+    it('refuses archiving while an accepted quotation has no booking (2026-11-27)', async () => {
+      const customer = await newCustomer('Accepted Work Ltd');
+      const unbooked = await accepted({ customerId: customer.id });
+      const draft = await newQuotation({ customerId: customer.id });
+      const sent = await newQuotation({ customerId: customer.id });
+      await sales()
+        .post(`/quotations/${sent.reference}/status`, {
+          status: 'sent',
+          sentAt: new Date().toISOString(),
+          sentTo: 'buyer@example.com',
+        })
+        .expect(200);
+      // An accepted quotation that was booked is not counted, even after its booking is cancelled.
+      const booked = await accepted({ customerId: customer.id });
+      const booking = (
+        await sales().post(`/quotations/${booked}/convert`).expect(201)
+      ).body.reference as string;
+      await sales()
+        .post(`/bookings/${booking}/cancel`, { reason: 'Plans changed' })
+        .expect(200);
+
+      const refused = await admin()
+        .post(`/parties/${customer.id}/archive`)
+        .expect(409);
+      expect(refused.body.message).toContain('accepted quotations');
+      const [a, b] = [draft.reference, sent.reference].sort();
+      expect(refused.body.details).toEqual([
+        { field: 'quotations', messages: [`2 open quotations: ${a}, ${b}.`] },
+        {
+          field: 'acceptedQuotations',
+          messages: [`1 accepted quotation not yet booked: ${unbooked}.`],
+        },
+      ]);
+
+      // Only the accepted quotation left: still refused, then declining it allows archiving.
+      for (const reference of [draft.reference, sent.reference]) {
+        await db.orm.public.Quotation.where({ reference }).update({
+          issueDate: day(-30),
+          validUntil: day(-1),
+        });
+      }
+      const onlyAccepted = await admin()
+        .post(`/parties/${customer.id}/archive`)
+        .expect(409);
+      expect(
+        onlyAccepted.body.details.map((d: { field: string }) => d.field),
+      ).toEqual(['acceptedQuotations']);
+      await sales()
+        .post(`/quotations/${unbooked}/status`, {
+          status: 'declined',
+          decidedAt: new Date().toISOString(),
+        })
+        .expect(200);
+      await admin().post(`/parties/${customer.id}/archive`).expect(200);
+    });
+
+    it.each([
+      ['on_hold', 'on hold'],
+      ['closed', 'closed'],
+    ])(
+      'refuses confirming a pending booking of a %s customer (2026-11-27)',
+      async (status, words) => {
+        const customer = await newCustomer(`Pending ${status} Ltd`);
+        const pending = (
+          await sales()
+            .post('/bookings', standaloneFor(customer.id))
+            .expect(201)
+        ).body.reference as string;
+        const other = (
+          await sales()
+            .post('/bookings', standaloneFor(customer.id))
+            .expect(201)
+        ).body.reference as string;
+        await setStatus(customer.id, status);
+
+        const refused = await sales()
+          .post(`/bookings/${pending}/confirm`)
+          .expect(409);
+        expect(refused.body.message).toContain(words);
+        expect(refused.body.message).toContain('cannot be confirmed');
+        expect(fieldsIn(refused.body)).toEqual(['customerId']);
+        const view = await sales().get(`/bookings/${pending}`).expect(200);
+        expect(view.body.status).toBe('pending');
+        expect(view.body.customerNewWorkBlock).toBe(status);
+        // Cancelling is not blocked.
+        await sales()
+          .post(`/bookings/${other}/cancel`, { reason: 'Customer on hold' })
+          .expect(200);
+
+        await setStatus(customer.id, 'active');
+        await sales().post(`/bookings/${pending}/confirm`).expect(200);
+      },
+    );
+
+    it.each([
+      ['on_hold', 'on hold'],
+      ['closed', 'closed'],
+    ])(
+      'refuses credit approval for a %s customer, but allows rejection (2026-11-27)',
+      async (status, words) => {
+        const customer = await newCustomer(`Approval ${status} Ltd`, {
+          creditLimit: '1000',
+        });
+        const request = async () => {
+          const reference = await accepted({ customerId: customer.id });
+          return (
+            await sales()
+              .post(`/quotations/${reference}/convert`, {
+                creditDecision: {
+                  decision: 'request_approval',
+                  reason: 'Please approve',
+                },
+              })
+              .expect(201)
+          ).body.reference as string;
+        };
+        const first = await request();
+        const second = await request();
+        await setStatus(customer.id, status);
+
+        const refused = await api(tokens.finance)
+          .post(`/bookings/${first}/credit-approval`, {
+            decision: 'approve',
+            reason: 'Payment plan agreed',
+          })
+          .expect(409);
+        expect(refused.body.message).toContain(words);
+        expect(refused.body.message).toContain('cannot be credit-approved');
+        const view = await sales().get(`/bookings/${first}`).expect(200);
+        expect(view.body.creditApproval.state).toBe('awaiting');
+        // Rejecting is not approval, and cancels the booking as before.
+        await api(tokens.management)
+          .post(`/bookings/${second}/credit-approval`, {
+            decision: 'reject',
+            reason: 'Account on hold',
+          })
+          .expect(200);
+
+        await setStatus(customer.id, 'active');
+        await api(tokens.finance)
+          .post(`/bookings/${first}/credit-approval`, {
+            decision: 'approve',
+            reason: 'Account active again',
+          })
+          .expect(200);
       },
     );
 
