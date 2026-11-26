@@ -72,7 +72,7 @@ Every phase, per the approved plan:
   - Nothing yet blocks new work for an archived customer (Phases 2–3 must check `archivedAt`).
   - Four decisions dated 2026-11-04 (`CLAUDE.md` §9) came from a session whose operator was not confirmed, and await the repository owner's review.
 
-### Phase 2 — Quotations and bookings · **Complete and verified (2026-11-26); owner decisions answered and implemented; pushed on `feature/quotations-phase2`; awaiting the PR (opened in the browser by a contributor), review and merge**
+### Phase 2 — Quotations and bookings · **Complete and verified; all repository-owner decisions of 2026-11-26 and 2026-11-27 implemented (latest `ea7e7ad`); 137 unit, 173 end-to-end, 27/27 browser; pushed on `feature/quotations-phase2`; PR not yet opened (to be opened by a contributor in the browser, base `main`); not merged**
 - **Owner decisions implemented (2026-11-26, LOG-20261126-1725-phase2-owner-decisions in `CLAUDE.md`):**
   - The repository owner answered every question in `CLAUDE.md` §17 and approved the credit rule, the credit-approval workflow, the permission matrix, one booking per quotation, no booking edits and last-save-wins.
   - Built: on-hold and closed customers blocked from new quotations and bookings; archiving refused while a customer has undelivered shipments, pending or confirmed bookings, or open quotations; admin-editable charge-type tax settings (new admin-only permission `settings.tax.manage`, no schema change); the browser checks committed as `Frontend/frontend/scripts/browser-checks.mjs` (26 checks, no new dependency).
@@ -110,7 +110,7 @@ Every phase, per the approved plan:
   - API contracts are updated.
   - Phase 1's archived-customer gap is closed for quotations and bookings.
 
-### Phase 3 — Shipments and tracking · **Built and verified (2026-11-26) on `feature/shipments-phase3`, branched from the Phase 2 head `ab2962b`; not merged**
+### Phase 3 — Shipments and tracking · **Complete and verified; completion criteria approved and the 2026-11-27 decisions implemented (code `f96903b`); 155 unit, 193 end-to-end, 52/52 browser; pushed on `feature/shipments-phase3`, branched from the Phase 2 head `ab2962b`; PR not yet opened (base `feature/quotations-phase2`, retargeted to `main` after Phase 2 is merged); not merged**
 - **Sequencing (user, 2026-11-26 19:16):** Phase 3 is built before Phase 2 is merged; both are merged after Phase 3 is complete, only with the repository owner's approval. This replaces "after the Phase 2 merge".
 - **Status (LOG-20261126-1952-phase3-shipments in `CLAUDE.md`):**
   - Backend `src/shipments/`: list with views and counts, detail, create (from a confirmed booking or standalone), edit, status changes, milestones, delays and issues with actions, containers, customs summary (read only), history from the audit log; the booking view lists its shipments and a booking with shipments cannot be cancelled. No schema change, no new permission (`shipments.view`, `shipments.manage` as seeded). 11 fictional demo shipments in `db:seed:demo`.
