@@ -244,6 +244,8 @@ export interface ShipmentListFilters {
   view: ShipmentView;
   mode?: TransportMode;
   q?: string;
+  /** A live customer's numeric id, from the customer page's link. */
+  customerId?: number;
   page: number;
 }
 
@@ -255,10 +257,12 @@ export function parseShipmentFilters(params: Record<string, string | string[] | 
   const view = first(params.view);
   const mode = first(params.mode);
   const page = Number(first(params.page));
+  const customer = Number(first(params.customer));
   return {
     view: VIEWS.includes(view as ShipmentView) ? (view as ShipmentView) : 'active',
     mode: MODES.includes(mode as TransportMode) ? (mode as TransportMode) : undefined,
     q: first(params.q)?.trim().slice(0, 100) || undefined,
+    customerId: Number.isInteger(customer) && customer > 0 ? customer : undefined,
     page: Number.isInteger(page) && page > 1 ? page : 1,
   };
 }
@@ -269,6 +273,7 @@ export function shipmentPageQuery(filters: Partial<ShipmentListFilters>): string
   if (filters.view && filters.view !== 'active') query.set('view', filters.view);
   if (filters.mode) query.set('mode', filters.mode);
   if (filters.q) query.set('q', filters.q);
+  if (filters.customerId) query.set('customer', String(filters.customerId));
   if (filters.page && filters.page > 1) query.set('page', String(filters.page));
   const text = query.toString();
   return text ? `?${text}` : '';
@@ -282,6 +287,7 @@ export function shipmentApiQuery(filters: ShipmentListFilters): string {
   });
   if (filters.mode) query.set('mode', filters.mode);
   if (filters.q) query.set('q', filters.q);
+  if (filters.customerId) query.set('customerId', String(filters.customerId));
   return query.toString();
 }
 

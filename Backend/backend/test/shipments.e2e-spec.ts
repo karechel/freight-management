@@ -602,6 +602,63 @@ describe('Shipments and tracking (e2e)', () => {
     });
   });
 
+  describe('delay notes and corrections', () => {
+    it('keeps notes, corrects severity and description, and refuses a blank description', async () => {
+      const s = await newShipment();
+      const path = `/shipments/${s.reference}`;
+      const created = (
+        await ops()
+          .post(`${path}/issues`, {
+            type: 'delay',
+            severity: 'low',
+            reason: 'weather',
+            reasonDetail: 'Storm at the port',
+            identifiedAt: when(-1),
+            originalExpectedAt: s.eta,
+            notes: 'Harbour master expects 24 hours',
+          })
+          .expect(201)
+      ).body as ShipmentView & {
+        issues: {
+          id: number;
+          notes: string | null;
+          severity: string;
+          reasonDetail: string;
+        }[];
+      };
+      const issue = created.issues[0];
+      expect(issue.notes).toBe('Harbour master expects 24 hours');
+      const updated = (
+        await ops()
+          .patch(`${path}/issues/${issue.id}`, {
+            severity: 'high',
+            reasonDetail: 'Storm closed the port',
+            notes: 'Port closed for 48 hours',
+          })
+          .expect(200)
+      ).body as typeof created;
+      expect(updated.issues[0]).toMatchObject({
+        severity: 'high',
+        reasonDetail: 'Storm closed the port',
+        notes: 'Port closed for 48 hours',
+      });
+      expect(updated.history.at(-1)!.summary).toMatch(
+        /Severity changed from low to high/,
+      );
+      const blank = await ops()
+        .patch(`${path}/issues/${issue.id}`, { reasonDetail: '  ' })
+        .expect(400);
+      expect(fieldsIn(blank.body)).toEqual(['reasonDetail']);
+      const future = await ops()
+        .post(`${path}/issues/${issue.id}/actions`, {
+          note: 'Too early',
+          at: when(1),
+        })
+        .expect(400);
+      expect(fieldsIn(future.body)).toEqual(['at']);
+    });
+  });
+
   describe('containers', () => {
     it('adds containers in the ISO format and removes them', async () => {
       const booking = await confirmedBooking();

@@ -53,6 +53,7 @@ function Filters({ filters }: { filters: ShipmentListFilters }) {
   return (
     <Form action="/shipments" className="flex flex-wrap items-end gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
       <input type="hidden" name="view" value={filters.view} />
+      {filters.customerId && <input type="hidden" name="customer" value={filters.customerId} />}
       <div className="flex min-w-48 flex-1 flex-col gap-1">
         <label htmlFor="shipments-q" className={labelClass}>
           Search
@@ -133,6 +134,15 @@ export default async function ShipmentsPage({ searchParams }: PageProps<'/shipme
       </PageHeader>
       {page.ok ? (
         <Card>
+          {filters.customerId && (
+            <p className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 sm:px-5">
+              Showing one customer&apos;s shipments
+              {page.data.items[0] ? `: ${page.data.items[0].customer.name}` : ''}.
+              <Link href={`/shipments${shipmentPageQuery({ ...filters, customerId: undefined, page: 1 })}`} className="rounded font-medium text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600">
+                Show all customers
+              </Link>
+            </p>
+          )}
           <ViewTabs filters={filters} counts={page.data.counts} />
           <Filters filters={filters} />
           {page.data.items.length === 0 ? (

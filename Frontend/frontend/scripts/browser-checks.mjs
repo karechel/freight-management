@@ -667,9 +667,11 @@ await step('a delay with a revised date becomes the ETA, and resolving it restor
   await setField('issue-identified', nairobi(-30).slice(0, 16));
   await setField('issue-detail', 'Vessel waiting at anchorage');
   await setField('issue-revised', `${inDays(15)}T10:00`);
+  await setField('issue-notes', 'Agent confirmed the next berth window');
   await click('Record delay');
   await waitFor('document.body.innerText.includes("revised by an open delay")', 'revised ETA');
   expect((await text()).includes('Needs attention'), 'no attention badge');
+  expect((await text()).includes('Agent confirmed the next berth window'), 'delay notes not shown');
   await shot('22-shipment-delay');
   await click('Update');
   await sleep(300);
@@ -677,8 +679,13 @@ await step('a delay with a revised date becomes the ETA, and resolving it restor
   await setField(`issue-${delayId}-status`, 'resolved');
   await sleep(200);
   await setField(`issue-${delayId}-resolved`, nairobi(-5).slice(0, 16));
+  await setField(`issue-${delayId}-severity`, 'medium');
+  await setField(`issue-${delayId}-notes`, 'Berthed two days late');
   await click('Save changes');
   await waitFor('!document.body.innerText.includes("revised by an open delay")', 'ETA back to planned');
+  await waitFor('document.body.innerText.includes("Berthed two days late")', 'updated notes shown');
+  const after = (await api('GET', `/api/backend/shipments/${shipmentRef}`)).body.issues[0];
+  expect(after.severity === 'medium' && after.notes === 'Berthed two days late', `issue not updated: ${after.severity} ${after.notes}`);
 });
 
 await step('containers are added in the ISO format', async () => {
@@ -724,6 +731,18 @@ await step('operations opens a standalone clearing job', async () => {
   await waitFor('/^\\/shipments\\/FMS-ROAD-/.test(location.pathname)', 'standalone created');
   await sleep(600);
   expect((await text()).includes('Job opened'), 'standalone milestones missing');
+});
+
+await step("the customer page links to that customer's shipments", async () => {
+  const customerId = (await api('GET', `/api/backend/shipments/${shipmentRef}`)).body.customer.id;
+  await nav(`/parties/${customerId}`);
+  await click('View shipments');
+  await waitFor('location.pathname === "/shipments"', 'shipments list');
+  await sleep(800);
+  const t = await text();
+  expect(t.includes("Showing one customer's shipments"), 'no customer filter note');
+  expect(t.includes(shipmentRef), 'customer shipment missing');
+  expect(!t.includes('FMS-AIR-2610-0038'), "another customer's shipment shown");
 });
 
 await step('sales can view shipments but not change them', async () => {

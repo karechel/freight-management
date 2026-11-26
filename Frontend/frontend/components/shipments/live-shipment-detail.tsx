@@ -210,6 +210,9 @@ function IssueCard({ shipment, issue: i, canManage, staff }: { shipment: LiveShi
   const [notification, setNotification] = useState<CustomerNotificationStatus>(i.customerNotification);
   const [notifiedAt, setNotifiedAt] = useState(toDateTimeInput(i.customerNotifiedAt ?? undefined));
   const [nextAction, setNextAction] = useState(i.nextAction ?? '');
+  const [notes, setNotes] = useState(i.notes ?? '');
+  const [severity, setSeverity] = useState<Severity>(i.severity);
+  const [detail, setDetail] = useState(i.reasonDetail);
   const [followUp, setFollowUp] = useState(i.followUpUser ? String(i.followUpUser.id) : '');
   const [actionNote, setActionNote] = useState('');
   const path = `shipments/${encodeURIComponent(shipment.reference)}/issues/${i.id}`;
@@ -226,6 +229,9 @@ function IssueCard({ shipment, issue: i, canManage, staff }: { shipment: LiveShi
           customerNotification: notification,
           customerNotifiedAt: notification === 'informed_manually' ? iso(notifiedAt) : null,
           nextAction: nextAction.trim() || null,
+          notes: notes.trim() || null,
+          severity,
+          reasonDetail: detail.trim(),
           followUpUserId: followUp ? Number(followUp) : null,
         }),
       () => setEditing(false),
@@ -284,6 +290,12 @@ function IssueCard({ shipment, issue: i, canManage, staff }: { shipment: LiveShi
             <dd className="inline">{i.nextAction}</dd>
           </div>
         )}
+        {i.notes && (
+          <div className="sm:col-span-2">
+            <dt className="inline font-medium">Notes: </dt>
+            <dd className="inline whitespace-pre-line">{i.notes}</dd>
+          </div>
+        )}
         {i.resolvedAt && (
           <div className="sm:col-span-2">
             <dt className="inline font-medium">Resolved: </dt>
@@ -322,6 +334,8 @@ function IssueCard({ shipment, issue: i, canManage, staff }: { shipment: LiveShi
           <div className="sm:col-span-2">
             <Failure message={failure} />
           </div>
+          <SelectField id={`issue-${i.id}-severity`} label="Severity" value={severity} onChange={(v) => setSeverity(v as Severity)} options={metaOptions(severityMeta)} error={errors.severity} />
+          <TextAreaField id={`issue-${i.id}-detail`} label="What happened" required value={detail} onChange={setDetail} rows={2} maxLength={1000} className="sm:col-span-2" error={errors.reasonDetail} />
           <SelectField id={`issue-${i.id}-status`} label="Status" value={status} onChange={(v) => setStatus(v as DelayStatus)} options={metaOptions(delayStatusMeta)} error={errors.status} />
           <SelectField id={`issue-${i.id}-followup`} label="Responsible for follow-up" value={followUp} onChange={setFollowUp} placeholder="Unassigned" options={staff.map((p) => ({ value: String(p.id), label: p.name }))} error={errors.followUpUserId} />
           {delay && (
@@ -341,6 +355,7 @@ function IssueCard({ shipment, issue: i, canManage, staff }: { shipment: LiveShi
             <DateField id={`issue-${i.id}-notified`} label="Date the customer was informed" withTime required value={notifiedAt} onChange={setNotifiedAt} onNow={() => setNotifiedAt(nowDateTimeInput())} error={errors.customerNotifiedAt} />
           )}
           <TextField id={`issue-${i.id}-next`} label="Next action" value={nextAction} onChange={setNextAction} maxLength={500} className="sm:col-span-2" error={errors.nextAction} />
+          <TextAreaField id={`issue-${i.id}-notes`} label="Notes" value={notes} onChange={setNotes} rows={2} maxLength={2000} className="sm:col-span-2" error={errors.notes} />
           <div className="flex justify-end gap-2 sm:col-span-2">
             <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={busy}>
               Cancel
@@ -369,6 +384,7 @@ function NewIssueForm({ shipment: s, staff, onDone }: { shipment: LiveShipment; 
   const [affectsEta, setAffectsEta] = useState(true);
   const [followUp, setFollowUp] = useState(s.assignedTo ? String(s.assignedTo.id) : '');
   const [nextAction, setNextAction] = useState('');
+  const [notes, setNotes] = useState('');
   const delay = type === 'delay';
 
   function submit() {
@@ -382,6 +398,7 @@ function NewIssueForm({ shipment: s, staff, onDone }: { shipment: LiveShipment; 
           affectedMilestoneId: milestoneId ? Number(milestoneId) : null,
           followUpUserId: followUp ? Number(followUp) : null,
           nextAction: nextAction.trim() || null,
+          notes: notes.trim() || null,
           ...(delay
             ? { reason: reason || null, originalExpectedAt: iso(original), revisedExpectedAt: iso(revised), affectsEta }
             : {}),
@@ -412,6 +429,7 @@ function NewIssueForm({ shipment: s, staff, onDone }: { shipment: LiveShipment; 
         </>
       )}
       <TextField id="issue-next" label="Next action" value={nextAction} onChange={setNextAction} maxLength={500} className="sm:col-span-2" error={errors.nextAction} />
+      <TextAreaField id="issue-notes" label="Notes" value={notes} onChange={setNotes} rows={2} maxLength={2000} className="sm:col-span-2" error={errors.notes} />
       <div className="flex justify-end gap-2 sm:col-span-2">
         <Button variant="secondary" size="sm" onClick={onDone} disabled={busy}>
           Cancel

@@ -155,7 +155,20 @@ export function CustomerDetailView({
             <DetailList
               columns={2}
               items={[
-                { label: 'Shipments', value: `${customer.shipments.active} active · ${customer.shipments.total} total` },
+                {
+                  label: 'Shipments',
+                  value: (
+                    <>
+                      {customer.shipments.active} active · {customer.shipments.total} total ·{' '}
+                      <Link
+                        href={`/shipments?view=all&customer=${customer.id}`}
+                        className="rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600"
+                      >
+                        View shipments
+                      </Link>
+                    </>
+                  ),
+                },
                 {
                   label: 'Quotations',
                   value: (
