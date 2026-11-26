@@ -1,6 +1,6 @@
 # Browser checks (headless Chrome)
 
-`scripts/browser-checks.mjs` drives the installed Google Chrome through the Chrome DevTools protocol and checks the live Phase 2 pages from end to end: sign-in, quotations, bookings, credit warnings and approvals, customer status and archiving rules, and the tax settings. It has **no dependencies**: it uses Node's built-in `fetch` and `WebSocket` (Node 24.20.0) and the Chrome already on the machine. It is a development tool, not a test framework, and it is not run by `npm test`.
+`scripts/browser-checks.mjs` drives the installed Google Chrome through the Chrome DevTools protocol and checks the live pages from end to end: sign-in, quotations, bookings, credit warnings and approvals, customer status and archiving rules, the tax settings, and (Phase 3) shipments and tracking. It has **no dependencies**: it uses Node's built-in `fetch` and `WebSocket` (Node 24.20.0) and the Chrome already on the machine. It is a development tool, not a test framework, and it is not run by `npm test`.
 
 Approved by the repository owner on 2026-11-26 (`CLAUDE.md` §17 question 12).
 
@@ -8,7 +8,7 @@ Approved by the repository owner on 2026-11-26 (`CLAUDE.md` §17 question 12).
 
 1. Node 24.20.0 and Google Chrome.
 2. A backend `.env` in `Backend/backend` with `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `DEMO_USER_PASSWORD`. The script reads them and never prints them.
-3. A database that has been migrated and seeded with `npm run db:seed` and `npm run db:seed:demo` (the fictional demo staff, customers, carriers and agents are used by name).
+3. A database that has been migrated and seeded with `npm run db:seed` and `npm run db:seed:demo` (the fictional demo staff, customers, carriers, agents and, since Phase 3, the demo shipments such as `FMS-SEA-2610-0041` are used by name).
 4. Both apps running, ideally as production builds:
    - backend: `npm run build`, then `npm run start:prod` in `Backend/backend` (port 3001);
    - frontend: `npm run build`, then `npm run start` in `Frontend/frontend` (port 3000).
@@ -33,10 +33,13 @@ Optional environment variables:
 | `CHROME_DEBUG_PORT` | `9333` | Another free port for DevTools |
 | `APP_URL` | `http://localhost:3000` | Frontend address |
 
-## What it covers (26 checks)
+## What it covers (36 checks)
 
 - The 22 Phase 2 checks first run on 2026-11-20: sign-in redirect; creating, validating, editing, sending, accepting and converting a quotation; confirming a booking; the credit-limit warning for Sales and the override for Admin; Finance's view-only access; demo and live badges; cancelled bookings; the customer's quotation link; carrier details on conversion; credit approval requested by Sales, approved by Finance and rejected by Management; the New booking page; the not-found page; no sideways scrolling at 390 px.
 - 4 checks for the repository owner's 2026-11-26 decisions: an on-hold customer's quotation explains the block, offers no conversion, and the customer is left out of the new quotation and booking forms; archiving is refused and names the open work; Admin changes a tax rate in Settings (and the original value is put back); other roles cannot see or change tax settings.
+- 10 checks for Phase 3 (2026-11-26): the live shipment list and view counts; a seeded shipment with its booking and customs summary; creating a shipment from a confirmed booking; departure through a status change; a delay revising the ETA and its resolution; containers in ISO format; arrival and delivery (delivered is final); a standalone clearing job; Sales view-only; no sideways scrolling at 390 px.
+
+On 2026-11-26 the run used the `*_test` database (emptied and seeded like a development database) so that the development database was not written to.
 
 ## Limitations
 

@@ -9,6 +9,7 @@ import { PartiesModule } from './parties/parties.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QuotationsModule } from './quotations/quotations.module.js';
 import { ReferencesModule } from './references/references.module.js';
+import { ShipmentsModule } from './shipments/shipments.module.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ReferencesModule } from './references/references.module.js';
     ChargeTypesModule,
     QuotationsModule,
     BookingsModule,
+    ShipmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

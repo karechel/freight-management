@@ -5,7 +5,7 @@
 import { quotationStatusMeta, type StatusMeta } from './labels';
 import { minorToInput } from './money';
 import type { QuotationInput } from './quotation-form';
-import type { QuotationStatus, ShipmentDirection, TransportMode } from './types';
+import type { QuotationStatus, ShipmentDirection, ShipmentStatus, TransportMode } from './types';
 
 export const QUOTATIONS_VIEW = 'quotations.view';
 export const QUOTATIONS_MANAGE = 'quotations.manage';
@@ -143,6 +143,8 @@ export interface LiveBooking {
   creditChecks?: CreditCheckView[];
   /** Null unless approval was requested. */
   creditApproval: CreditApprovalView | null;
+  /** Shipments made from this booking (Phase 3). */
+  shipments: { reference: string; status: ShipmentStatus }[];
 }
 
 export interface ListPage<T> {

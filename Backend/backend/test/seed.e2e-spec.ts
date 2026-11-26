@@ -2,6 +2,7 @@ import { db } from '../src/prisma/db.js';
 import { verifyPassword } from '../src/auth/password.js';
 import { seedDemo } from '../src/seed/demo.js';
 import { seedDemoQuotations } from '../src/seed/demo-quotations.js';
+import { seedDemoShipments } from '../src/seed/demo-shipments.js';
 import { seedSetup } from '../src/seed/setup.js';
 import { ADMIN, DEMO_PASSWORD, resetDatabase } from './support/app.js';
 
@@ -115,6 +116,31 @@ describe('Seed scripts (e2e)', () => {
     expect((await counter('booking'))?.nextValue).toBe(3);
   });
 
+  it('adds fictional shipments once, linked to the seeded bookings', async () => {
+    await expect(seedDemoShipments(db)).resolves.toEqual({ shipments: 11 });
+    await expect(seedDemoShipments(db)).resolves.toEqual({ shipments: 0 });
+    const booked = await db.orm.public.Shipment.where({
+      reference: 'FMS-SEA-2610-0022',
+    }).first();
+    const booking = await db.orm.public.Booking.where({
+      reference: 'BKG-2610-0001',
+    }).first();
+    expect(booked?.bookingId).toBe(booking!.id);
+    const delayed = await db.orm.public.Shipment.where({
+      reference: 'FMS-ROAD-2610-0033',
+    }).first();
+    const delays = await db.orm.public.ShipmentIssue.where({
+      shipmentId: delayed!.id,
+      type: 'delay',
+    }).all();
+    expect(delays).toHaveLength(1);
+    const counter = await db.orm.public.NumberSequence.where({
+      prefix: 'shipment',
+      year: 0,
+    }).first();
+    expect(counter?.nextValue).toBe(42);
+  });
+
   it('never moves a counter back when re-run', async () => {
     await db.orm.public.NumberSequence.where({
       prefix: 'quotation',
@@ -134,6 +160,7 @@ describe('Seed scripts (e2e)', () => {
     try {
       await expect(seedDemo(db, DEMO_PASSWORD)).rejects.toThrow('production');
       await expect(seedDemoQuotations(db)).rejects.toThrow('production');
+      await expect(seedDemoShipments(db)).rejects.toThrow('production');
     } finally {
       process.env['NODE_ENV'] = original;
     }

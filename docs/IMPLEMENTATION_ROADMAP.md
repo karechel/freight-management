@@ -79,7 +79,7 @@ Every phase, per the approved plan:
   - Checks: 137 unit, 168 end-to-end, 26/26 browser; `tsc`, lint and builds pass.
   - **Still provisional:** the tax categories and rates have **not** been reviewed by the company's accountant. Admins can change them in Settings › Tax settings. This does not block Phase 2.
   - **Future, not Phase 2:** an admin-configurable KRA PIN format (needs a settings store and a schema change).
-  - Closes when the PR is reviewed and merged by the repository owner. Phase 3 may then start (owner approval of 2026-11-26), not before.
+  - Closes when the PR is reviewed and merged by the repository owner. *Sequencing changed by the user on 2026-11-26 (19:16): Phase 3 is built first on its own branch, and Phase 2 is merged after Phase 3 is complete.*
 - **Completion status (2026-11-20, LOG-20261120-1543-phase2-complete):**
   - Every item in the approved Phase 2 scope is built and tested, plus the audit's fixes and the credit-approval step.
   - Final checks: 112 unit, 158 end-to-end, 22/22 browser; builds pass.
@@ -110,7 +110,15 @@ Every phase, per the approved plan:
   - API contracts are updated.
   - Phase 1's archived-customer gap is closed for quotations and bookings.
 
-### Phase 3 — Shipments and tracking · **Not started** (approved by the repository owner on 2026-11-26 to follow once Phase 2 passes its checks and is merged, with the provisional tax configuration documented)
+### Phase 3 — Shipments and tracking · **Built and verified (2026-11-26) on `feature/shipments-phase3`, branched from the Phase 2 head `ab2962b`; not merged**
+- **Sequencing (user, 2026-11-26 19:16):** Phase 3 is built before Phase 2 is merged; both are merged after Phase 3 is complete, only with the repository owner's approval. This replaces "after the Phase 2 merge".
+- **Status (LOG-20261126-1952-phase3-shipments in `CLAUDE.md`):**
+  - Backend `src/shipments/`: list with views and counts, detail, create (from a confirmed booking or standalone), edit, status changes, milestones, delays and issues with actions, containers, customs summary (read only), history from the audit log; the booking view lists its shipments and a booking with shipments cannot be cancelled. No schema change, no new permission (`shipments.view`, `shipments.manage` as seeded). 11 fictional demo shipments in `db:seed:demo`.
+  - Frontend: `/shipments`, `/shipments/[reference]`, `/shipments/new`, `/shipments/[reference]/edit` are live; unknown references open the demo record.
+  - Checks: 155 unit, 186 end-to-end, 36/36 browser (against the `*_test` database).
+- **Completion criteria applied** (the plan states none; proposed by Claude Code, awaiting confirmation in `CLAUDE.md` §17 question 22): every item in the plan's Phase 3 scope has an endpoint and a live page; the status, date, milestone, delay and container rules are enforced by the API and covered by unit and end-to-end tests; permissions per role are tested; browser checks cover the main flows and 390 px width; API contracts and these documents are updated; no schema change.
+- **Remaining / not in Phase 3:** documents, customs entries, expenses and invoices for live shipments (Phase 4); dashboard, documents, customs and finance pages still on demo data; automatic booking completion (question 20); seeding the development database with the demo shipments (needs authorization).
+- The original plan text follows, unchanged.
 - **Depends on:** Phase 2 (bookings); clearing-only shipments can be created standalone.
 - **Schema:** none expected (`Shipment`, `Container`, `ShipmentMilestone`, `ShipmentIssue`, `CustomsEntry` exist).
 - **Backend:**

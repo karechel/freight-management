@@ -2116,3 +2116,53 @@ After the Necessary corrections in 16.5 are reviewed and applied, the file is su
   - Commit and push (not authorized); the PR.
 - Database/schema changes: none · Dependency changes: none · Commit: **not committed** · Pushed: **no**.
 - Working-tree status after: on `feature/quotations-phase2` at `071041a`; batch 1 and this work uncommitted; nothing staged.
+
+### LOG-20261120-1543-phase2-complete — Checkpoint pushed; Phase 2 implementation completed; questions added as §17
+- Time: 2026-11-20, from about 15:30 (start) to 15:43:34 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`. The checkpoint commit was pushed at the start.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** "commit and push to the feature branch. also make sure phase 2 is completely complete. if you have any questions you need me to answer write them at the bottom of claude.md". This authorizes committing and pushing to `feature/quotations-phase2` (not `main`, not a PR, not a merge).
+- **Checkpoint:**
+  - After `git fetch origin --prune`, the branch was level with its remote (0/0).
+  - Committed the verified work of LOG-20261120-1436, -1501 and -1514 (32 files) as **`7112b59`** ("feat(quotations): Phase 2 fixes, demo quotations and credit approval step"), from a message file in the scratchpad.
+  - `git push origin feature/quotations-phase2` → `071041a..7112b59`. `git ls-remote` = `git rev-parse HEAD` = `7112b59…`; working tree clean afterwards.
+- **What "completely complete" covered** (everything that needs no owner decision):
+  1. **New booking page** `/bookings/new`, for standalone bookings, the approved "standalone creation". It covers customer, agent, mode, direction, route, cargo, carrier, carrier booking number, planned dates and estimated value. Client checks match the API. Over the limit, it uses the same choices as conversion (proceed, request approval, or stop).
+     - The warning panel was moved into the shared `components/quotations/credit-warning-panel.tsx`, used by both forms.
+     - A "New booking" button on `/bookings` for `quotations.manage` holders.
+     - New files: `app/bookings/new/page.tsx`, `components/quotations/new-booking-form.tsx`. Edited: `app/bookings/page.tsx`, `components/quotations/live-quotation-actions.tsx`.
+  2. **The e2e cases the audit listed as missing**, 6 new tests in `test/quotations.e2e-spec.ts`:
+     - moving a quotation to an archived customer (409) and clearing its agent;
+     - an inactive charge type (400), and an active one's tax category used;
+     - search by reference and the agent filter;
+     - a standalone booking with an agent lacking the agent role (400);
+     - an unknown booking (404);
+     - two approvers deciding at once, giving exactly one 200, one 409 and one `CreditCheck`.
+- **Checks run (actual results):**
+  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, 112 pass; `npm run test:e2e` → 6 files, **158 pass** (70 s); build pass. Prettier: only the three files flagged before this session.
+  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0 (one unused import removed after the refactor); build pass, including `/bookings/new`.
+  - Headless Chrome (scratchpad `browser-check.mjs`, plus the New booking check) → **22/22**, no server error lines. Servers stopped (3000 → 18248, 3001 → 15692). The development database gained more fictional records.
+- **Docs:**
+  - `Frontend/frontend/docs/api-contracts.md`: `POST /api/bookings` is now used by a page.
+  - `docs/backend-implementation-plan.md`: as-built note.
+  - `docs/IMPLEMENTATION_ROADMAP.md`: Phase 2 completion status.
+  - This file: §5, §11, §12 (item 17 resolved; item 22 now points to §17), §14, this entry, and **new §17 "Questions for the operator and the repository owner"** at the bottom, as instructed.
+- **Phase 2 status:** implementation complete and verified. **Not closed:** the PR is not opened (no `gh`) and not merged, and the owner decisions in §17 are unanswered. Some answers (re-conversion, booking edits, permissions) would need further work.
+- **Commit:** this entry and the changes above are committed and pushed in a second commit after this entry; the session reply reports its hash.
+- Database/schema changes: none · Dependency changes: none · Phase 3: not started.
+- History archived (§15 rule 7): this file had reached 104,339 characters, so LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit (5 entries) were moved verbatim to `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`.
+
+### LOG-20261120-1632-session-close — Everything committed and pushed; session paused
+- Time: 2026-11-20 16:32:13 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed (see §17 question 13) / Claude Code (Opus 5.5).
+- **Instruction received:** "make sure everything is committed and pushed for now, i will be back".
+- **Verified before this entry:**
+  - After `git fetch origin --prune`, branch `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `cdbe6d5` (0/0). Working tree clean; no stashes.
+  - No servers listening on ports 3000 or 3001.
+  - `main` = `origin/main` = `cbad567`, 5 commits behind the branch.
+- **What changed:** only this entry, committed and pushed to `feature/quotations-phase2` (no force). The session reply verifies the hash with `git ls-remote`.
+- **For the next session:**
+  - Start with `git status` and `git fetch`.
+  - Read §14 and the questions in §17.
+  - The PR is still not opened (§17 question 1). Phase 2 closes after the PR, the owner's answers and the merge.
+  - Phase 3 has not started.
+- Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).

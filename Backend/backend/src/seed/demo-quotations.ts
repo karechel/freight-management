@@ -299,10 +299,10 @@ export async function seedDemoQuotations(
  * Makes sure the document type's current counter will issue a number above `highest`. It never
  * moves a counter back. (The reference service also skips any number already in use.)
  */
-async function advanceCounter(
+export async function advanceCounter(
   db: Db,
   tx: Tx,
-  documentType: 'quotation' | 'booking',
+  documentType: 'quotation' | 'booking' | 'shipment',
   highest: number,
   at: Date,
 ): Promise<void> {

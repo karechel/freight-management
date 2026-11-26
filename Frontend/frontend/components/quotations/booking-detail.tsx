@@ -4,15 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge, StatusBadge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonLink } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DetailList } from '@/components/ui/detail-list';
 import { TextAreaField } from '@/components/ui/form';
 import { PageHeader } from '@/components/ui/page-header';
-import { PendingNotice } from '@/components/ui/states';
 import { ApiError, backend } from '@/lib/api/browser';
 import { formatDateTime, formatKesExact } from '@/lib/format';
-import { directionLabel, modeLabel } from '@/lib/labels';
+import { directionLabel, modeLabel, shipmentStatusMeta } from '@/lib/labels';
+import { liveShipmentHref } from '@/lib/live-shipments';
 import { bookingStatusMeta, creditApprovalMeta, liveQuotationHref, type LiveBooking } from '@/lib/live-quotations';
 
 const linkClass = 'rounded text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-blue-600';
@@ -183,11 +183,14 @@ export function BookingDetail({
   booking: b,
   canManage,
   canApprove = false,
+  canCreateShipment = false,
 }: {
   booking: LiveBooking;
   canManage: boolean;
   /** Holds `credit.override`: may approve or reject bookings awaiting credit approval. */
   canApprove?: boolean;
+  /** Holds `shipments.manage`: may create shipments from a confirmed booking. */
+  canCreateShipment?: boolean;
 }) {
   return (
     <>
@@ -275,9 +278,32 @@ export function BookingDetail({
               {canManage && <BookingActions key={`${b.status}-${b.updatedAt}`} booking={b} />}
             </CardBody>
           </Card>
-          <PendingNotice title="Shipments come next">
-            Shipment jobs created from this booking arrive with the shipments phase. Until then, shipments stay on demo data.
-          </PendingNotice>
+          <Card>
+            <CardHeader title="Shipments" description="Jobs created from this booking. A booking may have several." />
+            <CardBody className="flex flex-col gap-3">
+              {b.shipments.length === 0 ? (
+                <p className="text-sm text-slate-600">
+                  {b.status === 'confirmed' ? 'No shipments yet.' : 'Shipments can be created once the booking is confirmed.'}
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2 text-sm">
+                  {b.shipments.map((s) => (
+                    <li key={s.reference} className="flex items-center justify-between gap-2">
+                      <Link href={liveShipmentHref(s.reference)} className={`${linkClass} font-mono`}>
+                        {s.reference}
+                      </Link>
+                      <StatusBadge meta={shipmentStatusMeta[s.status]} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {canCreateShipment && b.status === 'confirmed' && (
+                <ButtonLink href={`/shipments/new?booking=${encodeURIComponent(b.reference)}`} size="sm">
+                  Create shipment
+                </ButtonLink>
+              )}
+            </CardBody>
+          </Card>
         </div>
       </div>
     </>

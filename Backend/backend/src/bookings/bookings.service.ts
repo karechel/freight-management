@@ -491,6 +491,24 @@ export class BookingsService {
         approval.state,
       );
       if (problem) throw new ConflictException(problem);
+      // Phase 3: a booking whose shipments exist is no longer cancellable (CLAUDE.md §17).
+      if (action === 'cancel') {
+        const shipments = await tx.orm.public.Shipment.where({
+          bookingId: before.id,
+        }).all();
+        if (shipments.length > 0) {
+          throw new ConflictException({
+            message:
+              'This booking already has shipments, so it cannot be cancelled.',
+            details: [
+              {
+                field: 'shipments',
+                messages: shipments.map((s) => s.reference),
+              },
+            ],
+          });
+        }
+      }
       const now = new Date();
       const patch =
         action === 'confirm'
@@ -539,18 +557,22 @@ export class BookingsService {
       b.quotationId ? [b.quotationId] : [],
     );
     const showCredit = detail && user.permissions.includes(BILLING_VIEW);
-    const [parties, quotations, checks, approvals] = await Promise.all([
-      orm.public.Party.where((p) => p.id.in(partyIds)).all(),
-      quotationIds.length
-        ? orm.public.Quotation.where((q) => q.id.in(quotationIds)).all()
-        : Promise.resolve([]),
-      showCredit
-        ? orm.public.CreditCheck.where((c) => c.bookingId.in(ids))
-            .orderBy((c) => c.decidedAt.asc())
-            .all()
-        : Promise.resolve([]),
-      this.approvals(this.prisma.client, ids),
-    ]);
+    const [parties, quotations, checks, approvals, shipments] =
+      await Promise.all([
+        orm.public.Party.where((p) => p.id.in(partyIds)).all(),
+        quotationIds.length
+          ? orm.public.Quotation.where((q) => q.id.in(quotationIds)).all()
+          : Promise.resolve([]),
+        showCredit
+          ? orm.public.CreditCheck.where((c) => c.bookingId.in(ids))
+              .orderBy((c) => c.decidedAt.asc())
+              .all()
+          : Promise.resolve([]),
+        this.approvals(this.prisma.client, ids),
+        orm.public.Shipment.where((s) => s.bookingId.in(ids))
+          .orderBy((s) => s.id.asc())
+          .all(),
+      ]);
     const userIds = [
       ...new Set([
         ...bookings.flatMap((b) => (b.createdById ? [b.createdById] : [])),
@@ -619,6 +641,9 @@ export class BookingsService {
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
         creditApproval: approvalView(approvals.get(id)!),
+        shipments: shipments
+          .filter((s) => s.bookingId === id)
+          .map((s) => ({ reference: s.reference, status: s.status })),
         ...(showCredit
           ? {
               creditChecks: checks

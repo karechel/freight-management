@@ -124,7 +124,8 @@ export const isLivePage = (pathname: string) =>
   /^\/parties(\/new|\/[1-9]\d{0,9}(\/edit)?)?\/?$/.test(pathname) ||
   // Phase 2. A demo quotation opened from a demo page also lands under /quotations; its page
   // shows its own "Demonstration data" banner.
-  /^\/(quotations|bookings)(\/.*)?$/.test(pathname);
+  // Phase 3 adds /shipments; a demo reference there shows the demo record with a "Demo data" badge.
+  /^\/(quotations|bookings|shipments)(\/.*)?$/.test(pathname);
 
 export const customerLocation =(customer: Pick<Customer, 'city' | 'country'>) =>
   [customer.city, customer.country].filter(Boolean).join(', ');

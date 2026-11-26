@@ -578,6 +578,175 @@ await step('no sideways scrolling at 390 px', async () => {
   await send('Emulation.clearDeviceMetricsOverride');
 });
 
+// --- Phase 3: shipments and tracking (2026-11-26) -------------------------------------------
+const OPERATIONS = 'a.wanjiru@freight-demo.example';
+let shipmentRef;
+
+await step('operations sees the live shipment list with view counts', async () => {
+  await signOut();
+  await signIn(OPERATIONS, DEMO);
+  await nav('/shipments?view=all');
+  const t = await text();
+  expect((await h1()) === 'Shipments', await h1());
+  expect(t.includes('Live data'), 'no live badge');
+  expect(t.includes('FMS-SEA-2610-0041'), 'seeded shipment missing');
+  expect(t.includes('Needs attention'), 'no attention view');
+  await shot('20-shipments-list');
+  await nav('/shipments?view=delayed');
+  expect((await text()).includes('FMS-ROAD-2610-0033'), 'seeded delayed shipment not in the delayed view');
+});
+
+await step('a seeded shipment shows milestones, customs summary and its booking', async () => {
+  await nav('/shipments/FMS-SEA-2610-0022');
+  const t = await text();
+  expect(t.includes('BKG-2610-0001'), 'booking link missing');
+  expect(t.includes('Packaging machinery'), 'cargo missing');
+  await nav('/shipments/FMS-AIR-2610-0019');
+  expect((await text()).includes('Fictional demo query'), 'customs query summary missing');
+});
+
+await step('operations creates a shipment from a confirmed booking', async () => {
+  const booking = await api('POST', '/api/backend/bookings', {
+    customerId: (await api('GET', '/api/backend/parties?role=customer&q=Kijani&limit=5')).body.items[0].id,
+    mode: 'sea', direction: 'import', origin: 'Jebel Ali, AE', destination: 'Mombasa', cargoSummary: '3 × 20ft GP, roofing sheets',
+    plannedEta: `${inDays(12)}T00:00:00+03:00`, estimatedValue: '100000',
+  });
+  // Operations cannot create bookings (quotations.manage); an admin makes and confirms it.
+  expect(booking.status === 403, `operations created a booking: ${booking.status}`);
+  await signOut();
+  await signIn(ADMIN.email, ADMIN.password);
+  const kijani = (await api('GET', '/api/backend/parties?role=customer&q=Kijani&limit=5')).body.items[0].id;
+  const made = await api('POST', '/api/backend/bookings', {
+    customerId: kijani, mode: 'sea', direction: 'import', origin: 'Jebel Ali, AE', destination: 'Mombasa',
+    cargoSummary: '3 × 20ft GP, roofing sheets', plannedEta: `${inDays(12)}T00:00:00+03:00`, estimatedValue: '100000',
+    creditDecision: { decision: 'proceed', reason: 'Browser check' },
+  });
+  expect(made.status === 201, `booking: ${made.status} ${JSON.stringify(made.body)}`);
+  const confirmed = await api('POST', `/api/backend/bookings/${made.body.reference}/confirm`, {});
+  expect(confirmed.status === 200, `confirm: ${confirmed.status}`);
+  await signOut();
+  await signIn(OPERATIONS, DEMO);
+  await nav(`/bookings/${made.body.reference}`);
+  await click('Create shipment');
+  await waitFor('location.pathname === "/shipments/new"', 'new shipment form');
+  await sleep(800);
+  expect((await text()).includes(`From booking ${made.body.reference}`), 'not prefilled from the booking');
+  await selectByLabel('shipment-assigned', 'A. Wanjiru');
+  await setField('shipment-equipment', '3 × 20ft GP');
+  await setField('shipment-packages', '96');
+  await setField('shipment-weight', '52000');
+  await shot('21-new-shipment');
+  await click('Create shipment');
+  await waitFor('/^\\/shipments\\/FMS-SEA-/.test(location.pathname)', 'redirect to the new shipment');
+  await sleep(800);
+  shipmentRef = decodeURIComponent((await url()).split('/')[2]);
+  const t = await text();
+  expect(t.includes('Booking confirmed'), 'default milestones missing');
+  expect(t.includes(made.body.reference), 'booking not linked');
+  await nav(`/bookings/${made.body.reference}`);
+  expect((await text()).includes(shipmentRef), 'booking does not list the shipment');
+});
+
+await step('status change records departure and completes the milestone', async () => {
+  await nav(`/shipments/${shipmentRef}`);
+  await setField('status-new', 'in_transit');
+  await sleep(200);
+  await setField('status-atd', nairobi(-120).slice(0, 16));
+  await click('Change status');
+  await waitFor('document.body.innerText.includes(\'to "In transit"\')', 'history entry');
+  const arrived = await api('POST', `/api/backend/shipments/${shipmentRef}/status`, { status: 'arrived' });
+  expect(arrived.status === 400 && arrived.body.details[0].field === 'ata', `arrived without ata: ${arrived.status}`);
+});
+
+await step('a delay with a revised date becomes the ETA, and resolving it restores the plan', async () => {
+  await nav(`/shipments/${shipmentRef}`);
+  await click('Record delay or issue');
+  await sleep(300);
+  await setField('issue-severity', 'high');
+  await setField('issue-reason', 'port_congestion');
+  await setField('issue-identified', nairobi(-30).slice(0, 16));
+  await setField('issue-detail', 'Vessel waiting at anchorage');
+  await setField('issue-revised', `${inDays(15)}T10:00`);
+  await click('Record delay');
+  await waitFor('document.body.innerText.includes("revised by an open delay")', 'revised ETA');
+  expect((await text()).includes('Needs attention'), 'no attention badge');
+  await shot('22-shipment-delay');
+  await click('Update');
+  await sleep(300);
+  const delayId = (await api('GET', `/api/backend/shipments/${shipmentRef}`)).body.issues[0].id;
+  await setField(`issue-${delayId}-status`, 'resolved');
+  await sleep(200);
+  await setField(`issue-${delayId}-resolved`, nairobi(-5).slice(0, 16));
+  await click('Save changes');
+  await waitFor('!document.body.innerText.includes("revised by an open delay")', 'ETA back to planned');
+});
+
+await step('containers are added in the ISO format', async () => {
+  await setField('container-number', 'iolu 7654321');
+  await setField('container-type', 'dry_20');
+  await click('Add container');
+  await waitFor('document.body.innerText.includes("IOLU7654321")', 'container listed');
+  await setField('container-number', 'BAD1');
+  await setField('container-type', 'dry_20');
+  await click('Add container');
+  await waitFor('document.body.innerText.includes("four letters and seven digits")', 'format error');
+});
+
+await step('arrival and delivery; delivered is final', async () => {
+  await nav(`/shipments/${shipmentRef}`);
+  await setField('status-new', 'arrived');
+  await sleep(200);
+  await setField('status-ata', nairobi(-60).slice(0, 16));
+  await click('Change status');
+  await waitFor('document.body.innerText.includes(\'to "Arrived"\')', 'arrived');
+  await sleep(500);
+  await setField('status-new', 'delivered');
+  await sleep(200);
+  await setField('status-delivered', nairobi(-1).slice(0, 16));
+  await click('Change status');
+  await waitFor('document.body.innerText.includes("Delivered shipments are final")', 'delivered');
+  await shot('23-shipment-delivered');
+});
+
+await step('operations opens a standalone clearing job', async () => {
+  await nav('/shipments/new');
+  await selectByLabel('shipment-customer', 'Upeo Electronics Ltd');
+  await setField('shipment-mode', 'road');
+  await setField('shipment-direction', 'import');
+  await setField('shipment-origin', 'Mombasa');
+  await setField('shipment-destination', 'Nairobi ICD');
+  await setField('shipment-cargo', 'Clearing only: 1 × 20ft, electrical goods');
+  await click('Create shipment');
+  await sleep(500);
+  expect((await text()).includes('Enter the estimated arrival date.'), 'no ETA error');
+  await setField('shipment-eta', inDays(3));
+  await click('Create shipment');
+  await waitFor('/^\\/shipments\\/FMS-ROAD-/.test(location.pathname)', 'standalone created');
+  await sleep(600);
+  expect((await text()).includes('Job opened'), 'standalone milestones missing');
+});
+
+await step('sales can view shipments but not change them', async () => {
+  await signOut();
+  await signIn(SALES, DEMO);
+  await nav('/shipments');
+  expect(!(await text()).includes('New shipment'), 'sales sees New shipment');
+  await nav(`/shipments/${shipmentRef}`);
+  expect(!(await text()).includes('Record delay or issue'), 'sales sees delay form');
+  const r = await api('POST', `/api/backend/shipments/${shipmentRef}/issues`, { type: 'other' });
+  expect(r.status === 403, `sales wrote: ${r.status}`);
+});
+
+await step('no sideways scrolling on shipment pages at 390 px', async () => {
+  for (const path of ['/shipments', `/shipments/${shipmentRef}`, '/shipments/FMS-ROAD-2610-0033']) {
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await nav(path);
+    expect(await noSideScroll(), `side scroll on ${path}`);
+  }
+  await shot('24-mobile-shipment', 390);
+  await send('Emulation.clearDeviceMetricsOverride');
+});
+
 console.log(results.join('\n'));
 console.log(`${results.filter((r) => r.startsWith('PASS')).length}/${results.length} passed`);
 console.log(`Screenshots: ${OUT}`);

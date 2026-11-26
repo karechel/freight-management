@@ -89,6 +89,8 @@ Browser ─► Next.js 16.3.5 (App Router, React 19.2.8, Tailwind 4.3.3, TS 5.9.
 | `Frontend/frontend/lib/live-quotations.ts`, `components/quotations/live-*.tsx`, `booking-detail.tsx`, `app/bookings/`, `lib/api/quotation-options.ts` | Phase 2 live quotation and booking pages. Demo quotation components are kept for demo references |
 | `Frontend/frontend/scripts/browser-checks.mjs`, `Frontend/frontend/docs/browser-checks.md` | Headless-Chrome checks of the live pages (26; no dependencies; `npm run check:browser`). **Writes fictional records to the connected database**; how to run and limitations in the doc (2026-11-26) |
 | `Backend/backend/src/charge-types/`, `Frontend/frontend/components/settings/tax-settings-editor.tsx` | Charge-type list and admin tax settings (`settings.tax.manage`); the tax defaults are provisional until the accountant reviews them (2026-11-26) |
+| `Backend/backend/src/shipments/`, `src/seed/demo-shipments.ts`, `test/shipments.e2e-spec.ts` | Phase 3 (2026-11-26, on `feature/shipments-phase3`): shipment rules (`shipment-rules.ts`), DTOs, service, controller; fictional demo shipments generated from the frontend demo data |
+| `Frontend/frontend/lib/live-shipments.ts`, `components/shipments/live-shipment-*.tsx`, `lib/api/shipment-options.ts`, `app/shipments/` | Phase 3 live shipment pages (list, detail, new, edit). Demo shipment components are kept for references the backend does not know |
 | `Backend/backend/src/seed/` | `db:seed` (setup data, first admin) and `db:seed:demo` (fictional data, refuses production) |
 | `Backend/backend/test/` | End-to-end tests; `test/support/` creates and migrates the separate `*_test` database |
 | `Frontend/frontend/app/api/`, `lib/api/session.ts`, `lib/api/browser.ts` | Same-origin login, logout and backend-forwarding routes (token in an HttpOnly cookie); browser API client |
@@ -118,6 +120,7 @@ Status labels: **Planned** · **In progress** · **Implemented, unverified** · 
 | Backend `GET /health` | **Verified** 2026-11-03 | Unit and end-to-end tests |
 | Customers (Phase 1): list, search, filters, paging, create, edit, archive, restore, contacts, calculated figures, per-role billing access | **Verified** 2026-11-04; merged to `main` (PR #4, `d966e35`, 2026-11-04; recorded in LOG-20261116-1549-resume-sync) | LOG-20261104-1056-phase1 and LOG-20261104-1120-phase1-decisions: 70 unit tests, 112 end-to-end tests, 91 browser checks. Live pages need sign-in |
 | Quotations and bookings (Phase 2): quotations API, server totals, status flow, expiry, duplicate, conversion to a booking, standalone bookings, confirm and cancel, credit-limit check with override, archived-customer refusal; live quotation pages and minimal booking pages | **Verified** 2026-11-26 with the repository owner's decisions implemented (LOG-20261126-1725-phase2-owner-decisions); on `feature/quotations-phase2`; **awaiting the PR (opened in the browser by a contributor), review and merge**, not on `main` | LOG-20261120-1343-phase2-backend, LOG-20261120-1412-phase2-done, LOG-20261120-1425-phase2-reconcile: 104 unit tests, 142 end-to-end tests, 14 browser checks. Remediation batch 1 (LOG-20261120-1501-phase2-batch1, **not committed**): 108 unit, 145 end-to-end, 18/18 browser. Credit-approval step (LOG-20261120-1514-credit-approval): 112 unit, 152 end-to-end, 21/21 browser. Batch 1 and the approval step committed as `7112b59` and pushed. Final Phase 2 items (LOG-20261120-1543-phase2-complete): New booking page and 6 more e2e tests; 112 unit, 158 end-to-end, 22/22 browser. Owner decisions (LOG-20261126-1725-phase2-owner-decisions): on-hold/closed customers blocked, archiving refused with open work, admin tax settings, browser checks committed; **137 unit, 168 end-to-end, 26/26 browser** |
+| Shipments and tracking (Phase 3): shipments from a confirmed booking or standalone (clearing only); views (active, needs attention, delayed, arriving, customs) with counts; status changes with the date rules; milestones; delays and other issues with actions; current ETA from open delays; containers; customs summary; history from the audit log; booking page lists its shipments; 11 fictional demo shipments in `db:seed:demo`; live shipment pages | **Verified** 2026-11-26 (LOG-20261126-1952-phase3-shipments) on **`feature/shipments-phase3`**, branched from the Phase 2 head `ab2962b`; not merged | 155 unit, 186 end-to-end, 36/36 browser checks (run against the `*_test` database). Documents, customs work and invoicing for live shipments are Phase 4 |
 | Backend foundation: validation, error format, sign-in, permission guard, audit service, seed scripts | **Verified** 2026-11-03; merged to `main` (PR #3) | LOG-20261103-2218-phase0: 37 unit tests, 34 end-to-end tests, 27 browser checks |
 | Configurable reference formats | **Verified** 2026-11-03; merged to `main` (PR #3) | Includes concurrency, rollback and "issued references never change" tests. No record type uses them yet; quotations are first, in Phase 2 |
 | Frontend sign-in, sign-out, Numbering editor | **Verified** in headless Chrome 2026-11-03; merged to `main` (PR #3) | Demo pages remain open without signing in |
@@ -154,6 +157,8 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 - Phase 3 has not started.
 
 *Update 2026-11-26:* the repository owner answered every §17 question. The approved decisions are implemented (LOG-20261126-1725-phase2-owner-decisions). **Phase 3 is approved to start only after Phase 2 passes its checks and its PR is reviewed and merged**, with the provisional tax configuration documented. A contributor opens the PR in the browser; nobody merges without the repository owner.
+
+*Update 2026-11-26 19:16 (LOG-20261126-1952-phase3-shipments):* **the user changed the order of work.** Phase 3 is built now, on its own branch `feature/shipments-phase3` (from the Phase 2 head), **before** Phase 2 is merged; both are merged after Phase 3 is complete, and only with the repository owner's approval. This replaces "Phase 3 only after the Phase 2 merge". Phase 4 is not started.
 
 ## 7. Database and integration notes
 
@@ -215,6 +220,7 @@ Last checks actually run (2026-10-15 audit, read-only): see §11.
 | Browser checks committed as a development tool, using the installed Chrome, no new dependency or test framework (2026-11-26) | Repository owner, 2026-11-26 (§17 answer 12) |
 | The activity log names the operator by this clone's Git commit identity (Sean Macharia), not "operator not confirmed" (2026-11-26) | Repository owner, 2026-11-26 (§17 answer 13) |
 | `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` is kept as an unapproved reference; it never overrides the approved plan or authorizes scope (2026-11-26) | Repository owner, 2026-11-26 (§17 answer 14) |
+| **Sequencing changed (2026-11-26 19:16):** Phase 3 is built before Phase 2 is merged, on a separate branch `feature/shipments-phase3` based on the pushed Phase 2 branch; the Phase 2 PR is not merged until Phase 3 is complete; §17 questions 16–18 are deferred until after Phase 3 and the current behaviour is kept. Replaces "Phase 3 only after the Phase 2 merge" (§17 answer 15) | User instruction in the session, 2026-11-26 (pasted "We are changing the order of work"; operator Sean Macharia) |
 | Customer account status can be changed only by management and admin (`parties.status.manage`); finance changes terms and limits but not status (2026-11-04) | Session operator, identity not confirmed, 2026-11-04 (LOG-20261104-1120-phase1-decisions). **Confirmed by the repository owner on 2026-11-26** |
 | A customer cannot be archived while they have a shipment not yet delivered (2026-11-04) | Session operator, 2026-11-04. **Confirmed by the repository owner on 2026-11-26**, and extended to open bookings and quotations the same day |
 | When two people edit one customer, the last save wins; changes are audited, with no warning (2026-11-04) | Session operator, 2026-11-04. **Confirmed by the repository owner on 2026-11-26** |
@@ -253,7 +259,12 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 - Never state that tests/builds pass unless they were run in that session; record command + result in the activity log.
 - Existing tests: `src/app.controller.spec.ts` (overrides `PrismaService` with a mock, but still imports `db.ts`, which loads `.env` and constructs the real client; no query is sent to it), `src/config/env.validation.spec.ts`, `test/app.e2e-spec.ts` (needs a running local DB with a `User` table).
 - **Last recorded results (2026-10-15 audit, re-run identically in the §16 audit; local clone with Git identity Sean Macharia):** backend `tsc --noEmit` → 1 error (`test/app.e2e-spec.ts(4,21) TS2307 'supertest/types'`), `src/` clean; backend oxlint → pass; backend prettier --check → 10 files flagged on this CRLF working copy, 8 with `--end-of-line auto` (including the generated `src/prisma/contract.d.ts`) — see §12 item 9; frontend `tsc --noEmit` → pass; frontend eslint → pass. Unit/e2e tests **not run**. `npm audit` **not run**. The cause of the TS2307 error is **unknown** (`@types/supertest` 7.2.1 ships `types.d.ts`, but it does not resolve under `nodenext`); do not document a cause until investigated.
-- **Latest results: repository-owner decisions (2026-11-26, Sean Macharia's clone, Node 24.20.0, LOG-20261126-1725-phase2-owner-decisions):**
+- **Latest results: Phase 3 shipments (2026-11-26 19:16–19:52, `feature/shipments-phase3`, LOG-20261126-1952-phase3-shipments):**
+  - Backend: `tsc` exit 0; lint exit 0 (one `no-misused-spread` warning fixed); `npm test` → 13 files, **155 pass** (18 new); `npm run test:e2e` → 7 files, **186 pass** (17 shipment tests and 1 seed test new); build pass. Prettier `--write --end-of-line auto` on the changed backend files.
+  - Frontend: `next typegen`, `tsc` exit 0, lint exit 0, `npm run build` pass.
+  - Browser: **36/36** (26 earlier + 10 Phase 3) against production builds with the backend pointed at the **`*_test` database** (emptied and seeded with the setup, demo, demo-quotation and demo-shipment seeds), not the development database. Screenshots reviewed by eye. The sidebar note and dashboard status text were updated after the run (text only; `tsc` and lint re-run).
+  - Not run: `npm audit`, Safari/Firefox, screen readers; `prisma db verify` (no schema change).
+- **Earlier results: repository-owner decisions (2026-11-26, Sean Macharia's clone, Node 24.20.0, LOG-20261126-1725-phase2-owner-decisions):**
   - Backend: `tsc` exit 0; lint exit 0; build pass; `npm test` → 12 files, **137 pass** (25 new); `npm run test:e2e` → 6 files, **168 pass** (10 new), run twice (before and after formatting). Prettier `--end-of-line auto` clean on the changed files.
   - Prisma: `db verify` → match (marker `9e752599…`).
   - Frontend: `next typegen`, `tsc`, lint and build → pass.
@@ -338,12 +349,15 @@ Backend runs on `PORT` (default 3001); frontend on 3000.
 24. (2026-11-26) The KRA PIN format is not configurable yet (no format is enforced beyond 20 characters, unique, upper case). An admin-configurable format is a future requirement and needs a settings store (a schema change), so it was not built in Phase 2.
 25. (2026-11-26) The browser checks write fictional records to the database the backend uses (every run adds customers, quotations, bookings and credit checks). Use them only against a development database.
 26. (2026-11-26) Confirming or credit-approving a booking that already exists is still allowed after its customer is put on hold or closed; the owner's rule covers new quotations and bookings. A pending booking blocks archiving, so it must be confirmed or cancelled first.
+27. (2026-11-26, Phase 3) The development database has **not** been seeded with the demo shipments (`npm run db:seed:demo` was not run on it in this session; it needs authorization). Until it is, the live Shipments page on the development database is empty apart from shipments created by hand. The `*_test` database holds them after the browser run.
+28. (2026-11-26, Phase 3) Phase 3 choices made by Claude Code, pending the owner's confirmation (§17 questions 19–22): delivered is final; the planned ETA is required; a booking with shipments cannot be cancelled; shipments from an existing booking are refused only for archived customers (standalone jobs also for on-hold and closed ones); bookings are never marked `completed` automatically; the current ETA counts open delays only (the demo also counted resolved ones).
+29. (2026-11-26, Phase 3) Live shipments have no documents, customs entries (only a read-only summary), expenses or invoices yet (Phase 4). The dashboard, documents, customs and finance pages still show demo data.
 
 ## 13. Shared activity log
 
 Append-only, oldest first. Never edit past entries; corrections are new entries referencing the original. Never record secrets.
 
-**Older entries are archived verbatim in `docs/activity-log.md`, Part C** (LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, moved 2026-11-16 by LOG-20261116-1554-docs-restructure; then LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close, moved 2026-11-20 by LOG-20261120-1425-phase2-reconcile; then LOG-20261120-1246-backend-roadmap to LOG-20261120-1309-phase2-prep-audit, moved 2026-11-20 by LOG-20261120-1501-phase2-batch1; then LOG-20261120-1315-phase2-start to LOG-20261120-1412-phase2-done, moved 2026-11-20 by LOG-20261120-1514-credit-approval; then LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit, moved 2026-11-20 by LOG-20261120-1543-phase2-complete; then LOG-20261120-1501-phase2-batch1 and LOG-20261120-1514-credit-approval, moved 2026-11-26 by LOG-20261126-1725-phase2-owner-decisions). Summary of the archived period, for orientation only:
+**Older entries are archived verbatim in `docs/activity-log.md`, Part C** (LOG-20261005-2211-CK to LOG-20261104-1135-phase1-commit, moved 2026-11-16 by LOG-20261116-1554-docs-restructure; then LOG-20261116-1549-resume-sync to LOG-20261116-1658-session-close, moved 2026-11-20 by LOG-20261120-1425-phase2-reconcile; then LOG-20261120-1246-backend-roadmap to LOG-20261120-1309-phase2-prep-audit, moved 2026-11-20 by LOG-20261120-1501-phase2-batch1; then LOG-20261120-1315-phase2-start to LOG-20261120-1412-phase2-done, moved 2026-11-20 by LOG-20261120-1514-credit-approval; then LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit, moved 2026-11-20 by LOG-20261120-1543-phase2-complete; then LOG-20261120-1501-phase2-batch1 and LOG-20261120-1514-credit-approval, moved 2026-11-26 by LOG-20261126-1725-phase2-owner-decisions; then LOG-20261120-1543-phase2-complete and LOG-20261120-1632-session-close, moved 2026-11-26 by LOG-20261126-1952-phase3-shipments). Summary of the archived period, for orientation only:
 - **2026-10-05 – 10-15:** initial scaffold (`b68a0cd`); the commit titled "Phase 0" (`42ae8a8`: test and env fixes, before the backend plan defined its own Phase 0); read-only audit; this handover file; documentation audit (archive Part A) and its corrections.
 - **2026-10-19 – 10-22:** frontend on fictional demo data (`feature/frontend-foundation`), built in three frontend "phases" (shipments and delays; quotations, customers and agents; document uploads), then the grouped sidebar, expenses, reports, users, settings and audit log, notifications and tasks; headless-browser review; fresh-clone check.
 - **2026-10-26 – 10-29:** database schema (33 tables, migrations) and Node 24.20.0 pin (`feature/database-schema`); PRs #1 and #2 merged; read-only backend audit.
@@ -353,6 +367,7 @@ Append-only, oldest first. Never edit past entries; corrections are new entries 
 - **2026-11-20 (early afternoon):** Phase 2 authorized; `npm ci`, `.env` keys (random, never shown) and the credit rule "outstanding + booking value" decided by the operator; Phase 2 backend and frontend built; test and development databases migrated and seeded; 104 unit, 142 end-to-end and 14 browser checks passed.
 - **2026-11-20 (mid-afternoon):** Phase 2 committed (`ec5c760`) and pushed on `feature/quotations-phase2`; `CLAUDE.md` reconciled and the branch re-validated; the PR could not be opened here (no `gh`); read-only completion audit (one validation bug, seed and display gaps, owner decisions).
 - **2026-11-20 (late afternoon):** remediation batch 1 (issue-date bug, open-quotation count, cancelled-booking display, demo badge, customer link, convert-form carrier details, seeded demo quotations); the credit-approval step (Sales request, Finance or Management approve or reject); 112 unit, 152 end-to-end and 21 browser checks passed.
+- **2026-11-20 (evening) – 11-26:** New booking page and remaining Phase 2 tests; questions added as §17; session paused; then the repository owner's answers implemented (LOG-20261126-1725, still in §13).
 
 Entry template:
 
@@ -371,56 +386,6 @@ Entry template:
 - Commit: <hash> | not committed · Pushed: yes (confirmed how) | no
 - Working-tree status after:
 ```
-
-### LOG-20261120-1543-phase2-complete — Checkpoint pushed; Phase 2 implementation completed; questions added as §17
-- Time: 2026-11-20, from about 15:30 (start) to 15:43:34 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`. The checkpoint commit was pushed at the start.
-- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
-- **Instruction received:** "commit and push to the feature branch. also make sure phase 2 is completely complete. if you have any questions you need me to answer write them at the bottom of claude.md". This authorizes committing and pushing to `feature/quotations-phase2` (not `main`, not a PR, not a merge).
-- **Checkpoint:**
-  - After `git fetch origin --prune`, the branch was level with its remote (0/0).
-  - Committed the verified work of LOG-20261120-1436, -1501 and -1514 (32 files) as **`7112b59`** ("feat(quotations): Phase 2 fixes, demo quotations and credit approval step"), from a message file in the scratchpad.
-  - `git push origin feature/quotations-phase2` → `071041a..7112b59`. `git ls-remote` = `git rev-parse HEAD` = `7112b59…`; working tree clean afterwards.
-- **What "completely complete" covered** (everything that needs no owner decision):
-  1. **New booking page** `/bookings/new`, for standalone bookings, the approved "standalone creation". It covers customer, agent, mode, direction, route, cargo, carrier, carrier booking number, planned dates and estimated value. Client checks match the API. Over the limit, it uses the same choices as conversion (proceed, request approval, or stop).
-     - The warning panel was moved into the shared `components/quotations/credit-warning-panel.tsx`, used by both forms.
-     - A "New booking" button on `/bookings` for `quotations.manage` holders.
-     - New files: `app/bookings/new/page.tsx`, `components/quotations/new-booking-form.tsx`. Edited: `app/bookings/page.tsx`, `components/quotations/live-quotation-actions.tsx`.
-  2. **The e2e cases the audit listed as missing**, 6 new tests in `test/quotations.e2e-spec.ts`:
-     - moving a quotation to an archived customer (409) and clearing its agent;
-     - an inactive charge type (400), and an active one's tax category used;
-     - search by reference and the agent filter;
-     - a standalone booking with an agent lacking the agent role (400);
-     - an unknown booking (404);
-     - two approvers deciding at once, giving exactly one 200, one 409 and one `CreditCheck`.
-- **Checks run (actual results):**
-  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, 112 pass; `npm run test:e2e` → 6 files, **158 pass** (70 s); build pass. Prettier: only the three files flagged before this session.
-  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0 (one unused import removed after the refactor); build pass, including `/bookings/new`.
-  - Headless Chrome (scratchpad `browser-check.mjs`, plus the New booking check) → **22/22**, no server error lines. Servers stopped (3000 → 18248, 3001 → 15692). The development database gained more fictional records.
-- **Docs:**
-  - `Frontend/frontend/docs/api-contracts.md`: `POST /api/bookings` is now used by a page.
-  - `docs/backend-implementation-plan.md`: as-built note.
-  - `docs/IMPLEMENTATION_ROADMAP.md`: Phase 2 completion status.
-  - This file: §5, §11, §12 (item 17 resolved; item 22 now points to §17), §14, this entry, and **new §17 "Questions for the operator and the repository owner"** at the bottom, as instructed.
-- **Phase 2 status:** implementation complete and verified. **Not closed:** the PR is not opened (no `gh`) and not merged, and the owner decisions in §17 are unanswered. Some answers (re-conversion, booking edits, permissions) would need further work.
-- **Commit:** this entry and the changes above are committed and pushed in a second commit after this entry; the session reply reports its hash.
-- Database/schema changes: none · Dependency changes: none · Phase 3: not started.
-- History archived (§15 rule 7): this file had reached 104,339 characters, so LOG-20261120-1417-phase2-commit to LOG-20261120-1436-phase2-audit (5 entries) were moved verbatim to `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`.
-
-### LOG-20261120-1632-session-close — Everything committed and pushed; session paused
-- Time: 2026-11-20 16:32:13 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
-- Contributor/session: same session; operator not confirmed (see §17 question 13) / Claude Code (Opus 5.5).
-- **Instruction received:** "make sure everything is committed and pushed for now, i will be back".
-- **Verified before this entry:**
-  - After `git fetch origin --prune`, branch `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `cdbe6d5` (0/0). Working tree clean; no stashes.
-  - No servers listening on ports 3000 or 3001.
-  - `main` = `origin/main` = `cbad567`, 5 commits behind the branch.
-- **What changed:** only this entry, committed and pushed to `feature/quotations-phase2` (no force). The session reply verifies the hash with `git ls-remote`.
-- **For the next session:**
-  - Start with `git status` and `git fetch`.
-  - Read §14 and the questions in §17.
-  - The PR is still not opened (§17 question 1). Phase 2 closes after the PR, the owner's answers and the merge.
-  - Phase 3 has not started.
-- Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
 
 ### LOG-20261126-1725-phase2-owner-decisions — Repository owner's §17 answers implemented; Phase 2 ready for PR review
 - Time: 2026-11-26, from 17:25:07 (start) to about 18:00 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
@@ -473,9 +438,38 @@ Entry template:
 - **For the next session:** start with `git status` and `git fetch`; read §14 and §17 (questions 16–18). The PR is opened by a contributor in the browser (§14); merge only with the repository owner's approval; Phase 3 only after the merge.
 - Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
 
+### LOG-20261126-1952-phase3-shipments — Order of work changed; Phase 2 PR attempted; Phase 3 built on its own branch
+- Time: 2026-11-26, from 19:16:54 (start) to about 20:00 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date` (19:16:54 at start, 19:51:45 when writing this entry).
+- Contributor/session: Sean Macharia (operator, by the Git commit identity) / Claude Code (Opus 5.5).
+- **Instruction received:** a pasted document, "We are changing the order of work": preserve and publish Phase 2, try to open the Phase 2 PR (no `gh`, no merge); **start Phase 3 now**, on a separate branch based on the latest pushed Phase 2 branch, before Phase 2 is merged (both merged after Phase 3); defer §17 questions 16–18 and keep the current behaviour; update `CLAUDE.md`, the roadmap and the handover notes; report the results. A demonstration to a prospective buyer is planned for the next day.
+- **Starting state:** after `git fetch origin --prune`, `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `ab2962b`; working tree clean; no stashes; `origin/main` = `cbad567`. Phase 2 was already fully pushed; nothing needed preserving.
+- **Phase 2 PR:** **not opened.** This session has no authenticated browser or GitHub tool (no browser-automation tools are available, and `gh` must not be installed). The branch stays pushed for the repository owner; link, title and description are in §14 and LOG-20261126-1725-phase2-owner-decisions. Not merged.
+- **Phase 3 branch:** `feature/shipments-phase3`, created from `ab2962b` (the Phase 2 head). Phase 2 commits stay on `feature/quotations-phase2`; Phase 3 commits only on the new branch.
+- **Scope used:** the approved plan (`docs/backend-implementation-plan.md` §6, Phase 3) and `docs/IMPLEMENTATION_ROADMAP.md`. The plan states no completion criteria; the ones applied are recorded in the roadmap.
+- **Implemented (backend, `src/shipments/`, no schema change, no new permission):**
+  - `GET /api/shipments` (views `all`, `active`, `attention`, `delayed`, `arriving`, `customs`, filters for status, mode, customer, booking and search, paging, and counts per view); `GET /api/shipments/:reference` (milestones, delays and issues with their actions, containers, customs summary, history); `GET /api/shipments/options/staff`.
+  - `POST /api/shipments`: from a **confirmed** booking (`bookingReference`; customer, mode and direction come from it; route, cargo, carrier, agent and planned dates are copied unless given; several shipments per booking) or standalone; reference from the configured `FMS-{MODE}-{YYMM}-{SEQ:4}` format; default milestones as the demo creates them.
+  - `PATCH /api/shipments/:reference` (details, estimates, corrections to actual departure and arrival); `POST …/status` (with actual times and a note); `PATCH …/milestones/:id`; `POST …/issues`, `PATCH …/issues/:id`, `POST …/issues/:id/actions`; `POST …/containers`, `DELETE …/containers/:id`. Every change is audited on the shipment, which is its history.
+  - Rules (`shipment-rules.ts`, mirroring the frontend demo): ETD ≤ ETA ≤ estimated delivery; actual times not in the future and in order; "delivered needs a delivery time", only delivered has one, "arrived needs an arrival time"; delivered is final; milestones in time order (the first, "Booking confirmed"/"Job opened", does not constrain later ones because jobs are often opened after the cargo left); departure/arrival milestones and shipment times kept in step; delays need a reason and the original date; resolved needs a time; "informed manually" needs a time; container numbers in ISO format (four letters, seven digits); current ETA = revised date of the latest **open** delay that affects the ETA (approved plan).
+  - Permissions as seeded: `shipments.view` (all staff), `shipments.manage` (operations, admin).
+  - Bookings: the view lists its shipments; a booking with shipments cannot be cancelled (409 naming them).
+  - Seed: `src/seed/demo-shipments.ts`, run by `npm run db:seed:demo`: the 11 frontend demo shipments with the same references, milestones, delays, exceptions (as issues) and customs summaries (fictional internal references only); two linked to the seeded bookings; counter moved forward only.
+- **Implemented (frontend):** `/shipments` (view tabs with counts, search, mode, paging; reuses the demo table), `/shipments/[reference]` (details, dates, milestones with a record form, delays and issues with update and action forms, containers, status change, customs summary, history), `/shipments/new` (standalone, or `?booking=` from a confirmed booking), `/shipments/[reference]/edit`. A reference the backend does not know opens the demo record (with the "Demo data" badge). The booking page lists its shipments and offers "Create shipment". The sidebar note and dashboard status text now name shipments as live.
+- **Deferred questions 16–18:** not answered and not acted on; tax permissions, on-hold booking behaviour and archiving rules unchanged.
+- **Tests added:** `src/shipments/shipment-rules.spec.ts` (18); `test/shipments.e2e-spec.ts` (17: access per role, creation from a booking and standalone, validation, customer blocks, booking cancel guard, status and dates, milestones, delays and issues, containers, views and counts, archive refusal); `test/seed.e2e-spec.ts` (demo shipments once, counter). Browser checks: 10 new in `Frontend/frontend/scripts/browser-checks.mjs`.
+- **Checks run (actual results):** see §11 "Latest results: Phase 3 shipments". Failures on the way, fixed: planned dates were not copied from the booking (`instant(undefined)` returned null) and a job opened today blocked recording an earlier departure (first two e2e failures); one `tsc` error (card header prop); one lint warning.
+- **Database:** no schema change or migration. The **`*_test` database** was emptied (same `TRUNCATE` as the e2e tests, after checking the name ends in `_test`) and seeded for the browser run, using a scratchpad script. **The development database was not written to in this session** (no seed run; see §12 item 27).
+- **Processes:** backend `npm run start:prod` (with `DATABASE_URL` pointed at the `*_test` database for that process only) and frontend `npm run start`, both in the background; stopped by port owner (3000 → 12552, 3001 → 14460).
+- **Dependency changes:** none.
+- **History archived (§15 rule 7):** this file reached 102,776 characters, so LOG-20261120-1543-phase2-complete and LOG-20261120-1632-session-close were moved verbatim to the end of `docs/activity-log.md` Part C (checked against `git show HEAD:CLAUDE.md` before moving); §13 summary updated. New length 97,161 characters.
+- **Files outside the repository (scratchpad):** `dump-shipments.mts` and `demo-shipments.json` (one-time export of the frontend demo shipments), `prep-testdb.mjs`, small edit scripts, server logs, screenshots `shots-p3`.
+- **Failed attempts:** several inline `node -e` edits broke on shell quoting (redone with edit scripts or exact edits); a `Set-Content -Encoding utf8NoBOM` call (not supported in Windows PowerShell 5.1; the file was written with .NET instead); a first test-database preparation where dotenv's banner was captured with the URL (redone quietly; nothing was written).
+- **Commit and push:** Phase 3 committed on `feature/shipments-phase3` and pushed as a new branch (no force, no `main`, no merge); the hash is in the session reply.
+- **Open:** the Phase 2 PR (contributor, in the browser); seeding the development database with the demo shipments (needs authorization); §17 questions 16–22; merges only with the repository owner's approval after Phase 3; Phase 4 not started.
+
 ## 14. Current handover state
 
-Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-26 (LOG-20261126-1725-phase2-owner-decisions).
+Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-26 (LOG-20261126-1725-phase2-owner-decisions); Phase 3 bullets updated the same evening (LOG-20261126-1952-phase3-shipments).
 
 - **Git:** `main` = `origin/main` = `cbad567` (PRs #1–#4 and the 2026-11-16 documentation commits). **`feature/quotations-phase2`** holds all of Phase 2, pushed to `origin`; the latest commit hash is recorded in LOG-20261126-1725-phase2-owner-decisions and the session reply. The old feature branches still exist on `origin`.
 - **Done:** backend Phases 0 and 1 (on `main`). **Phase 2 (quotations, bookings, credit controls): complete and verified on `feature/quotations-phase2`, with every repository-owner decision of 2026-11-26 implemented** (137 unit, 168 end-to-end, 26/26 browser checks).
@@ -485,7 +479,8 @@ Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `doc
   - Title: `Phase 2: Quotations, Bookings and Credit Controls`
   - Description: draft in LOG-20261126-1725-phase2-owner-decisions (covers batch 1, the credit-approval workflow, the New booking page and the 2026-11-26 decisions).
   - **Do not merge without the repository owner's approval.**
-- **Phase 3 (shipments and tracking): not started.** Approved by the repository owner to follow **after** the Phase 2 PR is reviewed and merged. Do not start it before the merge.
+- **Phase 3 (shipments and tracking): built and verified on `feature/shipments-phase3`** (branched from the Phase 2 head `ab2962b`; LOG-20261126-1952-phase3-shipments). The user changed the order of work on 2026-11-26: Phase 3 before the Phase 2 merge; both are merged after Phase 3, only with the repository owner's approval. A Phase 3 PR would target `feature/quotations-phase2` (or `main` once Phase 2 is merged). Phase 4 is not started.
+- **For the demonstration:** run `npm run db:seed:demo` in `Backend/backend` on the development database (adds the 11 fictional shipments; additive, safe to re-run) once authorized, then start both apps from `feature/shipments-phase3`.
 - **Outstanding, not blocking Phase 2:**
   - The company accountant has **not** reviewed the tax defaults; they are provisional and admin-editable (§12 item 23).
   - An admin-configurable KRA PIN format is a future requirement (§12 item 24).
@@ -546,13 +541,23 @@ Added 2026-11-20 (LOG-20261120-1543-phase2-complete). **All fifteen questions we
 12. **Browser checks.** *Answered:* commit them with no new dependency (done: `Frontend/frontend/scripts/browser-checks.mjs`, documented in `Frontend/frontend/docs/browser-checks.md`).
 13. **Who ran the sessions.** *Answered:* use the Git commit identity, Sean Macharia.
 14. **Roadmap proposal.** *Answered:* keep `docs/BACKEND_IMPLEMENTATION_ROADMAP.md` as an unapproved reference.
-15. **Next phase.** *Answered:* Phase 3 follows once Phase 2 has passed its checks and its PR is reviewed and merged, with the provisional tax configuration documented. Not before the merge.
+15. **Next phase.** *Answered:* Phase 3 follows once Phase 2 has passed its checks and its PR is reviewed and merged, with the provisional tax configuration documented. Not before the merge. *Superseded 2026-11-26 19:16 by the user's instruction to build Phase 3 first, on its own branch, and merge both afterwards (§9, LOG-20261126-1952-phase3-shipments).*
 
 ### Open questions (2026-11-26)
+
+*Questions 16–18 are deferred by the user until after Phase 3 (2026-11-26 19:16); the current behaviour stays until they are answered. Questions 19–22 come from Phase 3.*
 
 16. **Who may edit tax settings?** Claude Code made `settings.tax.manage` admin-only, within the approved matrix. Should Finance also hold it, or should the accountant review only through an administrator?
     - *Answer:*
 17. **Existing bookings of on-hold or closed customers.** Confirming or credit-approving an existing pending booking is still allowed (it is not new work). Should that be blocked too?
     - *Answer:*
 18. **Accepted quotations and archiving.** An accepted quotation without a booking does not count as "open" (the existing "open quotations" figure counts draft and sent only), so it does not block archiving; converting it afterwards is refused because the customer is archived. Should accepted, unbooked quotations also block archiving?
+    - *Answer:*
+19. **Shipments for on-hold or closed customers.** A standalone shipment (new work) is refused for archived, on-hold and closed customers. A shipment from an existing confirmed booking is refused only for archived customers, like question 17. Should on-hold and closed customers' bookings also be blocked from becoming shipments?
+    - *Answer:*
+20. **Bookings with shipments.** Claude Code made a booking with shipments impossible to cancel (409 naming them). Is that right, and should a booking be marked `completed` automatically once all its shipments are delivered (not built)?
+    - *Answer:*
+21. **Delivered and ETA rules.** Delivered is final (no reopening); every shipment needs a planned ETA; the current ETA comes from **open** delays only (the approved plan), while the demo also kept the revised date of resolved delays. Confirm, or say which to change.
+    - *Answer:*
+22. **Phase 3 completion criteria and merge order.** The plan states none; the ones applied are in `docs/IMPLEMENTATION_ROADMAP.md` (Phase 3). Confirm them, and whether the Phase 3 PR should target `feature/quotations-phase2` or wait for Phase 2 to reach `main`.
     - *Answer:*

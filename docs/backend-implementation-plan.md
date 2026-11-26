@@ -205,6 +205,16 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
 - Shipments from a booking or standalone (clearing-only). Server-side views: active, needs attention, arriving, customs, delayed.
 - Milestones, delays with notes, containers, customs summary, history from `AuditLog`, current ETA from open delays. Status rules such as "delivered needs a delivery time".
 - Frontend: shipment pages go live.
+- **As built (2026-11-26, LOG-20261126-1952-phase3-shipments in `CLAUDE.md`; on `feature/shipments-phase3`, built before the Phase 2 merge at the user's instruction):**
+  - No schema change and no migration; no new permission codes (`shipments.view` for every staff role, `shipments.manage` for operations and admin, as seeded).
+  - Shipments are created from a **confirmed** booking (customer, mode and direction from the booking; route, cargo, carrier, agent and planned dates copied unless given; a booking may have several shipments) or standalone. References use the configured `FMS-{MODE}-{YYMM}-{SEQ:4}` format. Every shipment needs a planned ETA.
+  - New standalone jobs are refused for archived, on-hold and closed customers; shipments from an existing booking only for archived customers (open question, `CLAUDE.md` §17 question 19).
+  - Status rules: delivered needs a delivery time and is final; only delivered has one; arrived needs an arrival time; actual times are not in the future and in order; ETD ≤ ETA ≤ estimated delivery.
+  - Milestones are stored rows; done, current and pending are derived from the recorded times. Departure and arrival milestones and the shipment's actual times are kept in step; delivery is recorded only through the status change.
+  - Delays and other issues use `ShipmentIssue`; their actions and every other change are `AuditLog` entries on the shipment, which form its history. The current ETA is the revised date of the latest **open** delay that affects the ETA, otherwise the planned ETA.
+  - Views (`active`, `attention`, `delayed`, `arriving` within 7 days, `customs`) are calculated in SQL, with counts per view. The customs summary reads the latest `CustomsEntry`; customs work itself stays in Phase 4.
+  - A booking with shipments can no longer be cancelled (`CLAUDE.md` §17 question 20). `completed` bookings are still not set automatically.
+  - Fictional demo shipments: `src/seed/demo-shipments.ts`, run by `npm run db:seed:demo`.
 
 **Phase 4: Remaining modules (scope to be agreed)**
 Documents with private storage, customs, finance (invoices, credit notes, payments, allocations, credit checks), tasks and notifications, reports, user management. Agents, suppliers and transporters reuse `/api/parties`.

@@ -352,3 +352,21 @@ Backend functionality required:
 | — | Reminders | — | — | Scheduler for due and overdue reminders to the assignee; escalation rules. Not built. |
 
 Every task and notification-read change should also go to the audit log.
+
+## Shipments API (implemented, Phase 3, 2026-11-26)
+
+Branch `feature/shipments-phase3`. All routes need sign-in; reads need `shipments.view`, writes `shipments.manage`. Times are ISO 8601; decimal quantities are strings.
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/shipments?view=&status=&mode=&customerId=&bookingReference=&q=&limit=&offset=` | List. `view`: `all`, `active`, `attention`, `delayed`, `arriving`, `customs`. Returns `{ items, total, counts }`, with `counts` per view for the other filters |
+| `GET /api/shipments/options/staff` | Active staff for assignment and follow-up |
+| `GET /api/shipments/:reference` | Detail: milestones (with derived `state`), issues (with `actions`), containers, customs summary, `currentEta`, `needsAttention`, `history` |
+| `POST /api/shipments` | Create from `bookingReference` (confirmed bookings only) or standalone (`customerId`, `mode`, `direction`, `origin`, `destination`, `cargoDescription`, `eta` required) |
+| `PATCH /api/shipments/:reference` | Details, estimates, corrections to `atd`/`ata`; customer, mode and direction are fixed |
+| `POST /api/shipments/:reference/status` | `{ status, atd?, ata?, deliveredAt?, note? }`; delivered needs `deliveredAt` and is final; arrived needs `ata` |
+| `PATCH /api/shipments/:reference/milestones/:id` | `{ actualAt?, plannedAt?, location?, note? }`; `actualAt: null` marks it not done |
+| `POST /api/shipments/:reference/issues`, `PATCH …/issues/:id`, `POST …/issues/:id/actions` | Delays (`type: delay`, `reason`, `originalExpectedAt`, optional `revisedExpectedAt`, `affectsEta`) and other issues; status, resolution, customer notification; action notes |
+| `POST /api/shipments/:reference/containers`, `DELETE …/containers/:id` | ISO container numbers (four letters, seven digits) |
+
+Bookings: `GET /api/bookings/:reference` now includes `shipments` (`reference`, `status`); cancelling a booking with shipments answers 409.
