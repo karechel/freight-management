@@ -747,6 +747,173 @@ await step('no sideways scrolling on shipment pages at 390 px', async () => {
   await send('Emulation.clearDeviceMetricsOverride');
 });
 
+// --- Connected workflow for the buyer demonstration (2026-11-26) ------------------------------
+// Continues from the quotation and booking created at the start of this run (`reference`,
+// `bookingRef`): quotation → confirmed booking → shipment → tracking → delivery.
+let flowShipment;
+
+await step('workflow: customers page lists a customer and opens it', async () => {
+  await signOut();
+  await signIn(ADMIN.email, ADMIN.password);
+  await nav('/parties');
+  await waitFor('document.body.innerText.includes("Baobab Crest Traders Ltd")', 'customer listed');
+  await evaluate(`[...document.querySelectorAll('a')].find((a) => a.innerText.trim() === 'Baobab Crest Traders Ltd').click()`);
+  await waitFor('/^\\/parties\\/\\d+$/.test(location.pathname)', 'customer page');
+  await sleep(800);
+  expect((await text()).includes('Baobab Crest Traders Ltd'), 'customer name missing');
+});
+
+await step('workflow: the converted quotation is booked and its booking confirmed', async () => {
+  const q = await api('GET', `/api/backend/quotations/${reference}`);
+  expect(q.body.booking?.reference === bookingRef, `quotation booking ${q.body.booking?.reference}`);
+  const b = await api('GET', `/api/backend/bookings/${bookingRef}`);
+  expect(b.body.status === 'confirmed', `booking is ${b.body.status}`);
+  expect(b.body.quotation?.reference === reference, 'booking does not link the quotation');
+});
+
+await step('workflow: operations creates a shipment from that booking', async () => {
+  await signOut();
+  await signIn(OPERATIONS, DEMO);
+  await nav(`/bookings/${bookingRef}`);
+  await click('Create shipment');
+  await waitFor('location.pathname === "/shipments/new"', 'new shipment form');
+  await sleep(800);
+  if (!(await evaluate('document.getElementById("shipment-eta").value'))) await setField('shipment-eta', inDays(25));
+  await click('Create shipment');
+  await waitFor('/^\\/shipments\\/FMS-SEA-/.test(location.pathname)', 'shipment page');
+  await sleep(800);
+  flowShipment = decodeURIComponent((await url()).split('/')[2]);
+  expect((await text()).includes(bookingRef), 'booking not linked on the shipment');
+});
+
+await step('workflow: shipment details are updated through the edit form', async () => {
+  await nav(`/shipments/${flowShipment}/edit`);
+  await setField('shipment-docref', 'IOL-SHA-990011');
+  await setField('shipment-vessel', 'MV Indigo Star');
+  await setField('shipment-equipment', '2 × 20ft GP');
+  await setField('shipment-packages', '220');
+  await click('Save changes');
+  await waitFor(`location.pathname === '/shipments/${flowShipment}'`, 'back on the shipment');
+  await sleep(800);
+  const t = await text();
+  expect(t.includes('IOL-SHA-990011') && t.includes('MV Indigo Star'), 'edits not shown');
+  expect(t.includes('Details updated'), 'no history entry');
+});
+
+await step('workflow: a milestone is recorded and departure follows', async () => {
+  await setField('milestone-actual', nairobi(-240).slice(0, 16));
+  await setField('milestone-note', 'Sailed on schedule');
+  await click('Save milestone');
+  await waitFor('document.body.innerText.includes("Milestone \\"Departed origin\\" marked completed")', 'milestone history');
+  const s = await api('GET', `/api/backend/shipments/${flowShipment}`);
+  expect(s.body.atd !== null, 'departure time not set from the milestone');
+});
+
+await step('workflow: a delay revises the current ETA', async () => {
+  await click('Record delay or issue');
+  await sleep(300);
+  await setField('issue-severity', 'medium');
+  await setField('issue-reason', 'carrier_schedule');
+  await setField('issue-identified', nairobi(-60).slice(0, 16));
+  await setField('issue-detail', 'Transhipment vessel rolled to the next sailing');
+  await setField('issue-revised', `${inDays(32)}T08:00`);
+  await click('Record delay');
+  await waitFor('document.body.innerText.includes("revised by an open delay")', 'revised ETA');
+  const s = await api('GET', `/api/backend/shipments/${flowShipment}`);
+  expect(s.body.currentEta.revised === true, 'API ETA not revised');
+});
+
+await step('workflow: an issue is recorded and an action taken is logged', async () => {
+  await click('Record delay or issue');
+  await sleep(300);
+  await setField('issue-type', 'documentation');
+  await sleep(200);
+  await setField('issue-severity', 'low');
+  await setField('issue-identified', nairobi(-30).slice(0, 16));
+  await setField('issue-detail', 'Packing list missing HS codes');
+  await click('Record issue');
+  await waitFor('document.body.innerText.includes("Packing list missing HS codes")', 'issue listed');
+  await sleep(500);
+  const issue = (await api('GET', `/api/backend/shipments/${flowShipment}`)).body.issues.find((i) => i.type === 'documentation');
+  await setField(`issue-${issue.id}-action`, 'Requested a corrected packing list from the shipper');
+  await evaluate(`document.getElementById('issue-${issue.id}-action').closest('li').querySelector('button').click()`);
+  await waitFor('document.body.innerText.includes("Requested a corrected packing list")', 'action logged');
+  await shot('25-workflow-issues');
+});
+
+await step('workflow: a container is added and shown', async () => {
+  await setField('container-number', 'IOLU1122334');
+  await setField('container-type', 'dry_20');
+  await setField('container-seal', 'SL-4410');
+  await click('Add container');
+  await waitFor('document.body.innerText.includes("IOLU1122334")', 'container listed');
+  const s = await api('GET', `/api/backend/shipments/${flowShipment}`);
+  expect(s.body.containers.some((c) => c.containerNumber === 'IOLU1122334' && c.sealNumber === 'SL-4410'), 'container not saved');
+});
+
+await step('workflow: status moves to in transit, then arrived with the arrival time', async () => {
+  await nav(`/shipments/${flowShipment}`);
+  await setField('status-new', 'in_transit');
+  await click('Change status');
+  await waitFor('document.body.innerText.includes(\'to "In transit"\')', 'in transit');
+  await sleep(500);
+  await setField('status-new', 'arrived');
+  await sleep(200);
+  await setField('status-ata', nairobi(-20).slice(0, 16));
+  await click('Change status');
+  await waitFor('document.body.innerText.includes(\'to "Arrived"\')', 'arrived');
+});
+
+await step('workflow: customs summary and history are shown', async () => {
+  const t = await text();
+  expect(t.includes('No customs entry recorded.'), 'customs summary missing');
+  for (const entry of ['Shipment created from booking', 'Details updated', 'Delay recorded', 'Issue recorded', 'Container IOLU1122334 added', 'to "Arrived"']) {
+    expect(t.includes(entry), `history lacks "${entry}"`);
+  }
+});
+
+await step('workflow: the booking shows its shipment and refuses cancellation', async () => {
+  await signOut();
+  await signIn(SALES, DEMO);
+  await nav(`/bookings/${bookingRef}`);
+  expect((await text()).includes(flowShipment), 'shipment not listed on the booking');
+  await click('Cancel booking…');
+  await sleep(200);
+  await setField('booking-cancel-reason', 'Customer changed plans');
+  await click('Cancel booking');
+  await waitFor('document.body.innerText.includes("already has shipments")', 'cancel refused');
+  const b = await api('GET', `/api/backend/bookings/${bookingRef}`);
+  expect(b.body.status === 'confirmed', `booking became ${b.body.status}`);
+});
+
+await step('workflow: delivery needs the delivery time, then the shipment is delivered', async () => {
+  await signOut();
+  await signIn(OPERATIONS, DEMO);
+  await nav(`/shipments/${flowShipment}`);
+  await setField('status-new', 'delivered');
+  await click('Change status');
+  await waitFor('document.body.innerText.includes("Enter the actual delivery time")', 'delivery time required');
+  await setField('status-delivered', nairobi(-1).slice(0, 16));
+  await click('Change status');
+  await waitFor('document.body.innerText.includes("Delivered shipments are final")', 'delivered');
+  await shot('26-workflow-delivered');
+});
+
+await step('demo pages load without errors and say which data is live', async () => {
+  await signOut();
+  await signIn(ADMIN.email, ADMIN.password);
+  const pages = {
+    '/': 'Demo data', '/parties': 'Live data', '/quotations': 'Live data', '/bookings': 'Live data', '/shipments': 'Live data',
+    [`/shipments/${flowShipment}`]: 'Live data', '/shipments/new': 'Live data', [`/shipments/${flowShipment}/edit`]: 'Live data', '/settings': 'Demo data',
+  };
+  for (const [path, badge] of Object.entries(pages)) {
+    await nav(path);
+    const t = await text();
+    expect(!t.includes('could not be loaded') && !t.includes('Something went wrong'), `error on ${path}`);
+    expect(t.includes(badge), `${path} does not show "${badge}"`);
+  }
+});
+
 console.log(results.join('\n'));
 console.log(`${results.filter((r) => r.startsWith('PASS')).length}/${results.length} passed`);
 console.log(`Screenshots: ${OUT}`);

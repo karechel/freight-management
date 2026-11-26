@@ -149,7 +149,7 @@ export function CustomerDetailView({
         <Card>
           <CardHeader
             title="Activity"
-            description="Live records only. Quotations are live; shipments move to the live system in a later phase. Open quotations are drafts and sent quotations that have not expired."
+            description="Live records only. Active shipments are those not yet delivered. Open quotations are drafts and sent quotations that have not expired."
           />
           <CardBody>
             <DetailList

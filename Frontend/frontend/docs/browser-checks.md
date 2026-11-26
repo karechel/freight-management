@@ -33,13 +33,15 @@ Optional environment variables:
 | `CHROME_DEBUG_PORT` | `9333` | Another free port for DevTools |
 | `APP_URL` | `http://localhost:3000` | Frontend address |
 
-## What it covers (36 checks)
+## What it covers (49 checks)
 
 - The 22 Phase 2 checks first run on 2026-11-20: sign-in redirect; creating, validating, editing, sending, accepting and converting a quotation; confirming a booking; the credit-limit warning for Sales and the override for Admin; Finance's view-only access; demo and live badges; cancelled bookings; the customer's quotation link; carrier details on conversion; credit approval requested by Sales, approved by Finance and rejected by Management; the New booking page; the not-found page; no sideways scrolling at 390 px.
 - 4 checks for the repository owner's 2026-11-26 decisions: an on-hold customer's quotation explains the block, offers no conversion, and the customer is left out of the new quotation and booking forms; archiving is refused and names the open work; Admin changes a tax rate in Settings (and the original value is put back); other roles cannot see or change tax settings.
 - 10 checks for Phase 3 (2026-11-26): the live shipment list and view counts; a seeded shipment with its booking and customs summary; creating a shipment from a confirmed booking; departure through a status change; a delay revising the ETA and its resolution; containers in ISO format; arrival and delivery (delivered is final); a standalone clearing job; Sales view-only; no sideways scrolling at 390 px.
 
-On 2026-11-26 the run used the `*_test` database (emptied and seeded like a development database) so that the development database was not written to.
+- 13 checks for the buyer demonstration (2026-11-26 evening), one connected workflow on the quotation and booking created at the start of the run: the Customers page opens a customer; the converted quotation is booked and its booking confirmed; Operations creates a shipment from that booking; edits its details; records a milestone (which sets the departure); records a delay that revises the ETA; records a documentation issue and an action taken; adds a container; moves it to in transit and arrived; checks the customs summary and history; the booking lists the shipment and refuses cancellation; delivery needs a delivery time and then succeeds; and the main pages load without errors and show the correct "Live data" or "Demo data" badge.
+
+On 2026-11-26 the first Phase 3 run used the `*_test` database (emptied and seeded like a development database) so that the development database was not written to.
 
 ## Limitations
 
