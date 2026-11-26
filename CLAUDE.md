@@ -440,6 +440,16 @@ Entry template:
 - **History archived (§15 rule 7):** this file reached 105,176 characters, so LOG-20261126-1725-phase2-owner-decisions and LOG-20261126-1805-session-close were moved verbatim to the end of `docs/activity-log.md` Part C (checked against `git show HEAD:CLAUDE.md`), in a separate commit after the demonstration commit; §13 summary and the §14 pointer to the PR description updated.
 - **Commit and push:** committed and pushed to `feature/shipments-phase3` (no force); hash in the session reply.
 
+### LOG-20261126-2019-session-close — Everything committed and pushed; session paused; demo apps left running
+- Time: 2026-11-26 20:19:23 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: Sean Macharia / Claude Code (Opus 5.5).
+- **Instruction received:** "commit and push everything for now, i will be back".
+- **Verified before this entry:** after `git fetch origin --prune`, `feature/shipments-phase3` = `origin/feature/shipments-phase3` = `73d7d2e` (the demonstration commit `4195ea5` plus the archive commit); `feature/quotations-phase2` = `origin/…` = `ab2962b`; working tree clean; no stashes.
+- **Processes:** still running for the demonstration: frontend on port 3000 (PID 22912), backend on port 3001 (PID 22560, development database). Not stopped.
+- **What changed:** only this entry, committed and pushed to `feature/shipments-phase3` (no force, no merge).
+- **For the next session:** `git status`, `git fetch`; read §14 and §17 (questions 16–22, deferred). The Phase 2 PR is still to be opened in the browser; no merge without the repository owner; Phase 4 not started.
+- Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-26 (LOG-20261126-1725-phase2-owner-decisions); Phase 3 bullets updated the same evening (LOG-20261126-1952-phase3-shipments).
