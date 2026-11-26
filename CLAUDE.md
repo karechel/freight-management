@@ -464,6 +464,15 @@ Entry template:
 - **Open:** the PR (contributor, in the browser); review and merge (repository owner); the accountant's tax review; §17 questions 16–18. Phase 3 not started.
 - Working-tree status after: clean once committed.
 
+### LOG-20261126-1805-session-close — Owner-decision work committed and pushed; session paused
+- Time: 2026-11-26 18:04:56 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: Sean Macharia / Claude Code (Opus 5.5).
+- **Instruction received:** "commit and push everything for now, i will come back later".
+- **Verified before this entry:** after `git fetch origin --prune`, `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `ec1a1bd` (0/0); working tree clean; no stashes; nothing listening on ports 3000 or 3001.
+- **What changed:** only this entry, committed and pushed to `feature/quotations-phase2` (no force, no `main`, no merge).
+- **For the next session:** start with `git status` and `git fetch`; read §14 and §17 (questions 16–18). The PR is opened by a contributor in the browser (§14); merge only with the repository owner's approval; Phase 3 only after the merge.
+- Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
+
 ## 14. Current handover state
 
 Earlier handover states (up to 2026-11-04, as at `d966e35`) are archived in `docs/activity-log.md`, Part B. Rewritten on 2026-11-26 (LOG-20261126-1725-phase2-owner-decisions).
