@@ -551,7 +551,7 @@ Added 2026-11-20 (LOG-20261120-1543-phase2-complete). **All fifteen questions we
 ### Open questions (2026-11-26)
 
 16. **Who may edit tax settings?** Claude Code made `settings.tax.manage` admin-only, within the approved matrix. Should Finance also hold it, or should the accountant review only through an administrator?
-    - *Answer:*
+    - *Answer:* **Answered 2026-11-27, repository owner (relayed by Sean Macharia): option A. Tax settings stay administrator-only.** Finance does **not** receive `settings.tax.manage`; the accountant reviews tax settings through an administrator. No permission change was needed: only admin has held `settings.tax.manage` since 2026-11-26.
 17. **Existing bookings of on-hold or closed customers.** Confirming or credit-approving an existing pending booking is still allowed (it is not new work). Should that be blocked too?
     - *Answer:*
 18. **Accepted quotations and archiving.** An accepted quotation without a booking does not count as "open" (the existing "open quotations" figure counts draft and sent only), so it does not block archiving; converting it afterwards is refused because the customer is archived. Should accepted, unbooked quotations also block archiving?

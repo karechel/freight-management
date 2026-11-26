@@ -203,6 +203,7 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
 - **Repository-owner decisions of 2026-11-27 (`CLAUDE.md` §17 questions 17 and 18), built on `feature/quotations-phase2`:**
   - **Pending bookings of on-hold or closed customers** cannot be confirmed or credit-approved (409 explaining the status). Cancelling and rejecting stay possible. Booking views carry `customerNewWorkBlock`, and the booking page explains the block instead of offering Confirm or Approve.
   - **Archiving** is also refused while the customer has an **accepted quotation without a booking** (`details` field `acceptedQuotations`). A quotation with any booking, even a cancelled one, counts as booked.
+  - **Tax settings (question 16, answered later on 2026-11-27):** stay administrator-only. Only admin holds `settings.tax.manage`; Finance does not receive it; the accountant reviews tax settings through an administrator. No permission change was needed.
 
 **Phase 3: Shipments and tracking**
 - Shipments from a booking or standalone (clearing-only). Server-side views: active, needs attention, arriving, customs, delayed.
