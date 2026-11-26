@@ -2166,3 +2166,54 @@ After the Necessary corrections in 16.5 are reviewed and applied, the file is su
   - The PR is still not opened (§17 question 1). Phase 2 closes after the PR, the owner's answers and the merge.
   - Phase 3 has not started.
 - Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
+
+### LOG-20261126-1725-phase2-owner-decisions — Repository owner's §17 answers implemented; Phase 2 ready for PR review
+- Time: 2026-11-26, from 17:25:07 (start) to about 18:00 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: Sean Macharia (operator, named by the Git commit identity as the owner instructed in answer 13) / Claude Code (Opus 5.5).
+- **Instruction received:** a pasted document, "Needed to close Phase 2", with the repository owner's answers to all fifteen §17 questions and final instructions: implement the approved decisions not yet built; keep the permission matrix and the separate credit-approval workflow; no booking edits; enforce on-hold, closed and archiving rules; make tax settings configurable without claiming accountant approval; KRA PIN format configurable in the future; commit the browser checks without new dependencies; run all checks; update the docs; prepare the PR. Restrictions: no Phase 3 before the merge, no merge, no new dependencies, no unapproved schema, migration or database changes, no broader permissions.
+- **Starting state:** after `git fetch origin --prune`, `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `16a9bf5`; working tree clean, no stashes; `origin/main` = `cbad567`.
+- **Implemented (backend):**
+  1. **On-hold and closed customers** (`src/parties/party-rules.ts` `newWorkBlock`, `NEW_WORK_BLOCK_MESSAGES`; `src/parties/party-checks.ts` `requireActiveCustomer`): new quotations, duplicates, moving a quotation to the customer, conversions and standalone bookings are refused with 409 and a message naming the status and who can lift it. Quotation views gain `customerNewWorkBlock`. Existing records stay readable, and editing a quotation without changing its customer still works.
+  2. **Archiving with open work** (`archiveBlockers` and `PartiesService.openWork`): refused while there are undelivered shipments, pending or confirmed bookings, or open quotations (draft or sent and still valid, the same rule as the "open quotations" figure). `details` names up to five references per kind.
+  3. **Tax settings** (`src/charge-types/`): `GET /api/charge-types/tax-settings` and `PATCH /api/charge-types/:id/tax` (category, rate 0–100), audited as `tax_update`, behind the new permission `settings.tax.manage`. Admin holds it through `allStaffPermissions`; no other role was given anything. Saved lines keep their values. No schema change.
+- **Implemented (frontend):** on-hold or closed customers are left out of the New quotation and New booking forms, with a note saying why (the edit form keeps the quotation's own customer); the quotation page explains the block instead of offering conversion; the customer page shows an on-hold or closed notice; the archive refusal lists the blocking records; Settings › Tax settings (`components/settings/tax-settings-editor.tsx`), marked **Provisional: not reviewed by the company's accountant**, editable by admins only.
+- **Browser checks committed:** `Frontend/frontend/scripts/browser-checks.mjs`, copied from the 2026-11-20 scratchpad script. Paths now relative to the repository; Chrome path, port and app URL configurable; exits 1 on a failure; 4 new checks (26 in all). `npm run check:browser` added to `Frontend/frontend/package.json` (a script, not a dependency). Documented in `Frontend/frontend/docs/browser-checks.md`, including that each run writes fictional records.
+- **Not built, as decided:** booking edits; re-conversion; 409 on stale quotation edits; any permission change other than the new admin-only `settings.tax.manage`; a configurable KRA PIN format (future; it needs a settings store, which is a schema change).
+- **Tests added:** unit tests in `src/parties/open-work-rules.spec.ts` (new-work block, archive blockers) and `src/charge-types/charge-type-rules.spec.ts` (rate limit, the approved matrix including `parties.status.manage`). E2E, "repository-owner decisions (2026-11-26)" in `test/quotations.e2e-spec.ts`: on-hold and closed blocks (create, duplicate, move, convert, standalone, view flag, unblocking); only management and admin change the status; archive refusal naming bookings and quotations, with expired quotations not counted; no booking edit endpoint, pending or confirmed; the seeded matrix; Sales cannot approve and the approver is recorded; tax settings access, validation, audit, and new-lines-only. `test/parties.e2e-spec.ts`: the shipment archive test now checks the new message and details.
+- **Checks run (actual results):**
+  - Backend: `tsc` exit 0; `npm run lint` exit 0; `npm test` → 12 files, **137 pass**; `npm run test:e2e` → 6 files, **168 pass** (first run, and again after Prettier formatted four changed files); `npm run build` pass. Prettier `--check --end-of-line auto` on the changed files: clean after `--write` on 4 of them. The whole-folder check still flags the CRLF working copy (§12 item 9).
+  - Prisma: `npx prisma db verify` → marker and schema match (`9e752599…`), read-only.
+  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0; `npm run build` pass.
+  - Browser (production builds on ports 3000/3001, development database): run 1 → 25/26 (my wait text did not match the upper-case table header); runs 2–4 failed the tax check while I fixed the script (the "Saved" wait matched the hint "Saved lines keep…", and run 2's change of Agency fee to 15.5% was never restored, so later runs got "already the tax settings"); Agency fee put back to `standard` / `16.00` through the admin API (scratchpad `restore-agency.mjs`); the check now picks a different rate and always restores; **final run 26/26**, and Agency fee confirmed at 16.00 afterwards. Screenshots reviewed (archive refusal, tax settings).
+  - Processes: backend `npm run start:prod` and frontend `npm run start` started in the background, stopped by port owner (3000 → 6060, 3001 → 20728).
+- **Database:** no schema change or migration. On the development database, `npm run db:seed` (additive) added the `settings.tax.manage` permission and its admin grant (`grants: 1`), which the approved tax-settings feature needs; the browser checks added fictional records (customers "Held Browser Ltd …", "Browser Credit Ltd …", "Approval Browser Ltd …", quotations, bookings, credit checks). The e2e runs rewrote only the `*_test` database.
+- **Dependency changes:** none.
+- **History archived (§15 rule 7):** LOG-20261120-1501-phase2-batch1 and LOG-20261120-1514-credit-approval moved verbatim to the end of `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`; §13 summary updated. §17 was condensed to the answers; its full earlier text is in commit `16a9bf5`.
+- **Files outside the repository (scratchpad):** `owner-tests.ts`, `append.cjs`, `archive-log.cjs`, `restore-agency.mjs`, the section drafts, server logs and screenshot folders `shots`–`shots5`.
+- **Failed attempts:** a `python` call (Python is not installed); several inline `node -e` or heredoc edits that broke on shell quoting before writing anything (redone with exact edits or scratchpad scripts); the browser-check failures above.
+- **PR description (for the contributor opening the PR in the browser):**
+
+  > **Phase 2: Quotations, Bookings and Credit Controls**
+  >
+  > Quotations API and live pages (create, edit, status flow, expiry, duplicate, server totals); bookings (conversion, standalone creation on the New booking page, confirm, cancel); credit-limit checks at booking with the approved rule (outstanding issued-invoice balance + this booking's value).
+  > - **Batch 1 fixes:** issue date not after the sent date, open-quotation counts leave out expired ones, "Booking cancelled" display, Demo/Live badge, the customer page's quotation link, carrier details on conversion, seeded demo quotations and bookings.
+  > - **Credit-approval workflow:** Sales book over the limit and request approval; Finance, Management or Admin approve (the booking can then be confirmed) or reject (the booking is cancelled); the approver is recorded; Sales cannot approve.
+  > - **Owner decisions of 2026-11-26:** on-hold and closed customers cannot receive new quotations or bookings; archiving is refused while a customer has undelivered shipments, pending or confirmed bookings, or open quotations; admin-editable charge-type tax settings (`settings.tax.manage`, **provisional until the accountant reviews them**); no booking edits; one booking per quotation; last save wins for quotations.
+  > - No schema change or migration; no new dependencies. One new permission row (`settings.tax.manage`, admin only): run `npm run db:seed` after pulling.
+  > - Tests: 137 unit, 168 end-to-end, 26/26 headless-Chrome checks (`Frontend/frontend/scripts/browser-checks.mjs`, see `docs/browser-checks.md`).
+  > - Outstanding: the accountant's tax review; a configurable KRA PIN format (future).
+  >
+  > 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+- **Commit and push:** the owner's answers say to commit the browser checks and to prepare Phase 2 for PR review, which needs the work on the remote branch. So everything is committed and pushed to `feature/quotations-phase2` only (no `main`, no merge, no force). The hash is verified with `git ls-remote` in the session reply.
+- **Open:** the PR (contributor, in the browser); review and merge (repository owner); the accountant's tax review; §17 questions 16–18. Phase 3 not started.
+- Working-tree status after: clean once committed.
+
+### LOG-20261126-1805-session-close — Owner-decision work committed and pushed; session paused
+- Time: 2026-11-26 18:04:56 +03:00 (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: Sean Macharia / Claude Code (Opus 5.5).
+- **Instruction received:** "commit and push everything for now, i will come back later".
+- **Verified before this entry:** after `git fetch origin --prune`, `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `ec1a1bd` (0/0); working tree clean; no stashes; nothing listening on ports 3000 or 3001.
+- **What changed:** only this entry, committed and pushed to `feature/quotations-phase2` (no force, no `main`, no merge).
+- **For the next session:** start with `git status` and `git fetch`; read §14 and §17 (questions 16–18). The PR is opened by a contributor in the browser (§14); merge only with the repository owner's approval; Phase 3 only after the merge.
+- Database/schema changes: none · Dependency changes: none · Tests: none run (documentation only).
