@@ -13,6 +13,7 @@ import { directionLabel, modeLabel, quotationStatusMeta } from '@/lib/labels';
 import {
   bookingHref,
   bookingStatusMeta,
+  customerNewWorkBlockText,
   liveQuotationHref,
   quotationDisplayStatus,
   trimDecimal,
@@ -176,7 +177,13 @@ export function LiveQuotationDetail({
             <Card>
               <CardHeader title="Booking" description="Turn the accepted quotation into a booking" />
               <CardBody>
-                <ConvertToBooking quotation={q} carriers={carriers} />
+                {q.customerNewWorkBlock ? (
+                  <p role="status" className="text-sm text-amber-900">
+                    {customerNewWorkBlockText[q.customerNewWorkBlock]}
+                  </p>
+                ) : (
+                  <ConvertToBooking quotation={q} carriers={carriers} />
+                )}
               </CardBody>
             </Card>
           )}

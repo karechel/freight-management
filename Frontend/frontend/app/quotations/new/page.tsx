@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { DemoPageMarker } from '@/components/layout/page-source';
+import { BlockedCustomersNote } from '@/components/quotations/blocked-customers-note';
 import { LiveQuotationForm } from '@/components/quotations/live-quotation-form';
 import { QuotationFormView } from '@/components/quotations/quotation-form-view';
 import { Card } from '@/components/ui/card';
@@ -8,7 +9,7 @@ import { ErrorState } from '@/components/ui/states';
 import { getLiveQuotationFormOptions } from '@/lib/api/quotation-options';
 import { getCurrentUser, serverGet } from '@/lib/api/server';
 import { DEMO_REFERENCE_DATE, getQuotationFormOptions } from '@/lib/data';
-import { liveQuotationHref, QUOTATIONS_MANAGE, type LiveQuotation } from '@/lib/live-quotations';
+import { customerNewWorkBlockText, liveQuotationHref, QUOTATIONS_MANAGE, type LiveQuotation } from '@/lib/live-quotations';
 
 export const metadata: Metadata = { title: 'New quotation' };
 
@@ -73,6 +74,12 @@ export default async function NewQuotationPage({ searchParams }: PageProps<'/quo
         }
         back={back}
       />
+      {duplicateOf?.customerNewWorkBlock && (
+        <p role="status" className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          {customerNewWorkBlockText[duplicateOf.customerNewWorkBlock]} Choose another customer for the copy.
+        </p>
+      )}
+      {options.ok && <BlockedCustomersNote count={options.data.blockedCustomers} />}
       {options.ok && <LiveQuotationForm options={options.data} duplicateOf={duplicateOf} />}
     </>
   );

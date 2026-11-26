@@ -1041,4 +1041,349 @@ describe('Quotations and bookings (e2e)', () => {
       ).toBe(true);
     });
   });
+  describe('repository-owner decisions (2026-11-26)', () => {
+    const setStatus = (id: number, accountStatus: string) =>
+      admin().patch(`/parties/${id}`, { accountStatus }).expect(200);
+    const standaloneFor = (id: number) => ({
+      customerId: id,
+      mode: 'road',
+      direction: 'transit',
+      origin: 'Mombasa',
+      destination: 'Kampala',
+      cargoSummary: 'Transit cargo, 1 truck',
+    });
+
+    it.each([
+      ['on_hold', 'on hold'],
+      ['closed', 'closed'],
+    ])(
+      'blocks new quotations and bookings for %s customers, keeping existing records',
+      async (status, words) => {
+        const customer = await newCustomer(`Status ${status} Ltd`);
+        const existing = await accepted({ customerId: customer.id });
+        const draft = await newQuotation({ customerId: customer.id });
+        await setStatus(customer.id, status);
+
+        const quote = await sales()
+          .post('/quotations', quotationBody({ customerId: customer.id }))
+          .expect(409);
+        expect(quote.body.message).toContain(words);
+        expect(quote.body.message).toContain(
+          'new quotations and bookings are blocked',
+        );
+        expect(fieldsIn(quote.body)).toEqual(['customerId']);
+        // Duplicating creates a new quotation for the same customer.
+        await sales()
+          .post('/quotations', {
+            ...quotationBody({ customerId: customer.id }),
+            duplicatedFrom: existing,
+          })
+          .expect(409);
+        // Moving another quotation to this customer is new work for them.
+        const other = await newQuotation();
+        await sales()
+          .patch(`/quotations/${other.reference}`, { customerId: customer.id })
+          .expect(409);
+        await sales().post(`/quotations/${existing}/convert`).expect(409);
+        await sales().post('/bookings', standaloneFor(customer.id)).expect(409);
+
+        // Existing records stay readable and say why new work is blocked.
+        const view = await api(tokens.operations)
+          .get(`/quotations/${existing}`)
+          .expect(200);
+        expect(view.body.customerNewWorkBlock).toBe(status);
+        // Editing an existing quotation without changing its customer is not new work.
+        await sales()
+          .patch(`/quotations/${draft.reference}`, {
+            cargoSummary: 'Still editable',
+          })
+          .expect(200);
+
+        // Once management makes the account active again, new work is accepted.
+        await api(tokens.management)
+          .patch(`/parties/${customer.id}`, { accountStatus: 'active' })
+          .expect(200);
+        const again = await sales().get(`/quotations/${existing}`).expect(200);
+        expect(again.body.customerNewWorkBlock).toBeNull();
+        await sales().post(`/quotations/${existing}/convert`).expect(201);
+      },
+    );
+
+    it('only management and admin change the account status', async () => {
+      const customer = await newCustomer('Status Permission Ltd');
+      for (const role of ['sales', 'finance', 'operations']) {
+        await api(tokens[role])
+          .patch(`/parties/${customer.id}`, { accountStatus: 'on_hold' })
+          .expect(403);
+      }
+      await api(tokens.management)
+        .patch(`/parties/${customer.id}`, { accountStatus: 'on_hold' })
+        .expect(200);
+    });
+
+    it('refuses archiving a customer with pending or confirmed bookings or open quotations, naming them', async () => {
+      const customer = await newCustomer('Open Work Ltd');
+      const open = await newQuotation({ customerId: customer.id });
+      const pending = (
+        await sales().post('/bookings', standaloneFor(customer.id)).expect(201)
+      ).body.reference as string;
+      const confirmed = (
+        await sales().post('/bookings', standaloneFor(customer.id)).expect(201)
+      ).body.reference as string;
+      await sales().post(`/bookings/${confirmed}/confirm`).expect(200);
+      // Expired quotations are not open work.
+      const expired = await newQuotation({ customerId: customer.id });
+      await db.orm.public.Quotation.where({
+        reference: expired.reference,
+      }).update({ issueDate: day(-30), validUntil: day(-1) });
+
+      const refused = await admin()
+        .post(`/parties/${customer.id}/archive`)
+        .expect(409);
+      expect(refused.body.message).toContain('open work');
+      const [first, second] = [pending, confirmed].sort();
+      expect(refused.body.details).toEqual([
+        {
+          field: 'bookings',
+          messages: [`2 pending or confirmed bookings: ${first}, ${second}.`],
+        },
+        {
+          field: 'quotations',
+          messages: [`1 open quotation: ${open.reference}.`],
+        },
+      ]);
+      expect(
+        (await db.orm.public.Party.first({ id: customer.id }))!.archivedAt,
+      ).toBeNull();
+
+      // Resolving the work allows archiving.
+      for (const reference of [pending, confirmed]) {
+        await sales()
+          .post(`/bookings/${reference}/cancel`, { reason: 'Not needed' })
+          .expect(200);
+      }
+      await sales()
+        .post(`/quotations/${open.reference}/status`, {
+          status: 'sent',
+          sentAt: new Date().toISOString(),
+          sentTo: 'buyer@example.com',
+        })
+        .expect(200);
+      await sales()
+        .post(`/quotations/${open.reference}/status`, {
+          status: 'declined',
+          decidedAt: new Date().toISOString(),
+        })
+        .expect(200);
+      await admin().post(`/parties/${customer.id}/archive`).expect(200);
+    });
+
+    it('has no booking edit endpoint, pending or confirmed', async () => {
+      const pending = (
+        await sales().post('/bookings', standaloneFor(customerId)).expect(201)
+      ).body.reference as string;
+      await sales()
+        .patch(`/bookings/${pending}`, { carrierBookingNumber: 'X-1' })
+        .expect(404);
+      await sales().post(`/bookings/${pending}/confirm`).expect(200);
+      await admin()
+        .patch(`/bookings/${pending}`, { carrierBookingNumber: 'X-1' })
+        .expect(404);
+      const booking = await db.orm.public.Booking.where({
+        reference: pending,
+      }).first();
+      expect(booking!.carrierBookingNumber).toBeNull();
+    });
+
+    it('keeps the approved permission matrix for quotations, bookings, credit and tax settings', async () => {
+      const permissions = await db.orm.public.Permission.all();
+      const grants = async (role: string) => {
+        const r = await db.orm.public.Role.where({ code: role }).first();
+        const links = await db.orm.public.RolePermission.where({
+          roleId: r!.id,
+        }).all();
+        return new Set(
+          links.map(
+            (l) => permissions.find((p) => p.id === l.permissionId)!.code,
+          ),
+        );
+      };
+      const codes = [
+        'quotations.view',
+        'quotations.manage',
+        'credit.override',
+        'settings.tax.manage',
+      ];
+      const expected: Record<string, string[]> = {
+        admin: codes,
+        sales: ['quotations.view', 'quotations.manage'],
+        finance: ['quotations.view', 'credit.override'],
+        management: ['quotations.view', 'credit.override'],
+        operations: ['quotations.view'],
+      };
+      for (const [role, wanted] of Object.entries(expected)) {
+        const held = await grants(role);
+        expect([role, codes.filter((c) => held.has(c))]).toEqual([
+          role,
+          wanted,
+        ]);
+      }
+    });
+
+    it('records the approver, and sales cannot approve their own request', async () => {
+      const limited = await newCustomer('Self Approval Ltd', {
+        creditLimit: '1000',
+      });
+      const reference = await accepted({ customerId: limited.id });
+      const booking = await sales()
+        .post(`/quotations/${reference}/convert`, {
+          creditDecision: {
+            decision: 'request_approval',
+            reason: 'Please approve',
+          },
+        })
+        .expect(201);
+      await sales()
+        .post(`/bookings/${booking.body.reference}/credit-approval`, {
+          decision: 'approve',
+          reason: 'Approving my own booking',
+        })
+        .expect(403);
+      await api(tokens.finance)
+        .post(`/bookings/${booking.body.reference}/credit-approval`, {
+          decision: 'approve',
+          reason: 'Payment plan agreed',
+        })
+        .expect(200);
+      const check = await db.orm.public.CreditCheck.where({
+        bookingId: booking.body.id,
+      }).first();
+      const finance = await db.orm.public.User.where({
+        email: FINANCE,
+      }).first();
+      expect(check!.decidedById).toBe(finance!.id);
+    });
+
+    describe('tax settings', () => {
+      it('lets only admin list and change charge-type tax settings', async () => {
+        for (const role of ['sales', 'finance', 'management', 'operations']) {
+          await api(tokens[role]).get('/charge-types/tax-settings').expect(403);
+          await api(tokens[role])
+            .patch('/charge-types/1/tax', { defaultTaxRate: '16' })
+            .expect(403);
+        }
+        const { body } = await admin()
+          .get('/charge-types/tax-settings')
+          .expect(200);
+        expect(body.length).toBeGreaterThan(0);
+        expect(body[0]).toHaveProperty('isActive');
+      });
+
+      it('validates the change', async () => {
+        const id = (await db.orm.public.ChargeType.first({}))!.id;
+        const empty = await admin()
+          .patch(`/charge-types/${id}/tax`, {})
+          .expect(400);
+        expect(fieldsIn(empty.body)).toEqual(['defaultTaxCategory']);
+        const high = await admin()
+          .patch(`/charge-types/${id}/tax`, { defaultTaxRate: '100.01' })
+          .expect(400);
+        expect(fieldsIn(high.body)).toEqual(['defaultTaxRate']);
+        const shape = await admin()
+          .patch(`/charge-types/${id}/tax`, { defaultTaxRate: '-1' })
+          .expect(400);
+        expect(fieldsIn(shape.body)).toEqual(['defaultTaxRate']);
+        const category = await admin()
+          .patch(`/charge-types/${id}/tax`, { defaultTaxCategory: 'luxury' })
+          .expect(400);
+        expect(fieldsIn(category.body)).toEqual(['defaultTaxCategory']);
+        await admin()
+          .patch('/charge-types/999999/tax', { defaultTaxRate: '1' })
+          .expect(404);
+      });
+
+      it('changes the defaults for new lines only, and audits the change', async () => {
+        const type = (await db.orm.public.ChargeType.where({
+          isActive: true,
+        }).first())!;
+        const saved = await newQuotation({
+          lines: [
+            {
+              chargeTypeId: type.id,
+              description: 'Charge with defaults',
+              quantity: '1',
+              unitPrice: '1000',
+              taxRate: type.defaultTaxRate,
+            },
+          ],
+        });
+        const before = (await db.orm.public.QuotationLine.where({
+          quotationId: saved.id,
+        }).first())!;
+        const next =
+          type.defaultTaxCategory === 'exempt' ? 'standard' : 'exempt';
+        const { body } = await admin()
+          .patch(`/charge-types/${type.id}/tax`, {
+            defaultTaxCategory: next,
+            defaultTaxRate: '8.5',
+          })
+          .expect(200);
+        expect(body).toMatchObject({
+          defaultTaxCategory: next,
+          defaultTaxRate: '8.50',
+        });
+        await admin()
+          .patch(`/charge-types/${type.id}/tax`, { defaultTaxRate: '8.50' })
+          .expect(409);
+
+        const listed = await sales().get('/charge-types').expect(200);
+        expect(
+          listed.body.find((c: { id: number }) => c.id === type.id),
+        ).toMatchObject({ defaultTaxCategory: next, defaultTaxRate: '8.50' });
+        const after = (await db.orm.public.QuotationLine.where({
+          id: before.id,
+        }).first())!;
+        expect([after.taxCategory, after.taxRate]).toEqual([
+          before.taxCategory,
+          before.taxRate,
+        ]);
+        const fresh = await newQuotation({
+          lines: [
+            {
+              chargeTypeId: type.id,
+              description: 'Charge with new defaults',
+              quantity: '1',
+              unitPrice: '1000',
+              taxRate: '8.5',
+            },
+          ],
+        });
+        const line = (await db.orm.public.QuotationLine.where({
+          quotationId: fresh.id,
+        }).first())!;
+        expect(line.taxCategory).toBe(next);
+
+        const audit = await db.orm.public.AuditLog.where({
+          entityType: 'ChargeType',
+          entityId: type.id,
+        }).all();
+        expect(audit.map((a) => a.action)).toEqual(['tax_update']);
+        expect(audit[0].changes).toEqual({
+          before: {
+            defaultTaxCategory: type.defaultTaxCategory,
+            defaultTaxRate: type.defaultTaxRate,
+          },
+          after: { defaultTaxCategory: next, defaultTaxRate: '8.50' },
+        });
+
+        // Put the seeded values back for later tests.
+        await admin()
+          .patch(`/charge-types/${type.id}/tax`, {
+            defaultTaxCategory: type.defaultTaxCategory,
+            defaultTaxRate: type.defaultTaxRate,
+          })
+          .expect(200);
+      });
+    });
+  });
 });

@@ -193,6 +193,13 @@ Every phase: feature branch and PR; DTO validation; business rules in services a
     - The Customers page links to the customer's quotations.
     - Demo fallback pages show the "Demo data" badge.
   - **Seeded permissions:** only admin holds both `quotations.manage` and `credit.override`, so in practice only an admin can proceed past a limit. Changing this is a permission-data decision for the repository owner.
+- **Repository-owner decisions of 2026-11-26 (`CLAUDE.md` §17 answers, LOG-20261126-1725-phase2-owner-decisions):**
+  - **Approved as built:** the credit rule (outstanding issued-invoice balance + this booking's value; other open bookings are not added; customers without a limit are not checked); the separate credit-approval workflow (Sales request, Finance/Management/Admin approve or reject, approver recorded, no `quotations.manage` for approvers); the permission matrix unchanged; one booking per quotation, no re-conversion (duplicate instead); no booking edits, pending or confirmed; last save wins for quotations, audited; the four Phase 1 decisions of 2026-11-04.
+  - **Built on 2026-11-26:**
+    - **On-hold and closed customers** are refused for new quotations, duplicates, moving a quotation to them, conversions and standalone bookings (409, explaining the status and that management or an administrator must make the account active). Existing records stay readable and editable without changing the customer. Quotation views carry `customerNewWorkBlock` (`archived`, `on_hold`, `closed` or null). Confirming or approving an existing pending booking is not blocked (it is not new work).
+    - **Archiving** a customer is refused while they have undelivered shipments, pending or confirmed bookings, or open quotations (draft or sent and still valid, the same rule as the "open quotations" figure). The 409 names up to five references per kind in `details` (`shipments`, `bookings`, `quotations`).
+    - **Tax settings:** `GET /api/charge-types/tax-settings` and `PATCH /api/charge-types/:id/tax` (`defaultTaxCategory`, `defaultTaxRate` 0–100), audited as `tax_update`, behind the new admin-only permission `settings.tax.manage` (seed data only; no schema change). Saved quotation lines keep their values. Settings › Tax settings edits them and marks them **provisional: not reviewed by the accountant**. Per-line half-away-from-zero rounding is unchanged.
+  - **KRA PIN:** still no fixed format (up to 20 characters, unique, upper case). An admin-configurable format is a future requirement; it needs a settings store (a schema change) and is not part of Phase 2.
 
 **Phase 3: Shipments and tracking**
 - Shipments from a booking or standalone (clearing-only). Server-side views: active, needs attention, arriving, customs, delayed.

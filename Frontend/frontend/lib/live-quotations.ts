@@ -14,6 +14,17 @@ export const CREDIT_OVERRIDE = 'credit.override';
 export type LiveQuotationStatus = Exclude<QuotationStatus, 'booked'>;
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
+/** Archived, on-hold and closed customers cannot receive new quotations or bookings (2026-11-26). */
+export type CustomerNewWorkBlock = 'archived' | 'on_hold' | 'closed';
+
+export const customerNewWorkBlockText: Record<CustomerNewWorkBlock, string> = {
+  archived: 'This customer is archived. Restore the customer before creating new quotations or bookings for them.',
+  on_hold:
+    'This customer is on hold, so new quotations and bookings are blocked. Management or an administrator must make the account active first.',
+  closed:
+    "This customer's account is closed, so new quotations and bookings are blocked. Management or an administrator must make the account active first.",
+};
+
 export interface PartyRef {
   id: number;
   name: string;
@@ -45,6 +56,8 @@ export interface LiveQuotation {
   storedStatus: LiveQuotationStatus;
   editable: boolean;
   customer: PartyRef;
+  /** Why the customer cannot receive new work (archived, on hold, closed), or null when they can. */
+  customerNewWorkBlock: CustomerNewWorkBlock | null;
   agent: PartyRef | null;
   mode: TransportMode;
   direction: ShipmentDirection;
@@ -237,6 +250,8 @@ export const bookingHref = (reference: string) => `/bookings/${encodeURIComponen
 /** Options for the live form: ids come from /api/parties. */
 export interface LiveFormOptions {
   customers: PartyRef[];
+  /** On-hold and closed customers left out of the list because new work for them is blocked. */
+  blockedCustomers: number;
   agents: PartyRef[];
   defaultTerms: string;
 }

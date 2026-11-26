@@ -18,6 +18,9 @@ export type RoleCode = (typeof ROLES)[number]['code'];
 export const PERMISSIONS: Record<string, string> = {
   'users.manage': 'Manage staff accounts and roles',
   'settings.references.manage': 'Change reference number formats',
+  // Admin only (allStaffPermissions). Added 2026-11-26: the tax defaults are provisional until the
+  // company accountant reviews them.
+  'settings.tax.manage': 'Change charge-type tax categories and rates',
   'credit.override': 'Proceed past a credit-limit warning',
   'parties.view': 'View customers and partners',
   'parties.manage': 'Create and edit customers and partners',

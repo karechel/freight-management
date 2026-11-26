@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { AuditLog } from '@/components/settings/audit-log';
 import { BackendHealthCard } from '@/components/settings/backend-health-card';
 import { NumberingEditor } from '@/components/settings/numbering-editor';
+import { TaxSettingsEditor } from '@/components/settings/tax-settings-editor';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DetailList } from '@/components/ui/detail-list';
@@ -20,6 +21,7 @@ const sections = [
   { id: 'currencies', label: 'Currencies' },
   { id: 'charges', label: 'Charge categories' },
   { id: 'numbering', label: 'Numbering' },
+  { id: 'tax', label: 'Tax settings' },
   { id: 'configuration', label: 'Other configuration' },
   { id: 'status', label: 'System status' },
   { id: 'audit', label: 'Audit log' },
@@ -74,7 +76,7 @@ export default function SettingsPage() {
       </PageHeader>
       <div className="mb-6">
         <PendingNotice title="Most settings cannot be changed yet">
-          These values are what the demo interface currently uses. Only the numbering formats are live: an administrator can
+          These values are what the demo interface currently uses. Only the numbering formats and tax settings are live: an administrator can
           change them after signing in. Everything else on this page is read-only.
         </PendingNotice>
       </div>
@@ -144,6 +146,10 @@ export default function SettingsPage() {
 
         <div id="numbering">
           <NumberingEditor fallback={numbering} />
+        </div>
+
+        <div id="tax">
+          <TaxSettingsEditor />
         </div>
 
         <div id="configuration">

@@ -112,6 +112,14 @@ export function CustomerDetailView({
             This customer is hidden from everyday lists and cannot be changed. Restore them to make changes.
           </PendingNotice>
         )}
+        {!archived && customer.accountStatus !== 'active' && (
+          <PendingNotice
+            title={customer.accountStatus === 'on_hold' ? 'This customer is on hold' : "This customer's account is closed"}
+          >
+            New quotations and bookings for this customer are blocked. Their existing records stay available. Management or
+            an administrator can make the account active again by editing the account status.
+          </PendingNotice>
+        )}
 
         <Card>
           <CardHeader title="Company" />

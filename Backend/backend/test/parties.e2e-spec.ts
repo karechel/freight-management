@@ -558,7 +558,10 @@ describe('Customers and contacts (e2e)', () => {
           .build(),
       );
       const { body } = await admin().post(`/parties/${id}/archive`).expect(409);
-      expect(body.message).toContain('active shipments');
+      expect(body.message).toContain('open work');
+      expect(body.details).toEqual([
+        { field: 'shipments', messages: ['1 undelivered shipment: BUSY-S1.'] },
+      ]);
       expect((await db.orm.public.Party.first({ id }))!.archivedAt).toBeNull();
       expect((await lastAudit('Party', id))!.action).toBe('create');
 

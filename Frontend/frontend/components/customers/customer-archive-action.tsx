@@ -11,25 +11,36 @@ export function CustomerArchiveAction({ id, name, archived }: { id: number; name
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string>();
+  // The open work that blocks archiving (shipments, bookings, quotations), one line per kind.
+  const [blockers, setBlockers] = useState<string[]>([]);
 
   async function run(action: 'archive' | 'restore') {
     setBusy(true);
     setFailure(undefined);
+    setBlockers([]);
     try {
       await backend.post(`parties/${id}/${action}`, {});
       setConfirming(false);
       router.refresh();
     } catch (error) {
       setFailure(error instanceof ApiError ? error.message : 'That did not work. Try again.');
+      setBlockers(error instanceof ApiError ? error.details.flatMap((d) => d.messages) : []);
     } finally {
       setBusy(false);
     }
   }
 
   const problem = failure && (
-    <p role="alert" className="w-full text-sm font-medium text-red-700">
-      {failure}
-    </p>
+    <div role="alert" className="w-full text-sm text-red-700">
+      <p className="font-medium">{failure}</p>
+      {blockers.length > 0 && (
+        <ul className="mt-1 list-disc pl-5">
+          {blockers.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 
   if (archived) {

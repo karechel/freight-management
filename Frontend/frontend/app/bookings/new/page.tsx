@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { BlockedCustomersNote } from '@/components/quotations/blocked-customers-note';
 import { NewBookingForm } from '@/components/quotations/new-booking-form';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
@@ -48,6 +49,7 @@ export default async function NewBookingPage() {
         description="For work agreed without a quotation. To book an accepted quotation, convert it from the quotation's page."
         back={back}
       />
+      <BlockedCustomersNote count={options.data.blockedCustomers} />
       <NewBookingForm
         customers={options.data.customers}
         agents={options.data.agents}

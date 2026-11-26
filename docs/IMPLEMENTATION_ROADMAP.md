@@ -72,7 +72,14 @@ Every phase, per the approved plan:
   - Nothing yet blocks new work for an archived customer (Phases 2–3 must check `archivedAt`).
   - Four decisions dated 2026-11-04 (`CLAUDE.md` §9) came from a session whose operator was not confirmed, and await the repository owner's review.
 
-### Phase 2 — Quotations and bookings · **Implementation complete and verified (2026-11-20); pushed on `feature/quotations-phase2`; awaiting the PR, the repository owner's review and decisions, and merge**
+### Phase 2 — Quotations and bookings · **Complete and verified (2026-11-26); owner decisions answered and implemented; pushed on `feature/quotations-phase2`; awaiting the PR (opened in the browser by a contributor), review and merge**
+- **Owner decisions implemented (2026-11-26, LOG-20261126-1725-phase2-owner-decisions in `CLAUDE.md`):**
+  - The repository owner answered every question in `CLAUDE.md` §17 and approved the credit rule, the credit-approval workflow, the permission matrix, one booking per quotation, no booking edits and last-save-wins.
+  - Built: on-hold and closed customers blocked from new quotations and bookings; archiving refused while a customer has undelivered shipments, pending or confirmed bookings, or open quotations; admin-editable charge-type tax settings (new admin-only permission `settings.tax.manage`, no schema change); the browser checks committed as `Frontend/frontend/scripts/browser-checks.mjs` (26 checks, no new dependency).
+  - Checks: 137 unit, 168 end-to-end, 26/26 browser; `tsc`, lint and builds pass.
+  - **Still provisional:** the tax categories and rates have **not** been reviewed by the company's accountant. Admins can change them in Settings › Tax settings. This does not block Phase 2.
+  - **Future, not Phase 2:** an admin-configurable KRA PIN format (needs a settings store and a schema change).
+  - Closes when the PR is reviewed and merged by the repository owner. Phase 3 may then start (owner approval of 2026-11-26), not before.
 - **Completion status (2026-11-20, LOG-20261120-1543-phase2-complete):**
   - Every item in the approved Phase 2 scope is built and tested, plus the audit's fixes and the credit-approval step.
   - Final checks: 112 unit, 158 end-to-end, 22/22 browser; builds pass.
@@ -103,7 +110,7 @@ Every phase, per the approved plan:
   - API contracts are updated.
   - Phase 1's archived-customer gap is closed for quotations and bookings.
 
-### Phase 3 — Shipments and tracking · **Not started**
+### Phase 3 — Shipments and tracking · **Not started** (approved by the repository owner on 2026-11-26 to follow once Phase 2 passes its checks and is merged, with the provisional tax configuration documented)
 - **Depends on:** Phase 2 (bookings); clearing-only shipments can be created standalone.
 - **Schema:** none expected (`Shipment`, `Container`, `ShipmentMilestone`, `ShipmentIssue`, `CustomsEntry` exist).
 - **Backend:**

@@ -21,7 +21,16 @@ import type {
   UpdateContactDto,
   UpdatePartyDto,
 } from './parties.dto.js';
-import { containsPattern, normalizeMoney } from './party-rules.js';
+import {
+  effectiveStatus,
+  nairobiToday,
+} from '../quotations/quotation-rules.js';
+import {
+  archiveBlockers,
+  containsPattern,
+  normalizeMoney,
+  type OpenWork,
+} from './party-rules.js';
 
 export const PARTIES_VIEW = 'parties.view';
 export const PARTIES_MANAGE = 'parties.manage';
@@ -369,14 +378,8 @@ export class PartiesService {
         );
       }
       if (archive) {
-        const active = await tx.orm.public.Shipment.where({ customerId: id })
-          .where((s) => s.status.neq('delivered'))
-          .first();
-        if (active) {
-          throw new ConflictException(
-            'This customer has active shipments. They can be archived once every shipment is delivered.',
-          );
-        }
+        const blockers = archiveBlockers(await this.openWork(tx, id));
+        if (blockers) throw new ConflictException(blockers);
       }
       const now = new Date();
       await tx.orm.public.Party.where({ id }).update({
@@ -392,6 +395,38 @@ export class PartiesService {
       });
     });
     return this.getOne(id, user);
+  }
+
+  /**
+   * A customer's open work, which blocks archiving: undelivered shipments, pending or confirmed
+   * bookings, and open quotations (draft or sent and still valid on the Nairobi calendar, the same
+   * rule as the customer's "open quotations" figure).
+   */
+  private async openWork(tx: Tx, customerId: number): Promise<OpenWork> {
+    const today = nairobiToday();
+    const [shipments, bookings, quotations] = await Promise.all([
+      tx.orm.public.Shipment.where({ customerId })
+        .where((s) => s.status.neq('delivered'))
+        .orderBy((s) => s.reference.asc())
+        .all(),
+      tx.orm.public.Booking.where({ customerId })
+        .where((b) => b.status.in(['pending', 'confirmed']))
+        .orderBy((b) => b.reference.asc())
+        .all(),
+      tx.orm.public.Quotation.where({ customerId })
+        .where((q) => q.status.in(['draft', 'sent']))
+        .orderBy((q) => q.reference.asc())
+        .all(),
+    ]);
+    return {
+      shipments: shipments.map((s) => s.reference),
+      bookings: bookings.map((b) => b.reference),
+      quotations: quotations
+        .filter(
+          (q) => effectiveStatus(q.status, q.validUntil, today) !== 'expired',
+        )
+        .map((q) => q.reference),
+    };
   }
 
   async addContact(partyId: number, dto: CreateContactDto, user: Principal) {

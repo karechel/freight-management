@@ -2,6 +2,11 @@ import { ConflictException } from '@nestjs/common';
 import { validationFailed } from '../common/validation-exception.js';
 import type { Tx } from '../prisma/prisma.service.js';
 import type { PartyRole } from './parties.dto.js';
+import {
+  NEW_WORK_BLOCK_MESSAGES,
+  newWorkBlock,
+  type NewWorkBlock,
+} from './party-rules.js';
 
 /**
  * Loads a party that must hold `role`, for linking to new work (quotations, bookings, later
@@ -26,9 +31,15 @@ export async function requirePartyWithRole(
   return party;
 }
 
+const BLOCK_FIELD_MESSAGES: Record<NewWorkBlock, string> = {
+  archived: 'This customer is archived.',
+  on_hold: 'This customer is on hold.',
+  closed: "This customer's account is closed.",
+};
+
 /**
- * Archived customers cannot receive new work (Phase 1 note in docs/backend-implementation-plan.md
- * §6). They must be restored first.
+ * Archived customers (Phase 1) and on-hold or closed customers (repository owner, 2026-11-26)
+ * cannot receive new quotations or bookings. The refusal explains the status and what must change.
  */
 export async function requireActiveCustomer(
   tx: Tx,
@@ -36,11 +47,11 @@ export async function requireActiveCustomer(
   field = 'customerId',
 ) {
   const customer = await requirePartyWithRole(tx, id, 'customer', field);
-  if (customer.archivedAt !== null) {
+  const block = newWorkBlock(customer);
+  if (block !== null) {
     throw new ConflictException({
-      message:
-        'This customer is archived. Restore the customer before creating new work for them.',
-      details: [{ field, messages: ['This customer is archived.'] }],
+      message: NEW_WORK_BLOCK_MESSAGES[block],
+      details: [{ field, messages: [BLOCK_FIELD_MESSAGES[block]] }],
     });
   }
   return customer;

@@ -13,7 +13,7 @@ import {
   requireActiveCustomer,
   requirePartyWithRole,
 } from '../parties/party-checks.js';
-import { containsPattern } from '../parties/party-rules.js';
+import { containsPattern, newWorkBlock } from '../parties/party-rules.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 import { ReferencesService } from '../references/references.service.js';
 import {
@@ -561,6 +561,10 @@ export class QuotationsService {
       const found = id === null ? undefined : parties.find((p) => p.id === id);
       return found ? { id: found.id, name: found.name } : null;
     };
+    const blockOf = (id: number) => {
+      const found = parties.find((p) => p.id === id);
+      return found ? newWorkBlock(found) : null;
+    };
     const byId = new Map(quotations.map((q) => [q.id, q]));
 
     return ids.map((id) => {
@@ -580,6 +584,8 @@ export class QuotationsService {
         storedStatus: q.status,
         editable: isEditable(status, booking !== undefined),
         customer: party(q.customerId),
+        // Why the customer cannot receive new work (a booking from this quotation), or null.
+        customerNewWorkBlock: blockOf(q.customerId),
         agent: party(q.agentId),
         mode: q.mode,
         direction: q.direction,

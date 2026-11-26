@@ -1997,3 +1997,122 @@ After the Necessary corrections in 16.5 are reviewed and applied, the file is su
 - **Not done (deliberately):** §12 and §14 not yet updated with the new findings (left for the approved fix session); no code, database, permission or Git changes; Phase 3 not started.
 - Database/schema changes: none · Dependency changes: none · Commit: **not committed** · Pushed: no.
 - Working-tree status after: `CLAUDE.md` modified (this entry only); branch `feature/quotations-phase2` at `071041a`.
+
+### LOG-20261120-1501-phase2-batch1 — Phase 2 remediation batch 1: seven fixes, tests, seed; not committed
+- Time: 2026-11-20, from 14:45:07 (start) to 15:03:09 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`. The label uses 15:01, when the last check finished.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received:** pasted brief "TASK: Complete Phase 2 — First Remediation Batch":
+  - Fix the seven items from LOG-20261120-1436-phase2-audit that need no new business-rule or permission decision.
+  - Add tests; verify seed repeatability without destroying data; update the docs and this file.
+  - No credit-rule, permission, on-hold/closed or re-conversion changes; no booking edits; no schema change; no Phase 3; no commit or push.
+- **Starting state:** after `git fetch origin --prune`, branch `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `071041a`; `origin/main` = `cbad567`. Uncommitted: `CLAUDE.md` (the LOG-20261120-1436 entry), kept.
+- **Implemented:**
+  1. **Issue date after sent date (bug):**
+     - New rule `issueAfterSentProblem` in `src/quotations/quotation-rules.ts`: a sent quotation's issue date cannot be after the Nairobi day it was sent.
+     - Applied in `QuotationsService.update` when the dates are valid.
+     - Tests: 4 unit tests (`quotation-rules.spec.ts`) and 1 end-to-end regression (`test/quotations.e2e-spec.ts`).
+  2. **"Live data" badge on demo fallback pages:**
+     - New `components/layout/page-source.tsx` (`DemoPageContext`, `DemoPageMarker`). `AppShell` shows "Demo data" while a marker is rendered.
+     - The marker is rendered by the three demo fallbacks: `app/quotations/[reference]/page.tsx`, `[reference]/edit/page.tsx`, `new/page.tsx`.
+     - Limitation: the server-rendered HTML says "Live data" until the page hydrates (the marker is set in an effect).
+  3. **Cancelled bookings:**
+     - `quotationDisplayStatus` in `lib/live-quotations.ts` shows "Booking cancelled" when the quotation's booking is cancelled. It is used by the list and the detail page.
+     - The detail page explains that the quotation cannot be converted again (one booking per quotation; no re-conversion policy invented).
+     - Frontend only.
+  4. **Open-quotation count:** `PartiesService.figures` counts as open only draft or sent quotations with `validUntil` on or after today (Nairobi).
+     - The Phase 1 figures e2e test now uses far-future validity, so it no longer starts failing after 2026-11-30.
+     - It adds two expired quotations: expected `{ open: 2, total: 5 }`.
+  5. **Customer page:**
+     - The outdated "Shipments and quotations move to the live system in later phases" is replaced.
+     - A "View quotations" link opens `/quotations?customerId=<id>`.
+     - `lib/live-quotations.ts` filters gain `customerId` (page and API queries, a hidden form field). `components/quotations/live-lists.tsx` shows "Showing quotations for … · Show all customers".
+  6. **Convert form** (`components/quotations/live-quotation-actions.tsx`):
+     - Optional carrier (live carriers loaded by `app/quotations/[reference]/page.tsx` only for accepted, unbooked quotations and `quotations.manage` holders), carrier booking number, planned departure and arrival.
+     - Uses the existing API fields. Client checks that arrival is not before departure, with errors clearing on change. The values are kept through the credit-warning retry.
+  7. **Demo seed:**
+     - New `src/seed/demo-quotations.ts` (`seedDemoQuotations`), called by `src/seed/seed-demo.ts` after `seedDemo`. It adds the 8 frontend demo quotations, with the same references, and 2 confirmed bookings (`BKG-2610-0001`, `BKG-2610-0002`).
+     - Fictional sent and decision times. Stored status `sent` for the demo "expired" record and `accepted` for "booked".
+     - Skips existing references; refuses `NODE_ENV=production`; moves counters forward with `GREATEST` for the configured period.
+     - Kept out of `seedDemo` because `test/references.e2e-spec.ts` expects `QT-2611-0001` after `seedDemo`.
+     - 2 new e2e tests in `test/seed.e2e-spec.ts` (added once; counter never moved back), plus the production refusal.
+- **Unchanged (as instructed):** the credit rule, permissions, rules for on-hold and closed customers, re-conversion, booking editing, the schema and migrations, and dependencies.
+- **Files:**
+  - Created: `Backend/backend/src/seed/demo-quotations.ts`, `Frontend/frontend/components/layout/page-source.tsx`.
+  - Edited (backend): `src/quotations/quotation-rules.ts`, `quotation-rules.spec.ts`, `quotations.service.ts`; `src/parties/parties.service.ts`; `src/seed/seed-demo.ts`; `test/quotations.e2e-spec.ts`, `test/parties.e2e-spec.ts`, `test/seed.e2e-spec.ts`.
+  - Edited (frontend): `components/layout/app-shell.tsx` (7 lines; a first attempt ran Prettier over the whole file, so it was restored with `git checkout -- …` and edited by hand); the three `app/quotations/…` pages; `components/customers/customer-detail-view.tsx`; `components/quotations/live-lists.tsx`, `live-quotation-actions.tsx`, `live-quotation-detail.tsx`; `lib/live-quotations.ts`.
+  - Docs: `Frontend/frontend/docs/api-contracts.md`, `docs/backend-implementation-plan.md`, `docs/IMPLEMENTATION_ROADMAP.md`, this file (§5, §11, §12 items 16–22, §14, §13), `docs/activity-log.md`.
+- **Checks run (actual results):**
+  - Backend: `tsc` exit 0; `npm run lint` exit 0; `npm test` → 10 files, 108 pass; `npm run test:e2e` → 6 files, 145 pass (81 s; writes only the `*_test` database); `npm run build` pass. Prettier `--check`: only the three files already flagged before this session.
+  - Seed repeatability, on the development database (adds rows, never deletes; a throwaway count script was run from the backend folder and removed):
+    - Before: 17 parties, 5 users, 15 quotations, 10 bookings, 10 credit checks; counters `booking:0=11`, `quotation:0=16`.
+    - `npm run db:seed:demo`, first run: `{ quotations: 8, bookings: 2 }`. Second run: `{ quotations: 0, bookings: 0 }`.
+    - After: 23 quotations, 12 bookings; everything else unchanged; counters `booking:0=11`, `quotation:0=58`.
+  - Frontend: `next typegen`; `tsc` exit 0; lint exit 0; build pass.
+  - Headless Chrome (scratchpad `browser-check.mjs`, extended with 4 new checks and with the old demo-link check rewritten, since seeded references are now live), against production builds on ports 3000 and 3001:
+    - Run 1: 18/18. Its screenshot showed the date-order error staying after a corrected date, so errors now clear on change and a check was added.
+    - Run 2 (final build): **18/18**, no server error lines.
+    - Screenshots reviewed by eye.
+  - Processes: servers stopped by the ports' owning processes (last: 3000 → 19408, 3001 → 22808).
+- **Failed attempts:**
+  1. Prettier reformatted the whole of `app-shell.tsx` (the frontend does not use Prettier); restored and edited by hand.
+  2. A shell `node -e` script failed on an apostrophe before running; nothing was written, and it was redone from scratchpad files `docs-batch1.cjs` and `claude-batch1.cjs`.
+  3. An earlier `node -e` edit of `test/parties.e2e-spec.ts` did not match (CRLF file) and was redone with exact edits.
+- **History archived (§15 rule 7):** this file had reached about 101,600 characters.
+  - Moved LOG-20261120-1246-backend-roadmap, LOG-20261120-1300-approved-plan-review and LOG-20261120-1309-phase2-prep-audit (3 entries, 11,924 characters) verbatim to the end of `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`.
+  - Updated the §13 summary (pointer and a "2026-11-20 (morning)" bullet). The file is now about 90,000 characters before this entry.
+- **Remaining decisions (repository owner):** the credit rule; the permission matrix; on-hold and closed customers; archiving with open bookings or quotations; re-converting quotations whose booking was cancelled (schema); booking edits; whether the standalone-booking page belongs in Phase 2; stale-update handling for quotations; the four 2026-11-04 Phase 1 decisions; the accountant's tax-default review. Operator decision: whether to commit a browser-check tool.
+- Database/schema changes: none to the schema or migrations. The development database gained the seeded rows above and the browser checks' fictional records; the test database was rewritten by the e2e run.
+- Dependency changes: none.
+- Commit: **not committed** · Pushed: **no**.
+- Working-tree status after: on `feature/quotations-phase2` at `071041a`, with the files above modified or created and nothing staged.
+
+### LOG-20261120-1514-credit-approval — Credit-approval step: Sales book over the limit, Finance or Management approve (not committed)
+- Time: 2026-11-20, from 15:14:02 (start) to 15:27:19 +03:00 (this entry written) (Africa/Nairobi) — source: PowerShell `Get-Date`.
+- Contributor/session: same session; operator not confirmed / Claude Code (Opus 5.5).
+- **Instruction received** (sent twice): "Have Claude Code implement this permission adjustment, add tests for Sales creating a booking and Finance/Management approving it, and update the activity log and documentation. No Phase 3 work, schema changes, commits or pushes unless separately authorized."
+- **Interpretation:**
+  - "This permission adjustment" is not described in this session, `CLAUDE.md` or the docs.
+  - A question offering two readings ("approval step on the booking" or "grant `quotations.manage` to Finance and Management") was **declined**, and the instruction was repeated unchanged.
+  - The approval-step reading was implemented, because it matches "Sales creating a booking and Finance/Management approving it".
+  - Who decided it (repository owner or operator) was not stated. **The repository owner's approval is not confirmed.**
+- **Starting state:** branch `feature/quotations-phase2` = `origin/feature/quotations-phase2` = `071041a` (after `git fetch origin --prune`); 24 uncommitted paths from LOG-20261120-1436 and LOG-20261120-1501 kept.
+- **Behaviour implemented:**
+  - **Request:** over the credit limit, the warning now offers `request_approval` to anyone who can manage bookings.
+    - The booking is created `pending` and **awaiting credit approval**.
+    - No `CreditCheck` is written yet. The request, figures and reason go to `AuditLog` (`credit_approval_requested`).
+  - **Decision:** `POST /api/bookings/:reference/credit-approval` `{ decision: approve | reject, reason }`.
+    - Needs `credit.override` + `quotations.view`, **not** `quotations.manage` (this is the permission adjustment).
+    - `approve` writes a `proceed` CreditCheck: decider, time, reason, exposure recalculated now, the value as requested.
+    - `reject` writes `blocked` and cancels the booking ("Credit approval rejected: <reason>").
+    - Both audited (`credit_approved` / `credit_rejected`). The booking row is locked; a decision is final (409 afterwards).
+  - **Confirmation:** refused (409) while awaiting approval.
+  - **Views:** booking responses carry `creditApproval` (state, requester, time, reason; money figures only with `parties.billing.view`). `GET /api/bookings?creditApproval=awaiting` lists the waiting ones.
+  - **Unchanged:** the credit rule (outstanding + value against the limit); Admin and other override holders can still proceed directly; "stop" still records `blocked` without a booking.
+- **Also fixed:** a standalone booking's `estimatedValue` was passed to the credit check as typed (`"250000"`), unlike every other amount (`"250000.00"`). It is now normalized to two decimals. A new e2e test exposed it.
+- **Not changed:** schema and migrations, role permissions and seed data (no new permission codes), dependencies, Phase 3.
+- **Derived state, no schema change:** "awaiting" = a `credit_approval_requested` audit entry exists and the booking has no `CreditCheck` yet. A dedicated column would be cleaner, but it is a schema change and was not authorized.
+- **Files:**
+  - Backend: `src/credit/credit.service.ts` (`request_approval`, `RecordedOutcome`, reusable `currentFigures`); `src/bookings/booking-rules.ts` + spec (`creditApprovalState`, confirm block, 4 unit tests); `src/bookings/bookings.dto.ts` (`request_approval`, `CreditApprovalDto`, `creditApproval` filter); `src/bookings/bookings.service.ts` (request record, `decideCreditApproval`, `approvals` helper, list filter, view, `estimatedValue` normalization); `src/bookings/bookings.controller.ts` (new endpoint); `test/quotations.e2e-spec.ts` (7 e2e tests).
+  - Frontend: `lib/live-quotations.ts` (types, `creditApprovalMeta`, list filter); `components/quotations/live-quotation-actions.tsx` ("Book and request approval"); `components/quotations/booking-detail.tsx` (credit-approval card with Approve and Reject; no Confirm while awaiting; header badge); `components/quotations/live-lists.tsx` (badge; "Show only bookings awaiting credit approval"); `app/bookings/[reference]/page.tsx` (`canApprove`).
+  - Docs: `Frontend/frontend/docs/api-contracts.md`, `docs/backend-implementation-plan.md`, `docs/IMPLEMENTATION_ROADMAP.md`, this file (§5, §9 new row, §11, §12 item 19, §14), `docs/activity-log.md`.
+- **Tests added for the requested scenarios** (`test/quotations.e2e-spec.ts`, "credit approval: sales books, finance or management approve"):
+  1. Sales creates an over-limit booking with `request_approval` → pending and awaiting, figures and requester shown, no `CreditCheck`, request audited.
+  2. Confirmation refused until approved; approval refused for Sales (403), Operations (403) and signed-out callers (401).
+  3. **Finance approves** → `proceed` CreditCheck by Finance, audited; Sales then confirms; a second decision → 409.
+  4. **Management rejects** → `blocked` CreditCheck by Management; booking cancelled; quotation shows the cancelled booking; confirm → 409.
+  5. Reason required (400); a booking that never asked → 409; unknown booking → 404.
+  6. Standalone request with `estimatedValue`; the awaiting filter; Operations sees the state without figures.
+  7. Admin still proceeds directly, with no approval state.
+- **Checks run (actual results):**
+  - Backend: `tsc` exit 0; lint exit 0; `npm test` → 10 files, **112 pass**; `npm run test:e2e` → 6 files, **152 pass**. The first e2e run had 1 failure (the `estimatedValue` normalization above); it passed after the fix. `npm run build` pass. Prettier: only the three files flagged before.
+  - Frontend: `tsc` exit 0; lint exit 0; build pass.
+  - Headless Chrome (scratchpad `browser-check.mjs`, plus 3 approval checks) against production builds on the development database → **21/21**, no server error lines. Screenshot of the approver's view reviewed.
+  - Servers stopped (3000 → 24008, 3001 → 9408). The development database gained fictional records from the checks (an "Approval Browser Ltd …" customer, quotations, bookings, credit checks).
+- **Failed attempts:** one inline `node` heredoc failed on shell quoting before running; nothing was written. The scripts were then run from scratchpad files (`approval-svc.cjs`, `approval-ctl.cjs`, `approval-e2e.cjs`, `approval-fe-*.cjs`, `approval-docs.cjs`, `approval-claude.cjs`).
+- **History archived (§15 rule 7):** LOG-20261120-1315-phase2-start, LOG-20261120-1343-phase2-backend and LOG-20261120-1412-phase2-done were moved verbatim to `docs/activity-log.md` Part C, after checking them against `git show HEAD:CLAUDE.md`. The §13 summary was updated.
+- **Open:**
+  - The repository owner should confirm this approval design, the credit rule and the permission matrix.
+  - The other owner decisions in §14.
+  - Commit and push (not authorized); the PR.
+- Database/schema changes: none · Dependency changes: none · Commit: **not committed** · Pushed: **no**.
+- Working-tree status after: on `feature/quotations-phase2` at `071041a`; batch 1 and this work uncommitted; nothing staged.

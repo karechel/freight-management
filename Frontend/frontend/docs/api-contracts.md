@@ -40,7 +40,7 @@ Pages read these on the server with `lib/api/server.ts` and change them through 
 | GET | `/api/parties/:id` | `parties.view` | | The party with `contacts`, primary first. 404 if unknown or not a valid id |
 | POST | `/api/parties` | `parties.manage` | `{ name, roles[], ...details }`. Terms and limit also need `parties.billing.manage`; `accountStatus` also needs `parties.status.manage` | 201 with the party |
 | PATCH | `/api/parties/:id` | Details: `parties.manage`. Terms and limit: `parties.billing.manage`. `accountStatus`: `parties.status.manage` | Any fields; blank or `null` clears an optional one | The party. 403 if any field sent is not allowed, and nothing is saved. 409 if archived |
-| POST | `/api/parties/:id/archive`, `/restore` | `parties.manage` | | The party. 409 if already in that state. Archiving also returns 409 while the customer has a shipment not yet delivered |
+| POST | `/api/parties/:id/archive`, `/restore` | `parties.manage` | | The party. 409 if already in that state. Archiving also returns 409 while the customer has open work: undelivered shipments, pending or confirmed bookings, or open (draft or sent, still valid) quotations. `details` names them per kind (`shipments`, `bookings`, `quotations`; up to 5 references each) (2026-11-26) |
 | POST | `/api/parties/:id/contacts` | `parties.manage` | `{ name, title?, email?, phone?, isPrimary? }` | 201 with the contact. A party's first contact is always primary |
 | PATCH | `/api/parties/:id/contacts/:contactId` | `parties.manage` | Any contact fields | The contact. 400 if it would leave the party with no primary contact |
 | DELETE | `/api/parties/:id/contacts/:contactId` | `parties.manage` | | 204. If it was primary, the longest-standing remaining contact takes over |
@@ -64,7 +64,9 @@ Quotations and bookings are addressed by their reference (for example `/api/quot
 
 | Method | Path | Permission | Request | Response |
 |---|---|---|---|---|
-| GET | `/api/charge-types` | Signed in | | Active charge types: `[{ id, code, name, category, defaultTaxCategory, defaultTaxRate, isDisbursement }]` |
+| GET | `/api/charge-types` | Signed in | | Active charge types: `[{ id, code, name, category, defaultTaxCategory, defaultTaxRate, isDisbursement, isActive }]` |
+| GET | `/api/charge-types/tax-settings` | `settings.tax.manage` (admin) | | Every charge type, active or not, same shape (2026-11-26) |
+| PATCH | `/api/charge-types/:id/tax` | `settings.tax.manage` (admin) | `{ defaultTaxCategory?, defaultTaxRate? }` (at least one; rate 0–100, up to 2 decimals) | The charge type. 409 if nothing changes. Audited (`tax_update`). Saved quotation lines keep their own values. The defaults are provisional until the accountant reviews them (2026-11-26) |
 | GET | `/api/quotations` | `quotations.view` | Query: `status` (`draft`, `sent`, `accepted`, `declined`, `expired`), `customerId`, `agentId`, `q`, `limit`, `offset` | `{ items, total }`, newest issue date first. Items have no `lines` |
 | GET | `/api/quotations/:reference` | `quotations.view` | | The quotation with `lines`. 404 if unknown |
 | POST | `/api/quotations` | `quotations.manage` | `{ customerId, agentId?, mode, direction, origin, destination, cargoSummary, issueDate, validUntil, lines[], incoterm?, packages?, grossWeightKg?, volumeCbm?, terms?, internalNote?, duplicatedFrom? }` | 201 with the quotation, status `draft`. `duplicatedFrom` (a reference) records a copy |
@@ -103,7 +105,7 @@ Quotations and bookings are addressed by their reference (for example `/api/quot
 - **Header rules:** origin and destination must differ. The issue date cannot be in the future. Valid-until is on or after the issue date. Up to 50 lines. On a sent quotation, the issue date cannot be moved after the Nairobi day it was sent (400 on `issueDate`; added 2026-11-20).
 - **Expiry:** a draft or sent quotation is `expired` once its valid-until date has passed on the Nairobi calendar. It is still valid on that day. Expired quotations cannot be edited or change status; duplicate them instead.
 - **Status flow:** `draft → sent → accepted | declined`, and `accepted → declined` while not booked. `sentAt` and `decidedAt` cannot be in the future or before the issue date, and a decision cannot be before the quotation was sent. Nothing is emailed.
-- **Parties:** the customer must hold the `customer` role and must not be archived (409). An agent must hold `agent`, and a carrier must hold `carrier`.
+- **Parties:** the customer must hold the `customer` role and must not be archived, on hold or closed (409 with an explanation; on hold and closed added 2026-11-26). Quotation views include `customerNewWorkBlock` (`archived`, `on_hold`, `closed` or `null`). An agent must hold `agent`, and a carrier must hold `carrier`.
 - **Bookings:** an accepted quotation converts to exactly one booking, which copies its customer, agent, mode, direction, route and cargo. A cancelled booking cannot be replaced by converting again.
 - **Credit limit** (decided 2026-11-20). A check runs when the customer has a credit limit and the outstanding balance plus the booking's value exceeds it. The outstanding balance is the same figure as `billing.account.outstanding`; the value is the quotation total, or `estimatedValue` for a booking without a quotation (required when the customer has a limit).
   - Without a `creditDecision`, the response is 409 with `details[0] = { field: 'creditDecision', exposure, creditLimit, attemptedAmount, canOverride }`.

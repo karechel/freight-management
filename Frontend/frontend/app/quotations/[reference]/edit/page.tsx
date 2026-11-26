@@ -58,7 +58,7 @@ export default async function EditQuotationPage({ params }: PageProps<'/quotatio
       </>
     );
   }
-  const options = await getLiveQuotationFormOptions(returnTo);
+  const options = await getLiveQuotationFormOptions(returnTo, quotation.data.customer.id);
   if (!options.ok) return blocked('This page could not be loaded', options.message);
   return (
     <>
